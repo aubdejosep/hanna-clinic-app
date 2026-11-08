@@ -2,12 +2,13 @@
 
 The staff app for Hanna Pet Wellness Center at **app.hannapetwellnesscenter.com**: clients and pets now, with appointments, medical records and clinic operations to follow. See [docs/PLAN.md](docs/PLAN.md).
 
-Built with React + Vite, hosted on Cloudflare Pages with a D1 database, and locked by Cloudflare Access, the same setup as the website's `/staff` page.
+Built with React + Vite and hosted on Cloudflare Pages with a D1 database. Staff log in on the app's own page with email and password; **Remember me** keeps a device logged in for 30 days.
 
 ## What's built (phase 0)
 
 - **Clients & pets:** search owners by name, mobile, customer number or pet; search pets by name, breed, microchip or owner; register an owner with their pets (warns when the mobile is already on file); edit owners and pets; allergies highlighted.
 - **Records to check:** the 115 imported owners with a missing, odd or shared mobile, or a duplicate name, each with **Mark as checked**.
+- **Login:** email + password, Remember me, Log out. 5 wrong passwords pause an account for 15 minutes.
 - **Dashboard:** owner and pet totals and new this month; the other cards are placeholders.
 - **Legacy import:** `scripts/import-legacy.mjs` loads the old system's owner and pet exports, cleaning up phone numbers, placeholder emails, microchips and breed spellings (536 spellings → 293 breeds).
 
@@ -40,23 +41,27 @@ Run the last line **once**. `data/import-report.md` lists what was cleaned up. D
 3. **Save and Deploy.** The database connection comes from `wrangler.toml`.
 4. **Custom domains → Set up a custom domain** → `app.hannapetwellnesscenter.com`.
 
-### 4. Lock it with Cloudflare Access
+### 4. Create the owner logins
 
-1. **Zero Trust → Access → Applications → Add an application → Self-hosted.**
-2. Application domain: `app.hannapetwellnesscenter.com`. Add a second one for preview links: `*.hanna-clinic-app.pages.dev`.
-3. Policy: **Allow**, include **Emails**: the owner and each staff member. Login method: **One-time PIN**.
-4. Copy the **Application Audience (AUD) Tag**.
-5. In the Pages project, go to **Settings → Variables and Secrets** and add:
+Nobody can log in until a login exists. On the computer from step 2, in this folder:
 
-| Name | Value |
-|---|---|
-| `ACCESS_TEAM_DOMAIN` | your team domain, e.g. `hanna.cloudflareaccess.com` (Zero Trust → Settings) |
-| `ACCESS_AUD` | the AUD tag from step 4 |
-| `ADMIN_EMAILS` | the owner's email (comma-separate several) |
+```
+git pull
+npx wrangler d1 migrations apply hanna-clinic --remote
+npm run set-password -- --email you@example.com --first YourFirstName --last YourSurname --role owner
+npx wrangler d1 execute hanna-clinic --remote --file data/set-password.sql
+```
 
-6. Redeploy (**Deployments → … → Retry deployment**) so the settings take effect.
+The third line asks for the password twice (what you type isn't shown). Use at least 10 characters; a short sentence works well. Repeat the last two lines for the other co-owner with their email and name. Run the same two lines again any time an owner needs a new password.
 
-Staff added in Access also need a staff record in the app. Until phase 1 adds the Staff screen, only `ADMIN_EMAILS` can get in.
+Staff logins come with the Staff screen in phase 1.
+
+### 5. Remove Cloudflare Access (if it was set up earlier)
+
+The app has its own login now, so the Cloudflare PIN page isn't needed:
+
+1. **Zero Trust → Access controls → Applications** → the `app.hannapetwellnesscenter.com` application → **⋯ → Delete**.
+2. Optional tidy-up: **Workers & Pages → hanna-clinic-app → Settings → Variables and Secrets**: delete `ACCESS_AUD`, `ACCESS_TEAM_DOMAIN` and `ADMIN_EMAILS`. The app no longer reads them.
 
 ## Working on it locally
 
@@ -65,11 +70,9 @@ npm install
 npm run db:migrate:local
 npm run import:legacy -- --owners <owners.csv> --pets <pets.csv>
 npx wrangler d1 execute hanna-clinic --local --file data/import.sql
-echo "DEV_LOGIN_EMAIL=you@example.com" > .dev.vars
-echo "ADMIN_EMAILS=you@example.com" >> .dev.vars
-npm run preview      # http://localhost:8788
+npm run set-password -- --email test@example.com --first Test --role owner
+npx wrangler d1 execute hanna-clinic --local --file data/set-password.sql
+npm run preview      # http://localhost:8788, log in as test@example.com
 ```
 
 For live reload while editing screens, run `npm run dev:api` and `npm run dev` side by side and open http://localhost:5173.
-
-`DEV_LOGIN_EMAIL` only works on `localhost`. Anywhere else the API requires a Cloudflare Access login.

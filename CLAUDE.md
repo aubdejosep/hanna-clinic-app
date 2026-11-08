@@ -6,7 +6,12 @@ Staff-only app at app.hannapetwellnesscenter.com that replaces the clinic's paid
 
 - React + Vite screens in `src/`; Cloudflare Pages Functions in `functions/api/` (shared server code in `lib/`, outside `functions/` so it isn't a route).
 - D1 database `hanna-clinic` (binding `DB`). Schema changes are new numbered files in `migrations/`; never edit one that has been applied.
-- Login is Cloudflare Access (email PIN). `functions/api/_middleware.js` checks the Access token on every API call and the caller must be an active row in `staff` (or in `ADMIN_EMAILS`). Never add an API route that skips it.
+- Login is the app's own: email + password, "Remember me" for 30 days (`lib/auth.js`, `functions/api/auth/`). `functions/api/_middleware.js` checks the session on every API call; only `/api/auth/login` is open. Never add another open route. Passwords are PBKDF2 hashes (`lib/password.js`); 5 wrong tries pause an account for 15 minutes. No Cloudflare Access, no 2FA, no location or device limits (owners' decision).
+
+## Build principles
+
+- **Familiar first.** The staff have used the old system for years. Keep its names, layouts and flows wherever they work (e.g. the appointment statuses, the 3-step booking panel, "Register Pet Owner/Pets"), and only trim what the clinic doesn't use. Intuitive, but never surprising.
+- Lean: only build what the clinic uses. Ask before adding features the old system had but nobody has mentioned.
 
 ## Data rules
 
@@ -33,7 +38,8 @@ npm install
 npm run db:migrate:local                       # create the local database
 npm run import:legacy -- --owners <csv> --pets <csv>
 npx wrangler d1 execute hanna-clinic --local --file data/import.sql
+npm run set-password -- --email <e> --first <name> --role owner   # make a login without the app
 npm run preview                                # build + serve app and API on :8788
 ```
 
-Local login: `.dev.vars` with `DEV_LOGIN_EMAIL=you@example.com` and `ADMIN_EMAILS=you@example.com` (only honoured on localhost).
+Local login: create a test login with `npm run set-password -- --email test@example.com --first Test --role owner`, then `npx wrangler d1 execute hanna-clinic --local --file data/set-password.sql`.

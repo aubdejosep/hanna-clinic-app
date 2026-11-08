@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Building2, CalendarDays, FileHeart, Inbox, LayoutDashboard, Menu, Users, X } from 'lucide-react'
+import { Building2, CalendarDays, FileHeart, Inbox, LayoutDashboard, LogOut, Menu, Users, X } from 'lucide-react'
+import { api } from '../lib/api.js'
 import { initials } from '../lib/format.js'
 
 // Menu for the first build. "soon" items open a placeholder page until their phase lands.
@@ -24,6 +25,16 @@ function Brand() {
       </span>
     </NavLink>
   )
+}
+
+const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', vet: 'Veterinarian', front_desk: 'Front desk', groomer: 'Groomer' }
+
+async function logOut() {
+  try {
+    await api('auth/logout', { method: 'POST' })
+  } finally {
+    window.location.assign('/')
+  }
 }
 
 export default function Layout({ staff }) {
@@ -61,8 +72,11 @@ export default function Layout({ staff }) {
           <span className="avatar">{initials(staff.name)}</span>
           <span className="who">
             <strong>{staff.name}</strong>
-            <span className="muted">{staff.title || staff.role}</span>
+            <span className="muted">{staff.title || ROLE_LABEL[staff.role] || staff.role}</span>
           </span>
+          <button type="button" className="icon-btn" onClick={logOut} aria-label="Log out" title="Log out">
+            <LogOut />
+          </button>
         </div>
       </nav>
 

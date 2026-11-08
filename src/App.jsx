@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
-import { LogIn, TriangleAlert } from 'lucide-react'
+import { TriangleAlert } from 'lucide-react'
 import Layout from './components/Layout.jsx'
 import { Empty } from './components/ui.jsx'
 import { useApi } from './lib/useApi.js'
@@ -9,9 +9,10 @@ import Clients from './pages/Clients.jsx'
 import OwnerPage from './pages/OwnerPage.jsx'
 import PetPage from './pages/PetPage.jsx'
 import ComingSoon from './pages/ComingSoon.jsx'
+import LoginPage from './pages/LoginPage.jsx'
 
 export default function App() {
-  const { data, error } = useApi('me')
+  const { data, error, reload } = useApi('me')
   const [loggedOut, setLoggedOut] = useState(false)
   useEffect(() => {
     const onLoggedOut = () => setLoggedOut(true)
@@ -20,15 +21,7 @@ export default function App() {
   }, [])
 
   if (loggedOut || error?.status === 401) {
-    return (
-      <main className="main" style={{ maxWidth: 560, margin: '10vh auto' }}>
-        <div className="card">
-          <Empty icon={LogIn} title="Please log in again" text="Your login has ended. Log in again to keep working: nothing you saved is lost.">
-            <a className="btn" href="/">Log in again</a>
-          </Empty>
-        </div>
-      </main>
-    )
+    return <LoginPage onLoggedIn={() => { setLoggedOut(false); reload() }} />
   }
   if (error) {
     return (

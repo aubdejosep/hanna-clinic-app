@@ -10,7 +10,8 @@
     "preview": "npm run build && wrangler pages dev --port 8788",
     "db:migrate:local": "wrangler d1 migrations apply hanna-clinic --local",
     "db:migrate:remote": "wrangler d1 migrations apply hanna-clinic --remote",
-    "import:legacy": "node scripts/import-legacy.mjs"
+    "import:legacy": "node scripts/import-legacy.mjs",
+    "set-password": "node scripts/set-password.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.70.0",

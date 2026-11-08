@@ -10,7 +10,7 @@ The clinic app replaces the paid veterinary system with a lean app that has only
 | Hosting, API | Cloudflare Pages + Pages Functions | Same as the website; one account, one domain |
 | Database | Cloudflare D1 `hanna-clinic` | Separate from the website's `hanna-leads`; the app reads website bookings from there (phase 5) |
 | Files | Cloudflare R2 | Pet photos, medical images, PDFs (phase 3) |
-| Staff login | Cloudflare Access, email PIN | Same as the website's `/staff`; free for the clinic's 6 staff; no passwords to store |
+| Staff login | The app's own email + password page, Remember me for 30 days | Familiar to staff (like the old system); no Cloudflare PIN page. Owners chose no 2FA and no location limits |
 | Email out | Resend, from hello@hannapetwellnesscenter.com | Already set up and trusted |
 | Email in | Cloudflare Email Routing → Email Worker | Saves a copy in the app and still forwards to hannapetwellnesscenter@atomicmail.io |
 | SMS | PromoTexter or Semaphore, behind one `sendSms()` | Provider can change without a rebuild. SMS is the main reminder channel: only 5 of 1,447 imported owners have a real email |
@@ -22,7 +22,7 @@ The clinic app replaces the paid veterinary system with a lean app that has only
 
 | # | Phase | Status |
 |---|---|---|
-| 0 | Foundation: project, database, legacy import of owners and pets, house style, login, Clients & pets | **Built** |
+| 0 | Foundation: project, database, legacy import of owners and pets, house style, own login page, Clients & pets | **Built** |
 | 1 | Clinic operations: clinic profile and hours, staff (with roles), services price list | Next |
 | 2 | Appointments: table and calendar (day/week/month), booking, walk-in, admit inpatient, appointment page with status steps, reschedule/cancel, staff notes, NFC tag check-in | |
 | 3 | Medical records: per-pet records with notes, diagnoses, vaccinations, treatment plans, consent forms and prescriptions; templates; PDF export and email to owner; import of the scraped history | Waiting on the scrape |
