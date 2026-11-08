@@ -16,7 +16,7 @@ The clinic app replaces the paid veterinary system with a lean app that has only
 | SMS | PromoTexter or Semaphore, behind one `sendSms()` | Provider can change without a rebuild. SMS is the main reminder channel: only 5 of 1,447 imported owners have a real email |
 | NFC check-in | The gym app's `bridge.py` (USB reader → `ws://localhost:8765`) | Reused nearly as-is; the tag identifies a **pet** |
 | Branches | One branch; every row carries `branch_id` | A second branch becomes a settings change |
-| Roles | Four fixed roles: admin, vet, front desk, groomer | Replaces the old system's 112 separate permissions |
+| Roles | Fixed roles: owner (the two co-owners), admin, vet, front desk, groomer | Replaces the old system's 112 separate permissions |
 
 ## Phases
 
