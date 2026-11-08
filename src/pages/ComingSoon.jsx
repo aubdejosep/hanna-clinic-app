@@ -1,0 +1,40 @@
+import { Link } from 'react-router-dom'
+import { Building2, CalendarDays, FileHeart, Inbox, MapPin } from 'lucide-react'
+import { Empty, PageHead } from '../components/ui.jsx'
+
+const MODULES = {
+  appointments: {
+    icon: CalendarDays, title: <>Appoint<em>ments</em></>, phase: 'Phase 2',
+    text: 'Table and calendar views, booking, walk-ins, NFC tag check-in and the appointment page with status steps.',
+  },
+  records: {
+    icon: FileHeart, title: <>Medical <em>records</em></>, phase: 'Phase 3',
+    text: 'Notes, diagnoses, vaccinations, treatment plans, consent forms and prescriptions, plus templates and PDF export. Old records arrive with the scraped export.',
+  },
+  clinic: {
+    icon: Building2, title: <>Clinic <em>operations</em></>, phase: 'Phase 1',
+    text: 'Clinic profile and hours, staff and their roles, and the services price list.',
+  },
+  inbox: {
+    icon: Inbox, title: <>In<em>box</em></>, phase: 'Phase 7',
+    text: 'Mail to hello@hannapetwellnesscenter.com, read and answered from here, while copies still go to the current mailbox.',
+  },
+  missing: {
+    icon: MapPin, title: <>Page not <em>found</em></>, phase: null,
+    text: "This address doesn't match a page in the clinic app.",
+  },
+}
+
+export default function ComingSoon({ module }) {
+  const m = MODULES[module]
+  return (
+    <>
+      <PageHead title={m.title} />
+      <div className="card placeholder">
+        <Empty icon={m.icon} title={m.phase ? `Coming in ${m.phase.toLowerCase()}` : 'Nothing here'} text={m.text}>
+          <Link className="btn btn-quiet" to="/clients">Open clients &amp; pets</Link>
+        </Empty>
+      </div>
+    </>
+  )
+}

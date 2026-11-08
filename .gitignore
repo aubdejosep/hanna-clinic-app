@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+# Real client data and anything generated from it never goes in git.
+data/
+*.csv
