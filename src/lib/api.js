@@ -22,8 +22,9 @@ export async function api(path, { method = 'GET', body } = {}) {
   }
   const data = await res.json().catch(() => null)
   if (!res.ok) {
-    // Access login ran out: a full reload sends the browser through the PIN login again.
-    if (res.status === 401) window.location.reload()
+    // Access login ran out (or this address isn't behind Access). Never reload by itself:
+    // where Access isn't in front, that loops. The app shows a "Log in again" screen instead.
+    if (res.status === 401) window.dispatchEvent(new Event('clinic:logged-out'))
     throw new ApiError(res.status, data)
   }
   return data

@@ -5,7 +5,13 @@ import { currentStaff, AUTH_ERRORS } from '../../lib/auth.js'
 import { fail } from '../../lib/http.js'
 
 export async function onRequest(context) {
-  const result = await currentStaff(context.request, context.env)
+  let result
+  try {
+    result = await currentStaff(context.request, context.env)
+  } catch (err) {
+    console.log('Login check failed', String(err?.stack || err).slice(0, 800))
+    return fail(503, "The clinic app can't reach its database right now. Please try again in a minute.")
+  }
   if (result.error) {
     const [status, message] = AUTH_ERRORS[result.error]
     return fail(status, message, { code: result.error, email: result.email })
