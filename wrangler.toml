@@ -6,6 +6,5 @@ compatibility_date = "2026-10-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "hanna-clinic"
-# Replace with the id Cloudflare shows after `npx wrangler d1 create hanna-clinic` (README, step 2).
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "48ed1085-1b31-4727-bde8-4835d1c0c008"
 migrations_dir = "migrations"
