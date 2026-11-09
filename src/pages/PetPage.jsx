@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { FileHeart, Nfc, Pencil, Syringe, TriangleAlert, User } from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { FileHeart, Nfc, Pencil, Syringe, Trash2, TriangleAlert, User } from 'lucide-react'
 import { Empty, ErrorNote, PageHead, PetAvatar, ReviewBadge, useToast } from '../components/ui.jsx'
 import { PetPanel } from '../components/ClientForms.jsx'
+import { RemovePetPanel } from '../components/RemovePanels.jsx'
+import { canManage, useStaff } from '../lib/staff.js'
 import { useApi } from '../lib/useApi.js'
 import { age, prettyDay, SEX_LABEL, SPECIES_LABEL } from '../lib/format.js'
 
@@ -11,6 +13,9 @@ export default function PetPage() {
   const { data, error, reload } = useApi(`pets/${id}`)
   const [editing, setEditing] = useState(false)
   const toast = useToast()
+  const navigate = useNavigate()
+  const staff = useStaff()
+  const [removing, setRemoving] = useState(false)
   const p = data?.pet
   const crumbs = [
     { label: 'Clients & pets', to: '/clients?tab=pets' },
@@ -48,6 +53,7 @@ export default function PetPage() {
               <div>
                 <div className="profile-name">
                   <h2>{p.name}</h2>
+                  {p.deceasedOn && <span className="badge badge-soft">Passed away {prettyDay(p.deceasedOn)}</span>}
                   <ReviewBadge flags={p.reviewFlags} />
                 </div>
                 <div className="profile-meta">
@@ -58,6 +64,11 @@ export default function PetPage() {
               </div>
               <div className="profile-actions">
                 <button type="button" className="btn btn-quiet" onClick={() => setEditing(true)}><Pencil aria-hidden /> Edit</button>
+                {canManage(staff) && !p.deceasedOn && (
+                  <button type="button" className="icon-btn" onClick={() => setRemoving(true)} aria-label={`Remove ${p.name}`} title="Remove or mark as passed away">
+                    <Trash2 />
+                  </button>
+                )}
               </div>
             </div>
             <div className="facts">
@@ -96,6 +107,17 @@ export default function PetPage() {
         </div>
       </div>
 
+      {removing && (
+        <RemovePetPanel
+          pet={p}
+          onClose={() => setRemoving(false)}
+          onDone={(reason) => {
+            setRemoving(false)
+            if (reason === 'passed_away') { reload(); toast(`${p.name} marked as passed away`) }
+            else { toast(`${p.name} removed. Restore from Clients & pets → Removed.`); navigate(`/clients/${p.owner.id}`) }
+          }}
+        />
+      )}
       {editing && (
         <PetPanel pet={p} onClose={() => setEditing(false)} onDone={() => { setEditing(false); reload(); toast('Pet details saved') }} />
       )}

@@ -1,4 +1,5 @@
-// GET  /api/owners?q=&page=&review=1  -> owners (25 a page), newest first, with their pets' names.
+// GET  /api/owners?q=&page=&review=1&removed=1  -> owners (25 a page), newest first, with their pets' names.
+//      removed=1 lists removed owners instead (most recently removed first), for Restore.
 //      q matches owner name, customer number, mobile (any format), email or a pet's name.
 // POST /api/owners {name, mobile, email, ..., pets: [{name, species, ...}], confirmDuplicate}
 //      -> creates the owner (and pets). If the mobile is already on file, answers 409 with the
@@ -10,7 +11,8 @@ import { ownerOut, ownerInput, petInput, nextCustomerNo } from '../../../lib/cli
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url)
   const { page, size, offset } = pageArgs(url)
-  const where = ['o.deleted_at IS NULL']
+  const removed = url.searchParams.get('removed') === '1'
+  const where = [removed ? 'o.deleted_at IS NOT NULL' : 'o.deleted_at IS NULL']
   const binds = []
 
   const q = url.searchParams.get('q') || ''
@@ -32,7 +34,7 @@ export async function onRequestGet({ request, env }) {
         (SELECT json_group_array(json_object('id', p.id, 'name', p.name, 'species', p.species))
            FROM pets p WHERE p.owner_id = o.id AND p.deleted_at IS NULL) AS pets_json
       FROM owners o WHERE ${whereSql}
-      ORDER BY COALESCE(o.legacy_added_on, substr(o.created_at, 1, 10)) DESC, o.id DESC
+      ORDER BY ${removed ? 'o.deleted_at DESC' : 'COALESCE(o.legacy_added_on, substr(o.created_at, 1, 10)) DESC'}, o.id DESC
       LIMIT ? OFFSET ?`).bind(...binds, size, offset),
   ])
   return json({

@@ -10,6 +10,7 @@ import OwnerPage from './pages/OwnerPage.jsx'
 import PetPage from './pages/PetPage.jsx'
 import ComingSoon from './pages/ComingSoon.jsx'
 import LoginPage from './pages/LoginPage.jsx'
+import { StaffContext } from './lib/staff.js'
 
 export default function App() {
   const { data, error, reload } = useApi('me')
@@ -37,6 +38,7 @@ export default function App() {
   if (!data) return null
 
   return (
+    <StaffContext.Provider value={data.staff}>
     <Routes>
       <Route element={<Layout staff={data.staff} />}>
         <Route index element={<Dashboard staff={data.staff} />} />
@@ -50,5 +52,6 @@ export default function App() {
         <Route path="*" element={<ComingSoon module="missing" />} />
       </Route>
     </Routes>
+    </StaffContext.Provider>
   )
 }

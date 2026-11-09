@@ -48,6 +48,14 @@ The app is usable for day-to-day work after phase 3.
 
 The old system can't export medical records in bulk, so they're being scraped. See [MEDICAL-RECORDS-IMPORT.md](MEDICAL-RECORDS-IMPORT.md) for the format the importer expects.
 
+## Admin Settings (later, owners only)
+
+A settings screen for the clinic owners, built when it's needed. Parked here so nothing is forgotten:
+
+- **Tidy expired logins:** clear old login records (expired or logged-out sessions, and failed-login notes older than a day). Harmless to leave for now at the clinic's size.
+- Merge duplicate owners (like the gym app's Merge Members), for the "Same mobile as another owner" checks.
+- Change history viewer (the audit log already records who changed what).
+
 ## Out of scope for now
 
 Inventory, finances/billing, quotations, suppliers, client portal, certificates, smart prescription, tasks, kiosk QR registration, staff attendance, device management. The inventory export (109 products) is kept for later.

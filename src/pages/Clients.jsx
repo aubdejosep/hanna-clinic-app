@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Crown, Search, UserPlus, Users } from 'lucide-react'
+import { Crown, RotateCcw, Search, Trash2, UserPlus, Users } from 'lucide-react'
 import { Empty, ErrorNote, PageHead, Pager, PetAvatar, ReviewBadge, useToast } from '../components/ui.jsx'
 import { RegisterPanel } from '../components/ClientForms.jsx'
-import { query } from '../lib/api.js'
+import { api, query } from '../lib/api.js'
+import { canManage, useStaff } from '../lib/staff.js'
 import { useApi, useDebounced } from '../lib/useApi.js'
 import { age, initials, prettyDay, SEX_LABEL, SPECIES_LABEL } from '../lib/format.js'
 
@@ -73,6 +74,7 @@ function PetsTable({ q, page, species, setPage, navigate }) {
                     <Link className="row-link" to={`/pets/${p.id}`} onClick={(e) => e.stopPropagation()}><strong>{p.name}</strong></Link>
                     <span className="cell-sub">{SPECIES_LABEL[p.species]}{p.breed ? ` · ${p.breed}` : ''}</span>
                   </span>
+                  {p.deceasedOn && <span className="badge badge-soft">Passed away</span>}
                   <ReviewBadge flags={p.reviewFlags} />
                 </div>
               </td>
@@ -91,11 +93,76 @@ function PetsTable({ q, page, species, setPage, navigate }) {
   )
 }
 
+// Owners and pets that were removed, newest first, each with Restore. Owners only.
+function RemovedSection({ kind, q, toast }) {
+  const [page, setPage] = useState(1)
+  const [busy, setBusy] = useState(null)
+  const path = kind === 'owners' ? 'owners' : 'pets'
+  const { data, error, loading, reload } = useApi(`${path}${query({ q, page, removed: 1 })}`)
+  const rows = data ? data[path] : null
+
+  async function restore(row) {
+    setBusy(row.id)
+    try {
+      await api(`${path}/${row.id}/restore`, { method: 'POST' })
+      toast(`${row.name} restored`)
+      reload()
+    } catch (err) {
+      toast(err.message)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <section>
+      <div className="card-head"><div><h2>Removed {kind}</h2><p>{data ? `${data.total} removed` : '…'}</p></div></div>
+      {error ? <div className="card-pad"><ErrorNote error={error} /></div> : rows && !rows.length ? (
+        <p className="card-pad" style={{ margin: 0 }}>{q ? `No removed ${kind} match "${q}".` : `No removed ${kind}.`}</p>
+      ) : (
+        <>
+          <table className="table">
+            <thead><tr><th>{kind === 'owners' ? 'Owner' : 'Pet'}</th><th>Removed</th><th><span className="sr-only">Restore</span></th></tr></thead>
+            <tbody aria-busy={loading}>
+              {!rows ? <LoadingRows cols={3} /> : rows.map((r) => (
+                <tr key={r.id} style={{ cursor: 'default' }}>
+                  <td>
+                    <div className="cell-main">
+                      {kind === 'owners' ? <span className="avatar" aria-hidden>{initials(r.name)}</span> : <PetAvatar species={r.species} />}
+                      <span>
+                        <strong>{r.name}</strong>
+                        <span className="cell-sub">
+                          {kind === 'owners'
+                            ? `${r.customerNo}${r.pets.length ? ` · ${r.pets.map((p) => p.name).join(', ')}` : ''}`
+                            : `${SPECIES_LABEL[r.species]} · ${r.owner.name} (${r.owner.customerNo})`}
+                        </span>
+                      </span>
+                    </div>
+                  </td>
+                  <td data-label="Removed">{prettyDay(r.removedAt.slice(0, 10))}<span className="cell-sub">by {r.removedBy || 'staff'}</span></td>
+                  <td style={{ textAlign: 'right' }}>
+                    <button type="button" className="btn btn-quiet" onClick={() => restore(r)} disabled={busy === r.id}>
+                      <RotateCcw aria-hidden /> {busy === r.id ? 'Restoring…' : 'Restore'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {data && data.total > data.pageSize && <Pager page={data.page} pageSize={data.pageSize} total={data.total} onPage={setPage} noun={kind} />}
+        </>
+      )}
+    </section>
+  )
+}
+
 export default function Clients() {
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
   const toast = useToast()
-  const tab = params.get('tab') === 'pets' ? 'pets' : 'owners'
+  const staff = useStaff()
+  const tabParam = params.get('tab')
+  const tab = tabParam === 'pets' ? 'pets' : tabParam === 'removed' && canManage(staff) ? 'removed' : 'owners'
   const page = Number(params.get('page')) || 1
   const review = params.get('review') === '1'
   const species = params.get('species') || ''
@@ -130,19 +197,24 @@ export default function Clients() {
           <div className="tabs" role="group" aria-label="Show">
             <button type="button" className="tab" aria-pressed={tab === 'owners'} onClick={() => update({ tab: '', page: '', species: '' })}>Owners</button>
             <button type="button" className="tab" aria-pressed={tab === 'pets'} onClick={() => update({ tab: 'pets', page: '', review: '' })}>Pets</button>
+            {canManage(staff) && (
+              <button type="button" className="tab" aria-pressed={tab === 'removed'} onClick={() => update({ tab: 'removed', page: '', review: '', species: '' })}>
+                <Trash2 size={14} aria-hidden /> Removed
+              </button>
+            )}
           </div>
           <div className="search">
             <Search aria-hidden />
             <label className="sr-only" htmlFor="client-search">Search</label>
             <input id="client-search" type="search" value={text} onChange={(e) => setText(e.target.value)}
-              placeholder={tab === 'owners' ? 'Name, mobile, C-number or pet' : 'Pet name, breed, microchip or owner'} autoComplete="off" />
+              placeholder={tab === 'pets' ? 'Pet name, breed, microchip or owner' : 'Name, mobile, C-number or pet'} autoComplete="off" />
           </div>
           {tab === 'owners' ? (
             <div className="tabs" role="group" aria-label="Filter">
               <button type="button" className="tab" aria-pressed={!review} onClick={() => update({ review: '', page: '' })}>All</button>
               <button type="button" className="tab" aria-pressed={review} onClick={() => update({ review: '1', page: '' })}>Needs a check</button>
             </div>
-          ) : (
+          ) : tab === 'pets' && (
             <div className="tabs" role="group" aria-label="Species">
               {[['', 'All'], ['dog', 'Dogs'], ['cat', 'Cats']].map(([v, label]) => (
                 <button key={label} type="button" className="tab" aria-pressed={species === v} onClick={() => update({ species: v, page: '' })}>{label}</button>
@@ -150,9 +222,14 @@ export default function Clients() {
             </div>
           )}
         </div>
-        {tab === 'owners'
-          ? <OwnersTable q={urlQ} page={page} review={review} setPage={(p) => update({ page: p > 1 ? String(p) : '' })} navigate={navigate} />
-          : <PetsTable q={urlQ} page={page} species={species} setPage={(p) => update({ page: p > 1 ? String(p) : '' })} navigate={navigate} />}
+        {tab === 'owners' && <OwnersTable q={urlQ} page={page} review={review} setPage={(p) => update({ page: p > 1 ? String(p) : '' })} navigate={navigate} />}
+        {tab === 'pets' && <PetsTable q={urlQ} page={page} species={species} setPage={(p) => update({ page: p > 1 ? String(p) : '' })} navigate={navigate} />}
+        {tab === 'removed' && (
+          <>
+            <RemovedSection kind="owners" q={urlQ} toast={toast} />
+            <RemovedSection kind="pets" q={urlQ} toast={toast} />
+          </>
+        )}
       </section>
 
       {params.get('new') === '1' && (

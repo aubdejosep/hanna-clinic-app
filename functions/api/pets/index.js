@@ -1,4 +1,5 @@
-// GET  /api/pets?q=&species=&page=  -> pets with their owner (25 a page)
+// GET  /api/pets?q=&species=&page=&removed=1  -> pets with their owner (25 a page)
+//      removed=1 lists pets removed on their own (not those hidden because their owner was removed).
 //      q matches pet name, breed, microchip, owner name or customer number.
 // POST /api/pets {ownerId, name, species, ...}  -> adds a pet to an existing owner
 
@@ -8,7 +9,8 @@ import { petOut, petInput, localMobile, SPECIES } from '../../../lib/clients.js'
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url)
   const { page, size, offset } = pageArgs(url)
-  const where = ['p.deleted_at IS NULL', 'o.deleted_at IS NULL']
+  const removed = url.searchParams.get('removed') === '1'
+  const where = [removed ? 'p.deleted_at IS NOT NULL' : 'p.deleted_at IS NULL', 'o.deleted_at IS NULL']
   const binds = []
   const like = likePattern(url.searchParams.get('q'))
   if (like) {
@@ -25,7 +27,7 @@ export async function onRequestGet({ request, env }) {
   const [total, rows] = await env.DB.batch([
     env.DB.prepare(`SELECT COUNT(*) AS n ${from} WHERE ${whereSql}`).bind(...binds),
     env.DB.prepare(`SELECT p.*, o.full_name AS owner_name, o.customer_no, o.mobile AS owner_mobile ${from} WHERE ${whereSql}
-      ORDER BY p.name COLLATE NOCASE, p.id LIMIT ? OFFSET ?`).bind(...binds, size, offset),
+      ORDER BY ${removed ? 'p.deleted_at DESC' : 'p.name COLLATE NOCASE'}, p.id LIMIT ? OFFSET ?`).bind(...binds, size, offset),
   ])
   return json({
     page,

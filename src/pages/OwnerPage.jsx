@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { CalendarDays, ChevronRight, Crown, Hash, Mail, Pencil, Phone, Plus, TriangleAlert } from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { CalendarDays, ChevronRight, Crown, Hash, Mail, Pencil, Phone, Plus, Trash2, TriangleAlert } from 'lucide-react'
 import { Empty, ErrorNote, PageHead, PetAvatar, useToast } from '../components/ui.jsx'
 import { EditOwnerPanel, PetPanel } from '../components/ClientForms.jsx'
+import { RemoveOwnerPanel } from '../components/RemovePanels.jsx'
+import { canManage, useStaff } from '../lib/staff.js'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { REVIEW_LABELS } from '../lib/labels.js'
@@ -14,6 +16,8 @@ export default function OwnerPage() {
   const [panel, setPanel] = useState(null)
   const [busy, setBusy] = useState(false)
   const toast = useToast()
+  const navigate = useNavigate()
+  const staff = useStaff()
   const o = data?.owner
   const crumbs = [{ label: 'Clients & pets', to: '/clients' }, { label: o?.name || '…' }]
 
@@ -65,6 +69,11 @@ export default function OwnerPage() {
               </div>
               <div className="profile-actions">
                 <button type="button" className="btn btn-quiet" onClick={() => setPanel({ kind: 'owner' })}><Pencil aria-hidden /> Edit</button>
+                {canManage(staff) && (
+                  <button type="button" className="icon-btn" onClick={() => setPanel({ kind: 'remove' })} aria-label={`Remove ${o.name}`} title="Remove owner">
+                    <Trash2 />
+                  </button>
+                )}
               </div>
             </div>
           </section>
@@ -86,7 +95,8 @@ export default function OwnerPage() {
                           {[SPECIES_LABEL[p.species], p.breed, age(p.birthdate)].filter(Boolean).join(' · ')}
                         </span>
                       </span>
-                      {p.allergies && <span className="badge badge-warm">Allergies</span>}
+                      {p.deceasedOn && <span className="badge badge-soft">Passed away</span>}
+                      {p.allergies && !p.deceasedOn && <span className="badge badge-warm">Allergies</span>}
                       <ChevronRight className="chev" aria-hidden />
                     </Link>
                   </li>
@@ -115,6 +125,9 @@ export default function OwnerPage() {
         </section>
       </div>
 
+      {panel?.kind === 'remove' && (
+        <RemoveOwnerPanel owner={o} onClose={() => setPanel(null)} onDone={() => { toast(`${o.name} removed. Restore from Clients & pets → Removed.`); navigate('/clients') }} />
+      )}
       {panel?.kind === 'owner' && (
         <EditOwnerPanel owner={o} onClose={() => setPanel(null)} onDone={(owner) => { setData({ owner }); setPanel(null); toast('Owner details saved') }} />
       )}

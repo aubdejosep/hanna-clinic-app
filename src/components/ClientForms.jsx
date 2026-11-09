@@ -94,6 +94,11 @@ function PetFields({ value, set, errors = {}, idx = 0, full }) {
           <Field label="Notes" optional>
             {(a) => <textarea {...a} value={value.notes} onChange={(e) => set({ notes: e.target.value })} rows={3} maxLength={2000} />}
           </Field>
+          {'deceasedOn' in value && (
+            <Field label="Passed away on" optional hint="Clear the date if this was marked by mistake." error={errors.deceasedOn}>
+              {(a) => <input {...a} type="date" value={value.deceasedOn || ''} onChange={(e) => set({ deceasedOn: e.target.value })} max={new Date().toISOString().slice(0, 10)} />}
+            </Field>
+          )}
         </>
       )}
     </>
@@ -239,6 +244,7 @@ export function PetPanel({ ownerId, pet, onClose, onDone }) {
     name: pet?.name || '', species: pet?.species || 'dog', sex: pet?.sex || 'unknown', breed: pet?.breed || '',
     birthdate: pet?.birthdate || '', colorMarkings: pet?.colorMarkings || '', microchip: pet?.microchip || '',
     allergies: pet?.allergies || '', notes: pet?.notes || '',
+    ...(pet?.deceasedOn ? { deceasedOn: pet.deceasedOn } : {}),
   })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)

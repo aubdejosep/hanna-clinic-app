@@ -3,6 +3,8 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Building2, CalendarDays, FileHeart, Inbox, LayoutDashboard, LogOut, Menu, Users, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 import { initials } from '../lib/format.js'
+import { ROLE_LABEL } from '../lib/staff.js'
+import AccountPanel from './AccountPanel.jsx'
 
 // Menu for the first build. "soon" items open a placeholder page until their phase lands.
 const NAV = [
@@ -27,8 +29,6 @@ function Brand() {
   )
 }
 
-const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', vet: 'Veterinarian', front_desk: 'Front desk', groomer: 'Groomer' }
-
 async function logOut() {
   try {
     await api('auth/logout', { method: 'POST' })
@@ -39,6 +39,7 @@ async function logOut() {
 
 export default function Layout({ staff }) {
   const [open, setOpen] = useState(false)
+  const [account, setAccount] = useState(false)
   const { pathname } = useLocation()
   useEffect(() => setOpen(false), [pathname])
 
@@ -69,11 +70,13 @@ export default function Layout({ staff }) {
           </NavLink>
         ))}
         <div className="sidebar-foot">
-          <span className="avatar">{initials(staff.name)}</span>
-          <span className="who">
-            <strong>{staff.name}</strong>
-            <span className="muted">{staff.title || ROLE_LABEL[staff.role] || staff.role}</span>
-          </span>
+          <button type="button" className="account-btn" onClick={() => setAccount(true)} title="My account and password">
+            <span className="avatar">{initials(staff.name)}</span>
+            <span className="who">
+              <strong>{staff.name}</strong>
+              <span>{staff.title || ROLE_LABEL[staff.role] || staff.role}</span>
+            </span>
+          </button>
           <button type="button" className="icon-btn" onClick={logOut} aria-label="Log out" title="Log out">
             <LogOut />
           </button>
@@ -83,6 +86,7 @@ export default function Layout({ staff }) {
       <main className="main" id="main">
         <Outlet />
       </main>
+      {account && <AccountPanel staff={staff} onClose={() => setAccount(false)} onLogOut={logOut} />}
     </div>
   )
 }

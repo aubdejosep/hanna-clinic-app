@@ -30,6 +30,7 @@ export async function onRequest(context) {
     return fail(status, message, { code: result.error })
   }
   context.data.staff = result.staff
+  context.data.sessionId = result.sessionId
   const response = await runRoute(context)
   if (result.setCookie) {
     const copy = new Response(response.body, response)

@@ -98,6 +98,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .nav-link.active { background: var(--teal-tint); color: var(--heading); }
 .nav-link .soon { margin-left: auto; }
 .sidebar-foot { margin-top: auto; padding: 14px 8px 0; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.account-btn { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; padding: 6px; margin: -6px; border: 0; border-radius: var(--radius-sm); background: transparent; text-align: left; cursor: pointer; transition: background-color var(--ease); }
+.account-btn:hover { background: var(--surface-alt); }
 .sidebar-foot .who { min-width: 0; }
 .sidebar-foot .who strong, .sidebar-foot .who span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-small); }
 
@@ -114,6 +116,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .card-pad { padding: 20px 22px; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--border); }
 .card-head p { margin: 2px 0 0; font-size: var(--fs-small); }
+.card > section + section { border-top: 1px solid var(--border); }
 .grid { display: grid; gap: 16px; }
 .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
