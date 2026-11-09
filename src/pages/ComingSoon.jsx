@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Building2, CalendarDays, FileHeart, Inbox, MapPin } from 'lucide-react'
+import { Building2, CalendarDays, FileHeart, Inbox, MapPin, Stethoscope } from 'lucide-react'
 import { Empty, PageHead } from '../components/ui.jsx'
 
 const MODULES = {
@@ -12,8 +12,12 @@ const MODULES = {
     text: 'Notes, diagnoses, vaccinations, treatment plans, consent forms and prescriptions, plus templates and PDF export. Old records arrive with the scraped export.',
   },
   clinic: {
-    icon: Building2, title: <>Clinic operations</>, phase: 'Phase 1',
-    text: 'Clinic profile and hours, staff and their roles, and the services price list.',
+    icon: Building2, title: <>Clinic profile</>, phase: 'Phase 1',
+    text: 'Business details, opening hours with breaks, social media links and the kiosk QR sign-up.',
+  },
+  services: {
+    icon: Stethoscope, title: <>Services</>, phase: 'Phase 1',
+    text: 'The services price list with categories and variations, entered from the old system.',
   },
   inbox: {
     icon: Inbox, title: <>Inbox</>, phase: 'Phase 7',

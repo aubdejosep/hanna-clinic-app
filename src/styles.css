@@ -280,6 +280,23 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .toast svg { width: 16px; height: 16px; color: #7fe0db; }
 
+/* ---------- Staff ---------- */
+.avatar.photo { overflow: hidden; }
+.avatar.photo img { width: 100%; height: 100%; object-fit: cover; }
+.photo-row { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.photo-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.photo-btns label { cursor: pointer; }
+.form-section h3 small { font-weight: 400; letter-spacing: 0; text-transform: none; }
+.signature canvas { display: block; width: 100%; height: 150px; border: 1px dashed var(--border-strong); border-radius: var(--radius-field); background: var(--surface); touch-action: none; cursor: crosshair; }
+.signature-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.schedule { display: grid; gap: 8px; }
+.schedule-row { display: grid; grid-template-columns: 130px 1fr auto 1fr; align-items: center; gap: 8px; min-height: 42px; }
+.schedule-row input[type="time"] { min-height: 38px; padding: 6px 10px; border-radius: var(--radius-field); border: 1px solid var(--border-strong); background: var(--surface); }
+.schedule-row input[type="time"]:focus { outline: none; border-color: var(--teal); box-shadow: var(--focus); }
+.day-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.day-chip { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 5px; border-radius: 6px; border: 1px solid var(--border); font: 700 var(--fs-label)/1 var(--font-body); color: var(--text); opacity: .45; }
+.day-chip.on { background: var(--teal-tint); border-color: var(--teal); opacity: 1; color: var(--heading); }
+
 /* ---------- Login ---------- */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 24px var(--gutter); }
 .login-card { width: min(420px, 100%); padding: 32px 28px; display: grid; gap: 16px; text-align: center; }
@@ -317,6 +334,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   .card-head, .toolbar, .pager { padding-left: 16px; padding-right: 16px; }
   .search { max-width: none; }
   .form-row { grid-template-columns: 1fr; }
+  .schedule-row { grid-template-columns: 1fr 1fr auto 1fr; }
   .profile-actions { margin-left: 0; width: 100%; }
 
   .table thead { display: none; }

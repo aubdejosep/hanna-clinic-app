@@ -10,6 +10,7 @@ Built with React + Vite and hosted on Cloudflare Pages with a D1 database. Staff
 - **Records to check:** the 115 imported owners with a missing, odd or shared mobile, or a duplicate name, each with **Mark as checked**.
 - **Login:** email + password, Remember me, Log out. 5 wrong passwords pause an account for 15 minutes. **My account** (click your name in the menu) changes your own password and logs out your other devices.
 - **Remove and restore (owners only):** remove an owner (with their pets) or a pet added by mistake; bring them back from **Clients & pets → Removed**. A pet that has passed away is marked, not removed, so its history stays. Nothing is ever erased.
+- **Staff (Clinic operations → Staff, owners only):** add and edit staff with role, job title, licence/PTR/S2 numbers, signature, photo, address, weekly shift hours and leave days; set a staff member's password; switch someone off when they leave (logged out at once). The clinic always keeps at least one owner.
 - **Dashboard:** owner and pet totals and new this month; the other cards are placeholders.
 - **Legacy import:** `scripts/import-legacy.mjs` loads the old system's owner and pet exports, cleaning up phone numbers, placeholder emails, microchips and breed spellings (536 spellings → 293 breeds).
 

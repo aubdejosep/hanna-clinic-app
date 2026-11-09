@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Building2, CalendarDays, FileHeart, Inbox, LayoutDashboard, LogOut, Menu, Users, X } from 'lucide-react'
+import { Building2, CalendarDays, FileHeart, Inbox, LayoutDashboard, LogOut, Menu, Stethoscope, UserCog, Users, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 import { initials } from '../lib/format.js'
-import { ROLE_LABEL } from '../lib/staff.js'
+import { canManage, ROLE_LABEL } from '../lib/staff.js'
 import AccountPanel from './AccountPanel.jsx'
 
 // Menu for the first build. "soon" items open a placeholder page until their phase lands.
@@ -12,8 +12,10 @@ const NAV = [
   { to: '/appointments', label: 'Appointments', icon: CalendarDays, soon: true },
   { to: '/clients', label: 'Clients & pets', icon: Users },
   { to: '/records', label: 'Medical records', icon: FileHeart, soon: true },
-  { group: 'Clinic' },
-  { to: '/clinic', label: 'Clinic operations', icon: Building2, soon: true },
+  { group: 'Clinic operations' },
+  { to: '/clinic/profile', label: 'Clinic profile', icon: Building2, soon: true },
+  { to: '/clinic/staff', label: 'Staff', icon: UserCog, owners: true },
+  { to: '/clinic/services', label: 'Services', icon: Stethoscope, soon: true },
   { to: '/inbox', label: 'Inbox', icon: Inbox, soon: true },
 ]
 
@@ -61,7 +63,7 @@ export default function Layout({ staff }) {
             </button>
           )}
         </div>
-        {NAV.map((item) => item.group ? (
+        {NAV.filter((item) => !item.owners || canManage(staff)).map((item) => item.group ? (
           <div key={item.group} className="nav-group label">{item.group}</div>
         ) : (
           <NavLink key={item.to} to={item.to} end={item.end} className="nav-link">
