@@ -1,11 +1,12 @@
 // Runs before every /api route: only logged-in, active staff get through.
 // The route then finds the caller in context.data.staff.
-// Only /api/auth/login is open, so people can log in.
+// Open without logging in: /api/auth/login (to log in) and the two kiosk routes (clients sign
+// themselves up from the QR code; those check the kiosk switch, Turnstile and a per-network limit).
 
 import { currentStaff, AUTH_ERRORS } from '../../lib/auth.js'
 import { fail } from '../../lib/http.js'
 
-const OPEN = new Set(['/api/auth/login'])
+const OPEN = new Set(['/api/auth/login', '/api/kiosk/config', '/api/kiosk/register'])
 
 export async function onRequest(context) {
   const { request } = context

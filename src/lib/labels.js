@@ -5,4 +5,5 @@ export const REVIEW_LABELS = {
   shared_phone: 'Same mobile as another owner',
   same_name: 'Same name as another owner',
   same_name_same_owner: 'Same name as another pet of this owner',
+  kiosk: 'Signed up at the kiosk: check their details',
 }

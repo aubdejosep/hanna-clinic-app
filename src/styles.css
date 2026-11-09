@@ -297,6 +297,67 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .day-chip { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 5px; border-radius: 6px; border: 1px solid var(--border); font: 700 var(--fs-label)/1 var(--font-body); color: var(--text); opacity: .45; }
 .day-chip.on { background: var(--teal-tint); border-color: var(--teal); opacity: 1; color: var(--heading); }
 
+/* ---------- Clinic profile and services ---------- */
+.panel-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.inline-row { display: flex; gap: 8px; align-items: center; }
+.inline-row input { flex: 1; min-height: 42px; padding: 9px 13px; border-radius: var(--radius-field); border: 1px solid var(--border-strong); background: var(--surface); }
+.inline-row input:focus, .time-pair input:focus, .select:focus { outline: none; border-color: var(--teal); box-shadow: var(--focus); }
+.hours-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.hours-list li { display: grid; grid-template-columns: 140px 1fr; gap: 12px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--surface-alt); }
+.hours-row { display: grid; grid-template-columns: 140px 1fr; gap: 12px; align-items: start; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.hours-row:last-child { border-bottom: 0; }
+.time-pair { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.time-pair input { min-height: 38px; padding: 6px 10px; border-radius: var(--radius-field); border: 1px solid var(--border-strong); background: var(--surface); }
+.text-btn { display: inline-flex; align-items: center; gap: 4px; justify-self: start; padding: 4px 0; border: 0; background: none; cursor: pointer; font: 700 var(--fs-small)/1.2 var(--font-body); color: var(--heading); text-decoration: underline; text-underline-offset: 3px; }
+.select { min-height: 42px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border-strong); background: var(--surface); }
+.variation-row { display: grid; grid-template-columns: 1fr 140px auto; gap: 10px; align-items: end; }
+.kiosk-qr { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+.kiosk-qr img { border: 1px solid var(--border); border-radius: var(--radius-sm); }
+
+/* ---------- Kiosk (public sign-up from the QR code) ---------- */
+.kiosk { min-height: 100vh; padding: 0 var(--gutter) 40px; display: grid; justify-items: center; align-content: start; gap: 18px; }
+.kiosk-head { width: min(760px, 100%); padding: 22px 0 6px; }
+.kiosk-head-row { display: flex; align-items: center; gap: 12px; }
+.kiosk-head h1 { flex: 1; font-size: var(--fs-h1); }
+.kiosk-of { display: grid; justify-items: end; line-height: 1.1; }
+.kiosk-of strong { font-size: var(--fs-h2); }
+.kiosk-of small { font: 700 var(--fs-label)/1.2 var(--font-body); letter-spacing: .1em; }
+.kiosk-bar { height: 8px; margin-top: 14px; border-radius: 999px; background: var(--surface-alt); overflow: hidden; }
+.kiosk-bar span { display: block; height: 100%; border-radius: 999px; background: var(--teal-deep); transition: width .25s ease-out; }
+.kiosk-card { width: min(760px, 100%); }
+.kiosk-nav { display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; gap: 8px; padding: 18px 16px; border-bottom: 1px solid var(--border); }
+.kiosk-arrow { width: 48px; height: 48px; }
+.kiosk-next { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); }
+.kiosk-next:hover { background: var(--teal-deeper); }
+.kiosk-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); }
+.kiosk-steps li { position: relative; display: grid; justify-items: center; gap: 6px; text-align: center; }
+.kiosk-steps li + li::before { content: ""; position: absolute; top: 20px; right: 50%; width: 100%; height: 2px; background: var(--border-strong); z-index: 0; }
+.kiosk-steps li.done + li::before, .kiosk-steps li.done + li.current::before { background: var(--teal-deep); }
+.kiosk-dot { position: relative; z-index: 1; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 999px; border: 2px solid var(--border-strong); background: var(--surface); color: var(--text); }
+.kiosk-dot svg { width: 18px; height: 18px; }
+.kiosk-steps li.current .kiosk-dot { border-color: var(--teal-deep); background: var(--teal-tint); color: var(--heading); }
+.kiosk-steps li.done .kiosk-dot { border-color: var(--teal-deep); background: var(--teal-deep); color: #fff; }
+.kiosk-step-label { font: 700 var(--fs-label)/1.2 var(--font-body); color: var(--text); }
+.kiosk-steps li.current .kiosk-step-label { color: var(--heading); }
+.kiosk-body { padding: 18px; display: grid; gap: 14px; }
+.kiosk-body .form-section h2 { font-size: var(--fs-h2); }
+.kiosk-agreement { max-height: 220px; overflow-y: auto; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface-alt); white-space: pre-line; font-size: var(--fs-small); }
+.kiosk-actions { width: min(760px, 100%); display: grid; justify-items: center; gap: 10px; }
+.kiosk-cta { min-width: 260px; min-height: 52px; }
+.kiosk-turnstile { min-height: 65px; }
+.kiosk-done { padding: 40px 28px; display: grid; justify-items: center; gap: 14px; text-align: center; margin-top: 10vh; }
+.kiosk-done p { margin: 0; max-width: 46ch; }
+.kiosk-tick { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 999px; background: var(--teal-tint); color: var(--teal-deep); }
+.kiosk-tick svg { width: 32px; height: 32px; }
+@media (max-width: 600px) {
+  .kiosk-step-label { display: none; }
+  .kiosk-steps li.current .kiosk-step-label { display: block; position: absolute; top: 46px; white-space: nowrap; }
+  .kiosk-nav { padding-bottom: 34px; }
+  .kiosk-cta { width: 100%; min-width: 0; }
+  .hours-row, .hours-list li { grid-template-columns: 1fr; gap: 6px; }
+  .variation-row { grid-template-columns: 1fr 100px auto; }
+}
+
 /* ---------- Login ---------- */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 24px var(--gutter); }
 .login-card { width: min(420px, 100%); padding: 32px 28px; display: grid; gap: 16px; text-align: center; }

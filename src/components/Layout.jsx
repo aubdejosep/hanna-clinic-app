@@ -13,9 +13,9 @@ const NAV = [
   { to: '/clients', label: 'Clients & pets', icon: Users },
   { to: '/records', label: 'Medical records', icon: FileHeart, soon: true },
   { group: 'Clinic operations' },
-  { to: '/clinic/profile', label: 'Clinic profile', icon: Building2, soon: true },
+  { to: '/clinic/profile', label: 'Clinic profile', icon: Building2 },
   { to: '/clinic/staff', label: 'Staff', icon: UserCog, owners: true },
-  { to: '/clinic/services', label: 'Services', icon: Stethoscope, soon: true },
+  { to: '/clinic/services', label: 'Services', icon: Stethoscope },
   { to: '/inbox', label: 'Inbox', icon: Inbox, soon: true },
 ]
 

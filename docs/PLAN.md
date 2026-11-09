@@ -23,7 +23,7 @@ The clinic app replaces the paid veterinary system with a lean app that has only
 | # | Phase | Status |
 |---|---|---|
 | 0 | Foundation: project, database, legacy import of owners and pets, house style, own login page, Clients & pets | **Built** |
-| 1 | Clinic operations: staff (built), clinic profile with hours and social links, services price list (from screenshots), kiosk QR sign-up | **In progress** |
+| 1 | Clinic operations: staff, clinic profile with hours and social links, services price list, kiosk QR sign-up | **Built**; the services list itself is still to be entered |
 | 2 | Appointments: table and calendar (day/week/month), booking, walk-in, admit inpatient, appointment page with status steps, reschedule/cancel, staff notes, NFC tag check-in | |
 | 3 | Medical records: per-pet records with notes, diagnoses, vaccinations, treatment plans, consent forms and prescriptions; templates; PDF export and email to owner; import of the scraped history | Waiting on the scrape |
 | 4 | Dashboard: real numbers for what the clinic uses; redesigned once the lean app is in use | Placeholders now |

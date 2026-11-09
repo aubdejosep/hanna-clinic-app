@@ -11,6 +11,9 @@ Built with React + Vite and hosted on Cloudflare Pages with a D1 database. Staff
 - **Login:** email + password, Remember me, Log out. 5 wrong passwords pause an account for 15 minutes. **My account** (click your name in the menu) changes your own password and logs out your other devices.
 - **Remove and restore (owners only):** remove an owner (with their pets) or a pet added by mistake; bring them back from **Clients & pets → Removed**. A pet that has passed away is marked, not removed, so its history stays. Nothing is ever erased.
 - **Staff (Clinic operations → Staff, owners only):** add and edit staff with role, job title, licence/PTR/S2 numbers, signature, photo, address, weekly shift hours and leave days; set a staff member's password; switch someone off when they leave (logged out at once). The clinic always keeps at least one owner.
+- **Clinic profile (Clinic operations → Clinic profile):** business details, phones, address, opening hours with breaks, social media links, and the kiosk QR code with an on/off switch and an optional agreement. Filled in from the website; owners edit each card.
+- **Services (Clinic operations → Services):** the price list with categories, variations (e.g. by weight), active and "featured for online booking". Owners add, edit and remove; everyone can view.
+- **Kiosk sign-up (`/kiosk`, no login):** clients scan the QR code and register themselves and up to 5 pets, in the old kiosk's steps. Protected by Cloudflare Turnstile and a limit per network; new sign-ups show under **Clients & pets → Needs a check**.
 - **Dashboard:** owner and pet totals and new this month; the other cards are placeholders.
 - **Legacy import:** `scripts/import-legacy.mjs` loads the old system's owner and pet exports, cleaning up phone numbers, placeholder emails, microchips and breed spellings (536 spellings → 293 breeds).
 
@@ -64,6 +67,17 @@ The app has its own login now, so the Cloudflare PIN page isn't needed:
 
 1. **Zero Trust → Access controls → Applications** → the `app.hannapetwellnesscenter.com` application → **⋯ → Delete**.
 2. Optional tidy-up: **Workers & Pages → hanna-clinic-app → Settings → Variables and Secrets**: delete `ACCESS_AUD`, `ACCESS_TEAM_DOMAIN` and `ADMIN_EMAILS`. The app no longer reads them.
+
+### 6. Kiosk sign-up ("I'm human" check)
+
+The kiosk page is the only page clients use without logging in, so it uses Cloudflare Turnstile, the same check as the website's booking form. Until this is done, the kiosk shows "please ask the front desk".
+
+1. **Cloudflare → Turnstile.** Open the widget the website uses and add `app.hannapetwellnesscenter.com` to its **Hostnames**, or **Add widget** for the app on its own (mode: Managed).
+2. Copy its **Site Key** and **Secret Key**.
+3. **Workers & Pages → hanna-clinic-app → Settings → Variables and Secrets**: add `TURNSTILE_SITE_KEY` (text) and `TURNSTILE_SECRET_KEY` (type **Secret**).
+4. **Deployments → ⋯ → Retry deployment.**
+
+Then print the QR code from **Clinic operations → Clinic profile → Kiosk QR code**.
 
 ## Working on it locally
 
