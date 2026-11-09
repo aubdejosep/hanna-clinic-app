@@ -5,7 +5,7 @@
 //   npm run test-run      -> 3 pets only, to check it works
 //   npm start             -> everything (resumes by itself if it was stopped)
 //
-// Options: --test  --limit N  --out <folder>  --start-page N  --browser-path <chrome.exe>  --url <list url>
+// Options: --test  --limit N  --out <folder>  --start-page N  --rows 100  --browser-path <chrome.exe>  --url <list url>
 //
 // Output (default: ./output):
 //   zips/0001-paris-09178806850.zip   one zip per pet (the PDFs inside name the pet, owner and record IDs)
@@ -25,7 +25,7 @@ const args = parseArgs(process.argv.slice(2))
 const LIST_URL = args.url || 'https://hanna-pet.vetassist.app/medical-records'
 const OUT = resolve(args.out || 'output')
 const LIMIT = args.test ? 3 : args.limit ? Number(args.limit) : Infinity
-const ROWS_PER_PAGE = '100'
+const ROWS_PER_PAGE = String(args.rows || 100)
 const DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000   // big records with many photos take a while to build
 const PAGE_TIMEOUT_MS = 60 * 1000
 const MAX_TRIES = 3
@@ -163,26 +163,69 @@ async function sortByPetName(page) {
   }
 }
 
-// Finds the "next page" button in the pager (the ">" after the page numbers).
-async function nextPageButton(page) {
-  const named = page.getByRole('button', { name: /next/i })
-  if (await named.count()) return named.first()
-  const numbered = page.locator('button').filter({ hasText: /^\s*\d+\s*$/ })
-  if (!(await numbered.count())) return null
-  return numbered.last().locator('xpath=..').locator('button, a').last()
+// ---------- Pages ----------
+// The pager looks like "< 1 2 … 27 >". The page numbers are the most reliable thing to click,
+// so those come first; the ">" arrow is the fallback.
+const listSignature = async (page) => (await readRows(page)).map((r) => r.pet + r.phone).join('|')
+
+async function pagerNumbers(page) {
+  return page.locator('button, a, [role="button"]').filter({ hasText: /^\s*\d{1,4}\s*$/ }).filter({ visible: true })
+    .evaluateAll((els) => els.filter((e) => !e.closest('table')).map((e) => Number(e.innerText.trim())))
+}
+async function lastPageNumber(page) {
+  const nums = await pagerNumbers(page)
+  return nums.length ? Math.max(...nums) : null
 }
 
-async function goNextPage(page) {
-  const before = (await readRows(page)).map((r) => r.pet + r.phone).join('|')
-  const btn = await nextPageButton(page)
-  if (!btn || (await btn.isDisabled().catch(() => false)) || (await btn.getAttribute('aria-disabled')) === 'true') return false
-  await btn.click()
-  for (let i = 0; i < 40; i++) {
+async function waitForNewRows(page, before) {
+  for (let i = 0; i < 60; i++) { // up to 15 seconds
     await sleep(250)
-    const after = (await readRows(page)).map((r) => r.pet + r.phone).join('|')
-    if (after && after !== before) return true
+    const after = await listSignature(page)
+    if (after && after !== before) { await sleep(300); return true }
   }
-  return false // the rows didn't change: this was the last page
+  return false
+}
+
+// Moves to page `target`. The arrows only move one page, so they're used only when `target` is
+// the next page (current + 1); a longer jump has to find the page number itself.
+async function goToPage(page, target, current = target - 1) {
+  const before = await listSignature(page)
+  // 1. The page number itself.
+  const numbered = page.locator('button, a, [role="button"]').filter({ hasText: new RegExp(`^\\s*${target}\\s*$`) }).filter({ visible: true })
+  for (let i = 0; i < (await numbered.count()); i++) {
+    const el = numbered.nth(i)
+    if (await el.evaluate((e) => !!e.closest('table')).catch(() => true)) continue
+    await el.click().catch(() => {})
+    if (await waitForNewRows(page, before)) return true
+  }
+  if (target !== current + 1) return false
+  // 2. A button labelled "next" (by name or aria-label), or a > / › / » arrow.
+  const named = page.getByRole('button', { name: /next|›|»|^>$/i }).filter({ visible: true })
+  if (await named.count()) {
+    const b = named.last()
+    if (!(await b.isDisabled().catch(() => false))) {
+      await b.click().catch(() => {})
+      if (await waitForNewRows(page, before)) return true
+    }
+  }
+  // 3. The last enabled button in the pager (the arrow after the page numbers).
+  const arrow = await page.evaluateHandle(() => {
+    const nums = [...document.querySelectorAll('button, a, [role="button"]')]
+      .filter((e) => /^\s*\d{1,4}\s*$/.test(e.innerText) && !e.closest('table') && e.offsetParent)
+    if (!nums.length) return null
+    let box = nums[0].parentElement
+    while (box && !nums.every((n) => box.contains(n))) box = box.parentElement
+    if (!box) return null
+    const btns = [...box.querySelectorAll('button, a, [role="button"]')].filter((e) => e.offsetParent)
+    const last = btns[btns.length - 1]
+    return last && !nums.includes(last) && !last.disabled && last.getAttribute('aria-disabled') !== 'true' ? last : null
+  })
+  const el = arrow.asElement()
+  if (el) {
+    await el.click().catch(() => {})
+    if (await waitForNewRows(page, before)) return true
+  }
+  return false
 }
 
 // Opens the list fresh, sets 100 rows and A→Z, and steps to page `target`.
@@ -192,10 +235,17 @@ async function openList(page, target = 1) {
   await waitForTable(page)
   await setRowsPerPage(page)
   await sortByPetName(page)
-  for (let p = 1; p < target; p++) {
-    if (!(await goNextPage(page))) return p // there are fewer pages than expected
+  let at = 1
+  while (at < target) {
+    // Jump to the furthest page number on show that isn't past the target (e.g. 1 → 3 if "3" is visible),
+    // otherwise step one page.
+    const nums = (await pagerNumbers(page)).filter((n) => n > at && n <= target)
+    const jump = nums.length ? Math.max(...nums) : at + 1
+    if (await goToPage(page, jump, at)) { at = jump; continue }
+    if (jump !== at + 1 && await goToPage(page, at + 1, at)) { at += 1; continue }
+    return at // there are fewer pages than expected
   }
-  return target
+  return at
 }
 
 const isClosed = (err) => /has been closed|Target closed|Browser closed|browser has disconnected/i.test(String(err?.message || err))
@@ -267,7 +317,8 @@ async function pass(page, { startPage, onlyFailed }) {
     const rows = await readRows(page)
     const seen = {}
     const linked = rows.filter((r) => r.href).length
-    log(`Page ${pageNo}: ${rows.length} pets${linked === rows.length ? ' (opening each in a second tab)' : linked ? ` (${linked} with links)` : ''}`)
+    const of = await lastPageNumber(page)
+    log(`Page ${pageNo}${of ? ` of ${of}` : ''}: ${rows.length} pets${linked === rows.length ? ' (opening each in a second tab)' : linked ? ` (${linked} with links)` : ''}`)
     for (const row of rows) {
       const base = `${row.pet.toLowerCase()}|${digits(row.phone) || row.owner.toLowerCase()}`
       seen[base] = (seen[base] || 0) + 1
@@ -301,7 +352,15 @@ async function pass(page, { startPage, onlyFailed }) {
         pageNo = await openList(page, pageNo) // the list forgot its page; step back to it
       }
     }
-    if (!(await goNextPage(page))) break
+    const lastPage = await lastPageNumber(page)
+    if (!(await goToPage(page, pageNo + 1, pageNo))) {
+      if (lastPage && pageNo < lastPage) {
+        await snapshot(page, `stuck-on-page-${pageNo}`)
+        throw new Error(`couldn't move from page ${pageNo} to page ${pageNo + 1} (the pager shows ${lastPage} pages)`)
+      }
+      log(`Reached the last page (${pageNo}${lastPage ? ` of ${lastPage}` : ''}).`)
+      break
+    }
     pageNo++
   }
   return { newThisPass, stopped: false }

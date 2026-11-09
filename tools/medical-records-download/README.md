@@ -92,6 +92,7 @@ again to retry them.
 | `--out D:\HannaRecords` | Saves everything to another folder or drive (use the same one every time) |
 | `--start-page 5` | Starts from page 5 instead of where it left off |
 | `--limit 50` | Stops after 50 pets in total |
+| `--rows 25` | Rows per page on the old list (default 100) |
 | `--browser-path "C:\Program Files\Google\Chrome\Application\chrome.exe"` | Use this if it says it can't find Chrome |
 
 Add options after `npm start --`, for example: `npm start -- --out D:\HannaRecords`
