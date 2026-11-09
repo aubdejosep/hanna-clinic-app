@@ -101,7 +101,9 @@ async function readRows(page) {
     // The owner column shows an initial in a circle, then the name, then the phone.
     const phone = ownerLines.find((l) => /\d[\d\s-]{6,}/.test(l)) || ''
     const ownerName = ownerLines.filter((l) => l !== phone && l.length > 1).pop() || ''
-    return { index: i, pet: petLines[0] || '', species: petLines[1] || '', owner: ownerName, phone, cells: cells.length }
+    // If the eye is a link, its address lets us open the pet in a second tab and leave the list alone.
+    const link = [...tr.querySelectorAll('a[href]')].map((a) => a.href).filter((h) => /^https?:/.test(h) && h !== location.href).pop() || null
+    return { index: i, pet: petLines[0] || '', species: petLines[1] || '', owner: ownerName, phone, cells: cells.length, href: link }
   }))
 }
 
@@ -120,28 +122,45 @@ async function setRowsPerPage(page) {
 }
 
 // Sorts by Pet Name A→Z, so rows don't move if someone edits a record during the run.
-// The old system sorts on its server (it takes a moment) and may put capitals first, so this waits
-// for the rows to change and accepts either kind of A→Z.
+// Tried once per run: the arrows icon in the header first, then the header text. If none of them
+// sorts the list, the run keeps the old system's own order (the checking pass covers any shifts).
+let sortState = 'untried' // 'untried' | 'works:<n>' | 'failed'
+const SORT_TARGETS = ['button', '[role="button"]', 'svg', 'span', ':scope']
 async function sortByPetName(page) {
+  if (sortState === 'failed') return
   const header = page.locator('table thead th').filter({ hasText: /pet name/i }).first()
-  if (!(await header.isVisible().catch(() => false))) return log('  (No "Pet Name" column header found; keeping the default order.)')
+  if (!(await header.isVisible().catch(() => false))) { sortState = 'failed'; return log('  (No "Pet Name" column header found; keeping the default order.)') }
   const names = async () => (await readRows(page)).map((r) => r.pet)
-  const ascending = (list) => list.length > 1 && (
-    list.every((n, i) => i === 0 || list[i - 1].toLowerCase().localeCompare(n.toLowerCase()) <= 0) ||
-    list.every((n, i) => i === 0 || list[i - 1] <= n)
-  )
-  for (let i = 0; i < 4; i++) {
-    if (ascending(await names())) return
+  const ascending = (list) => {
+    if (list.length < 2) return false
+    const ok = (cmp) => list.filter((n, i) => i > 0 && cmp(list[i - 1], n) > 0).length <= Math.max(1, list.length * 0.03)
+    return ok((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())) || ok((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+  }
+  const clickAndWait = async (target) => {
     const before = (await names()).join('|')
-    await header.click()
-    for (let w = 0; w < 60; w++) { // up to 15 seconds for the list to re-sort
+    await target.click({ timeout: 5000 })
+    for (let w = 0; w < 32; w++) { // up to 8 seconds for the list to re-sort
       await sleep(250)
       const now = (await names()).join('|')
-      if (now && now !== before) break
+      if (now && now !== before) { await sleep(400); return true }
     }
-    await sleep(400)
+    return false
   }
-  if (!ascending(await names())) log('  (Could not confirm A→Z order. Carrying on; the checking pass at the end catches anything missed.)')
+  const targets = sortState.startsWith('works:') ? [Number(sortState.slice(6))] : SORT_TARGETS.map((_, i) => i)
+  for (const t of targets) {
+    if (ascending(await names())) break
+    const el = SORT_TARGETS[t] === ':scope' ? header : header.locator(SORT_TARGETS[t]).first()
+    if (SORT_TARGETS[t] !== ':scope' && !(await el.count())) continue
+    // A click may sort Z→A first: give each target up to two clicks.
+    for (let c = 0; c < 2 && !ascending(await names()); c++) {
+      if (!(await clickAndWait(el).catch(() => false))) break
+      if (ascending(await names())) sortState = `works:${t}`
+    }
+  }
+  if (!ascending(await names())) {
+    sortState = 'failed'
+    log("  (Couldn't sort by pet name; using the old system's own order. The checking pass at the end catches anything missed.)")
+  }
 }
 
 // Finds the "next page" button in the pager (the ">" after the page numbers).
@@ -186,10 +205,16 @@ function keyOf(row, occurrence) {
   return `${row.pet.toLowerCase()}|${digits(row.phone) || row.owner.toLowerCase()}|${occurrence}`
 }
 
-async function downloadPet(page, row, pageNo, key) {
-  const tr = page.locator('table tbody tr').nth(row.index)
-  const eye = tr.locator('td').last().locator('a, button').first()
-  await eye.click()
+async function downloadPet(listPage, row, pageNo, key) {
+  let page = listPage
+  if (row.href) {
+    page = petTab
+    await page.goto(row.href, { waitUntil: 'domcontentloaded', timeout: PAGE_TIMEOUT_MS })
+    if (await onLoginPage(page)) throw Object.assign(new Error('logged out'), { loggedOut: true })
+  } else {
+    const tr = listPage.locator('table tbody tr').nth(row.index)
+    await tr.locator('td').last().locator('a, button').first().click()
+  }
 
   // The page can hold a hidden copy of the label (e.g. for small screens): only use a visible button.
   const button = page.locator('button, a, [role="button"]').filter({ hasText: /download all pdfs/i }).filter({ visible: true }).first()
@@ -213,8 +238,8 @@ async function downloadPet(page, row, pageNo, key) {
   const confirm = page.locator('button, [role="button"]').filter({ hasText: /^\s*download all\s*$/i }).filter({ visible: true }).first()
   let expected = null
   if (await confirm.waitFor({ state: 'visible', timeout: 15000 }).then(() => true).catch(() => false)) {
-    const text = await page.getByText(/you are about to download/i).first().innerText().catch(() => '')
-    const m = text.match(/download\s+(\d+)\s+medical record/i)
+    const text = await page.locator('body').innerText().catch(() => '')
+    const m = text.match(/about to download\s+(\d+)\s+medical record/i)
     if (m) expected = Number(m[1])
     await confirm.click()
   }
@@ -241,7 +266,8 @@ async function pass(page, { startPage, onlyFailed }) {
     save()
     const rows = await readRows(page)
     const seen = {}
-    log(`Page ${pageNo}: ${rows.length} pets`)
+    const linked = rows.filter((r) => r.href).length
+    log(`Page ${pageNo}: ${rows.length} pets${linked === rows.length ? ' (opening each in a second tab)' : linked ? ` (${linked} with links)` : ''}`)
     for (const row of rows) {
       const base = `${row.pet.toLowerCase()}|${digits(row.phone) || row.owner.toLowerCase()}`
       seen[base] = (seen[base] || 0) + 1
@@ -263,8 +289,9 @@ async function pass(page, { startPage, onlyFailed }) {
         progress.failed[key] = { pet: row.pet, owner: row.owner, phone: row.phone, page: pageNo, tries, error: String(err.message || err).slice(0, 300) }
         save()
         log(`  Couldn't download ${row.pet} (try ${tries} of ${MAX_TRIES}): ${progress.failed[key].error}`)
-        await snapshot(page, `failed-${row.pet}`)
+        await snapshot(row.href ? petTab : page, `failed-${row.pet}`)
       }
+      if (row.href) continue // opened in the second tab: the list is untouched
       // Back to the list, on the same page (only if we actually left it).
       const firstBefore = rows[0] && rows[0].pet + rows[0].phone
       if (page.url() !== listUrl) await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {})
@@ -291,7 +318,7 @@ const launch = {
   args: ['--window-size=1640,1120', '--disable-features=DownloadBubble,DownloadBubbleV2', '--safebrowsing-disable-download-protection'],
   ...(args.browserPath ? { executablePath: args.browserPath } : { channel: 'chrome' }),
 }
-let browser, context, page
+let browser, context, page, petTab
 async function openBrowser() {
   browser = await chromium.launch(launch).catch((err) => {
     console.error("\nCouldn't open Chrome. Is Google Chrome installed? If it's somewhere unusual, add --browser-path \"C:\\path\\to\\chrome.exe\".\n")
@@ -305,6 +332,9 @@ async function openBrowser() {
   })
   page = await context.newPage()
   page.setDefaultTimeout(PAGE_TIMEOUT_MS)
+  petTab = await context.newPage() // pets open here when the list has links, so the list keeps its place
+  petTab.setDefaultTimeout(PAGE_TIMEOUT_MS)
+  await page.bringToFront()
 }
 async function rememberLogin() {
   try {
