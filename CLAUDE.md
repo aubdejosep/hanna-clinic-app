@@ -11,6 +11,7 @@ Staff-only app at app.hannapetwellnesscenter.com that replaces the clinic's paid
 ## Build principles
 
 - **Familiar first.** The staff have used the old system for years. Keep its names, layouts and flows wherever they work (e.g. the appointment statuses, the 3-step booking panel, "Register Pet Owner/Pets"), and only trim what the clinic doesn't use. Intuitive, but never surprising.
+- Menu and page names follow the old system: Clinic Operations ▸ (Clinic profile, Staff, Services), Client Portal ▸ Masterlist (owners and pets), Medical Records ▸ (Records list, Templates).
 - Lean: only build what the clinic uses. Ask before adding features the old system had but nobody has mentioned.
 
 ## Data rules

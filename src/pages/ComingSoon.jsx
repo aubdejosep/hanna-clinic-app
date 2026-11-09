@@ -36,7 +36,7 @@ export default function ComingSoon({ module }) {
       <PageHead title={m.title} />
       <div className="card placeholder">
         <Empty icon={m.icon} title={m.phase ? `Coming in ${m.phase.toLowerCase()}` : 'Nothing here'} text={m.text}>
-          <Link className="btn btn-quiet" to="/clients">Open clients &amp; pets</Link>
+          <Link className="btn btn-quiet" to="/clients">Open the masterlist</Link>
         </Empty>
       </div>
     </>

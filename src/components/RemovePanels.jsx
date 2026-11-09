@@ -1,5 +1,5 @@
 // Confirmations for removing an owner or a pet. Nothing is erased: removed records can be
-// brought back from Clients & pets → Removed.
+// brought back from Masterlist → Removed.
 import { useState } from 'react'
 import { api, ApiError } from '../lib/api.js'
 import { ErrorNote, Field, Panel } from './ui.jsx'
@@ -38,7 +38,7 @@ export function RemoveOwnerPanel({ owner, onClose, onDone }) {
           disappear from lists and search.
         </p>
         <p style={{ margin: 0 }}>
-          Nothing is deleted. To bring them back, go to <strong>Clients &amp; pets → Removed</strong> and click <strong>Restore</strong>.
+          Nothing is deleted. To bring them back, go to <strong>Masterlist → Removed</strong> and click <strong>Restore</strong>.
         </p>
       </section>
     </Panel>
@@ -95,7 +95,7 @@ export function RemovePetPanel({ pet, onClose, onDone }) {
           <input type="radio" name="reason" checked={reason === 'mistake'} onChange={() => setReason('mistake')} />
           <span>
             <strong>Added by mistake, or a duplicate</strong><br />
-            {pet.name} disappears from lists and search. You can bring it back from <strong>Clients &amp; pets → Removed</strong>.
+            {pet.name} disappears from lists and search. You can bring it back from <strong>Masterlist → Removed</strong>.
           </span>
         </label>
       </section>

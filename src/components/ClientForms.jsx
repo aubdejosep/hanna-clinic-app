@@ -239,7 +239,7 @@ export function EditOwnerPanel({ owner, onClose, onDone }) {
 }
 
 // --- Add a pet to an owner, or edit one ---
-export function PetPanel({ ownerId, pet, onClose, onDone }) {
+export function PetPanel({ ownerId, ownerName, pet, onClose, onDone }) {
   const [value, setValue] = useState({
     name: pet?.name || '', species: pet?.species || 'dog', sex: pet?.sex || 'unknown', breed: pet?.breed || '',
     birthdate: pet?.birthdate || '', colorMarkings: pet?.colorMarkings || '', microchip: pet?.microchip || '',
@@ -266,6 +266,7 @@ export function PetPanel({ ownerId, pet, onClose, onDone }) {
   return (
     <Panel
       title={pet ? <>Edit {pet.name}</> : <>Add a pet</>}
+      intro={!pet && ownerName ? `Owner: ${ownerName}` : undefined}
       onClose={onClose}
       busy={busy}
       footer={(
@@ -279,6 +280,53 @@ export function PetPanel({ ownerId, pet, onClose, onDone }) {
       <ErrorNote error={error && !Object.keys(errors).length ? error : null} />
       <section className="form-section">
         <PetFields value={value} set={(p) => setValue((v) => ({ ...v, ...p }))} errors={errors} full />
+      </section>
+    </Panel>
+  )
+}
+
+// --- Register a pet: find the owner first, then the pet form ---
+export function RegisterPetPanel({ onClose, onDone }) {
+  const [owner, setOwner] = useState(null)
+  const [text, setText] = useState('')
+  const [results, setResults] = useState(null)
+  const [error, setError] = useState(null)
+
+  async function search(q) {
+    setText(q)
+    if (q.trim().length < 2) { setResults(null); return }
+    try {
+      const res = await api(`owners?q=${encodeURIComponent(q.trim())}`)
+      setResults(res.owners.slice(0, 8))
+      setError(null)
+    } catch (err) {
+      setError(err)
+    }
+  }
+
+  if (owner) {
+    return <PetPanel ownerId={owner.id} ownerName={owner.name} onClose={onClose} onDone={onDone} />
+  }
+  return (
+    <Panel title="Register pet" intro="First, find the pet’s owner." onClose={onClose}
+      footer={<button type="button" className="btn btn-quiet" onClick={onClose}>Cancel</button>}>
+      <ErrorNote error={error} />
+      <section className="form-section">
+        <Field label="Owner" hint="Type part of their name, mobile number or customer number.">
+          {(a) => <input {...a} value={text} onChange={(e) => search(e.target.value)} autoComplete="off" placeholder="e.g. Santos or 0917 123 4567" />}
+        </Field>
+        {results && (results.length ? (
+          <ul className="pick-list">
+            {results.map((o) => (
+              <li key={o.id}>
+                <button type="button" onClick={() => setOwner(o)}>
+                  <strong>{o.name}</strong>
+                  <span className="cell-sub">{o.customerNo}{o.mobileLocal ? ` · ${o.mobileLocal}` : ''}{o.pets.length ? ` · ${o.pets.map((p) => p.name).join(', ')}` : ''}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="field-hint" style={{ margin: 0 }}>No owner matches “{text}”. Register the owner first with <strong>Register owner</strong>.</p>)}
       </section>
     </Panel>
   )

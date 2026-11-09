@@ -6,14 +6,15 @@ Built with React + Vite and hosted on Cloudflare Pages with a D1 database. Staff
 
 ## What's built (phase 0)
 
-- **Clients & pets:** search owners by name, mobile, customer number or pet; search pets by name, breed, microchip or owner; register an owner with their pets (warns when the mobile is already on file); edit owners and pets; allergies highlighted.
+- **Masterlist:** search owners by name, mobile, customer number or pet; search pets by name, breed, microchip or owner; register an owner with their pets (warns when the mobile is already on file); edit owners and pets; allergies highlighted.
 - **Records to check:** the 115 imported owners with a missing, odd or shared mobile, or a duplicate name, each with **Mark as checked**.
 - **Login:** email + password, Remember me, Log out. 5 wrong passwords pause an account for 15 minutes. **My account** (click your name in the menu) changes your own password and logs out your other devices.
-- **Remove and restore (owners only):** remove an owner (with their pets) or a pet added by mistake; bring them back from **Clients & pets → Removed**. A pet that has passed away is marked, not removed, so its history stays. Nothing is ever erased.
+- **Remove and restore (owners only):** remove an owner (with their pets) or a pet added by mistake; bring them back from **Masterlist → Removed**. A pet that has passed away is marked, not removed, so its history stays. Nothing is ever erased.
 - **Staff (Clinic operations → Staff, owners only):** add and edit staff with role, job title, licence/PTR/S2 numbers, signature, photo, address, weekly shift hours and leave days; set a staff member's password; switch someone off when they leave (logged out at once). The clinic always keeps at least one owner.
-- **Clinic profile (Clinic operations → Clinic profile):** business details, phones, address, opening hours with breaks, social media links, and the kiosk QR code with an on/off switch and an optional agreement. Filled in from the website; owners edit each card.
+- **Clinic profile (Clinic operations → Clinic profile):** laid out like the old system's page. Basic Information tab: Business Information (with email brand colour), Social Media, Branches, Invoice Settings (tax rate), Notification Settings (CC business email), Kiosk QR Code with its agreement. Business Availability tab: opening hours with breaks. Filled in from the website; owners click Edit info on each card.
+- **Menu** follows the old system: Dashboard, Clinic Operations ▸, Appointments, Client Portal ▸ Masterlist, Medical Records ▸.
 - **Services (Clinic operations → Services):** the price list with categories, variations (e.g. by weight), active and "featured for online booking". Owners add, edit and remove; everyone can view.
-- **Kiosk sign-up (`/kiosk`, no login):** clients scan the QR code and register themselves and up to 5 pets, in the old kiosk's steps. Protected by Cloudflare Turnstile and a limit per network; new sign-ups show under **Clients & pets → Needs a check**.
+- **Kiosk sign-up (`/kiosk`, no login):** clients scan the QR code and register themselves and up to 5 pets, in the old kiosk's steps. Protected by Cloudflare Turnstile and a limit per network; new sign-ups show under **Masterlist → Needs a check**.
 - **Dashboard:** owner and pet totals and new this month; the other cards are placeholders.
 - **Legacy import:** `scripts/import-legacy.mjs` loads the old system's owner and pet exports, cleaning up phone numbers, placeholder emails, microchips and breed spellings (536 spellings → 293 breeds).
 

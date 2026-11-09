@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Crown, RotateCcw, Search, Trash2, UserPlus, Users } from 'lucide-react'
+import { Crown, PawPrint, RotateCcw, Search, Trash2, UserPlus, Users } from 'lucide-react'
 import { Empty, ErrorNote, PageHead, Pager, PetAvatar, ReviewBadge, useToast } from '../components/ui.jsx'
-import { RegisterPanel } from '../components/ClientForms.jsx'
+import { RegisterPanel, RegisterPetPanel } from '../components/ClientForms.jsx'
 import { api, query } from '../lib/api.js'
 import { canManage, useStaff } from '../lib/staff.js'
 import { useApi, useDebounced } from '../lib/useApi.js'
@@ -56,8 +56,8 @@ function OwnersTable({ q, page, review, setPage, navigate }) {
   )
 }
 
-function PetsTable({ q, page, species, setPage, navigate }) {
-  const { data, error, loading } = useApi(`pets${query({ q, page, species })}`)
+function PetsTable({ q, page, species, status, setPage, navigate }) {
+  const { data, error, loading } = useApi(`pets${query({ q, page, species, status })}`)
   if (error) return <div className="card-pad"><ErrorNote error={error} /></div>
   if (data && !data.total) return <Empty title={q ? `No pets match "${q}"` : 'No pets yet'} text="Try the pet's name, breed or microchip, or the owner's name." />
   return (
@@ -162,7 +162,8 @@ export default function Clients() {
   const toast = useToast()
   const staff = useStaff()
   const tabParam = params.get('tab')
-  const tab = tabParam === 'pets' ? 'pets' : tabParam === 'removed' && canManage(staff) ? 'removed' : 'owners'
+  const tab = ['pets', 'deceased'].includes(tabParam) ? tabParam : tabParam === 'removed' && canManage(staff) ? 'removed' : 'owners'
+  const counts = useApi('stats').data
   const page = Number(params.get('page')) || 1
   const review = params.get('review') === '1'
   const species = params.get('species') || ''
@@ -188,15 +189,22 @@ export default function Clients() {
 
   return (
     <>
-      <PageHead title={<>Clients &amp; pets</>} intro="Search by owner, mobile number, customer number or pet.">
-        <button type="button" className="btn" onClick={() => update({ new: '1' })}><UserPlus aria-hidden /> Register owner</button>
+      <PageHead crumbs={[{ label: 'Client portal' }, { label: 'Masterlist' }]} title="Masterlist" intro="View and manage clients and their pets.">
+        <div className="head-actions">
+          <button type="button" className="btn" onClick={() => update({ new: '1' })}><UserPlus aria-hidden /> Register owner</button>
+          <button type="button" className="btn btn-quiet" onClick={() => update({ newpet: '1' })}><PawPrint aria-hidden /> Register pet</button>
+        </div>
       </PageHead>
 
       <section className="card">
         <div className="toolbar">
           <div className="tabs" role="group" aria-label="Show">
-            <button type="button" className="tab" aria-pressed={tab === 'owners'} onClick={() => update({ tab: '', page: '', species: '' })}>Owners</button>
-            <button type="button" className="tab" aria-pressed={tab === 'pets'} onClick={() => update({ tab: 'pets', page: '', review: '' })}>Pets</button>
+            {[['owners', 'Pet owners', counts?.owners.total], ['pets', 'Active pets', counts?.petsActive], ['deceased', 'Deceased pets', counts?.petsDeceased]].map(([key, label, n]) => (
+              <button key={key} type="button" className="tab" aria-pressed={tab === key}
+                onClick={() => update({ tab: key === 'owners' ? '' : key, page: '', review: '', species: '' })}>
+                {label}{n != null && <span className="tab-count">{n.toLocaleString()}</span>}
+              </button>
+            ))}
             {canManage(staff) && (
               <button type="button" className="tab" aria-pressed={tab === 'removed'} onClick={() => update({ tab: 'removed', page: '', review: '', species: '' })}>
                 <Trash2 size={14} aria-hidden /> Removed
@@ -207,14 +215,14 @@ export default function Clients() {
             <Search aria-hidden />
             <label className="sr-only" htmlFor="client-search">Search</label>
             <input id="client-search" type="search" value={text} onChange={(e) => setText(e.target.value)}
-              placeholder={tab === 'pets' ? 'Pet name, breed, microchip or owner' : 'Name, mobile, C-number or pet'} autoComplete="off" />
+              placeholder={tab === 'pets' || tab === 'deceased' ? 'Pet name, breed, microchip or owner' : 'Name, mobile, C-number or pet'} autoComplete="off" />
           </div>
           {tab === 'owners' ? (
             <div className="tabs" role="group" aria-label="Filter">
               <button type="button" className="tab" aria-pressed={!review} onClick={() => update({ review: '', page: '' })}>All</button>
               <button type="button" className="tab" aria-pressed={review} onClick={() => update({ review: '1', page: '' })}>Needs a check</button>
             </div>
-          ) : tab === 'pets' && (
+          ) : (tab === 'pets' || tab === 'deceased') && (
             <div className="tabs" role="group" aria-label="Species">
               {[['', 'All'], ['dog', 'Dogs'], ['cat', 'Cats']].map(([v, label]) => (
                 <button key={label} type="button" className="tab" aria-pressed={species === v} onClick={() => update({ species: v, page: '' })}>{label}</button>
@@ -223,7 +231,7 @@ export default function Clients() {
           )}
         </div>
         {tab === 'owners' && <OwnersTable q={urlQ} page={page} review={review} setPage={(p) => update({ page: p > 1 ? String(p) : '' })} navigate={navigate} />}
-        {tab === 'pets' && <PetsTable q={urlQ} page={page} species={species} setPage={(p) => update({ page: p > 1 ? String(p) : '' })} navigate={navigate} />}
+        {(tab === 'pets' || tab === 'deceased') && <PetsTable q={urlQ} page={page} species={species} status={tab === 'pets' ? 'active' : 'deceased'} setPage={(p) => update({ page: p > 1 ? String(p) : '' })} navigate={navigate} />}
         {tab === 'removed' && (
           <>
             <RemovedSection kind="owners" q={urlQ} toast={toast} />
@@ -232,6 +240,12 @@ export default function Clients() {
         )}
       </section>
 
+      {params.get('newpet') === '1' && (
+        <RegisterPetPanel
+          onClose={() => update({ newpet: '' })}
+          onDone={(pet) => { toast(`${pet.name} registered`); navigate(`/pets/${pet.id}`) }}
+        />
+      )}
       {params.get('new') === '1' && (
         <RegisterPanel
           onClose={() => update({ new: '' })}

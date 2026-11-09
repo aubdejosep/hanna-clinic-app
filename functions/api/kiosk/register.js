@@ -27,7 +27,7 @@ async function human(env, token, ip) {
 }
 
 export async function onRequestPost({ request, env }) {
-  const settings = await env.DB.prepare('SELECT kiosk_enabled, kiosk_agreement FROM clinic WHERE id = 1').first()
+  const settings = await env.DB.prepare('SELECT kiosk_enabled, kiosk_agreement, kiosk_agreement_enabled FROM clinic WHERE id = 1').first()
   if (!settings?.kiosk_enabled || !env.TURNSTILE_SECRET_KEY) return fail(503, 'Sign-up at the kiosk is closed right now. Please ask the front desk.')
 
   const body = await readJson(request)
@@ -51,7 +51,7 @@ export async function onRequestPost({ request, env }) {
   const email = clean(o.email, 100).toLowerCase()
   if (email && !isEmail(email)) errors['owner.email'] = 'Check your email address, e.g. name@gmail.com.'
   if (!o.reminders) errors['owner.reminders'] = 'Tick the box to get appointment reminders.'
-  if (settings.kiosk_agreement && !body.agreed) errors.agreed = 'Please read and accept the agreement.'
+  if (settings.kiosk_agreement_enabled && settings.kiosk_agreement && !body.agreed) errors.agreed = 'Please read and accept the agreement.'
 
   // --- Pets ---
   const petsIn = Array.isArray(body.pets) ? body.pets.slice(0, 5) : []

@@ -19,7 +19,7 @@ export default function OwnerPage() {
   const navigate = useNavigate()
   const staff = useStaff()
   const o = data?.owner
-  const crumbs = [{ label: 'Clients & pets', to: '/clients' }, { label: o?.name || '…' }]
+  const crumbs = [{ label: 'Client portal' }, { label: 'Masterlist', to: '/clients' }, { label: o?.name || '…' }]
 
   if (error) return <><PageHead crumbs={crumbs} title="Owner" /><ErrorNote error={error} /></>
   if (!o) return <PageHead crumbs={crumbs} title=" " />
@@ -126,7 +126,7 @@ export default function OwnerPage() {
       </div>
 
       {panel?.kind === 'remove' && (
-        <RemoveOwnerPanel owner={o} onClose={() => setPanel(null)} onDone={() => { toast(`${o.name} removed. Restore from Clients & pets → Removed.`); navigate('/clients') }} />
+        <RemoveOwnerPanel owner={o} onClose={() => setPanel(null)} onDone={() => { toast(`${o.name} removed. Restore from Masterlist → Removed.`); navigate('/clients') }} />
       )}
       {panel?.kind === 'owner' && (
         <EditOwnerPanel owner={o} onClose={() => setPanel(null)} onDone={(owner) => { setData({ owner }); setPanel(null); toast('Owner details saved') }} />

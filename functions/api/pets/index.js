@@ -1,4 +1,4 @@
-// GET  /api/pets?q=&species=&page=&removed=1  -> pets with their owner (25 a page)
+// GET  /api/pets?q=&species=&status=active|deceased&page=&removed=1  -> pets with their owner (25 a page)
 //      removed=1 lists pets removed on their own (not those hidden because their owner was removed).
 //      q matches pet name, breed, microchip, owner name or customer number.
 // POST /api/pets {ownerId, name, species, ...}  -> adds a pet to an existing owner
@@ -17,6 +17,9 @@ export async function onRequestGet({ request, env }) {
     where.push('(p.name LIKE ? OR p.breed LIKE ? OR p.microchip LIKE ? OR o.full_name LIKE ? OR o.customer_no LIKE ?)')
     binds.push(like, like, like, like, like)
   }
+  const status = url.searchParams.get('status')
+  if (status === 'active') where.push('p.deceased_on IS NULL')
+  if (status === 'deceased') where.push('p.deceased_on IS NOT NULL')
   const species = url.searchParams.get('species')
   if (SPECIES.includes(species)) {
     where.push('p.species = ?')

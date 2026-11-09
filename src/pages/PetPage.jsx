@@ -18,7 +18,8 @@ export default function PetPage() {
   const [removing, setRemoving] = useState(false)
   const p = data?.pet
   const crumbs = [
-    { label: 'Clients & pets', to: '/clients?tab=pets' },
+    { label: 'Client portal' },
+    { label: 'Masterlist', to: '/clients?tab=pets' },
     ...(p ? [{ label: p.owner.name, to: `/clients/${p.owner.id}` }] : []),
     { label: p?.name || '…' },
   ]
@@ -114,7 +115,7 @@ export default function PetPage() {
           onDone={(reason) => {
             setRemoving(false)
             if (reason === 'passed_away') { reload(); toast(`${p.name} marked as passed away`) }
-            else { toast(`${p.name} removed. Restore from Clients & pets → Removed.`); navigate(`/clients/${p.owner.id}`) }
+            else { toast(`${p.name} removed. Restore from Masterlist → Removed.`); navigate(`/clients/${p.owner.id}`) }
           }}
         />
       )}

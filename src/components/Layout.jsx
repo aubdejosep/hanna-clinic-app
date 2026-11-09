@@ -1,23 +1,57 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Building2, CalendarDays, FileHeart, Inbox, LayoutDashboard, LogOut, Menu, Stethoscope, UserCog, Users, X } from 'lucide-react'
+import { Activity, CalendarDays, ChevronDown, ChevronRight, FolderOpen, Inbox, LayoutDashboard, LogOut, Menu, UserRound, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 import { initials } from '../lib/format.js'
 import { canManage, ROLE_LABEL } from '../lib/staff.js'
 import AccountPanel from './AccountPanel.jsx'
 
-// Menu for the first build. "soon" items open a placeholder page until their phase lands.
+// The menu follows the old system's order and names, with its expandable groups.
+// "soon" items open a placeholder page until their phase lands.
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { label: 'Clinic operations', icon: Activity, children: [
+    { to: '/clinic/profile', label: 'Clinic profile' },
+    { to: '/clinic/staff', label: 'Staff', owners: true },
+    { to: '/clinic/services', label: 'Services' },
+  ] },
   { to: '/appointments', label: 'Appointments', icon: CalendarDays, soon: true },
-  { to: '/clients', label: 'Clients & pets', icon: Users },
-  { to: '/records', label: 'Medical records', icon: FileHeart, soon: true },
-  { group: 'Clinic operations' },
-  { to: '/clinic/profile', label: 'Clinic profile', icon: Building2 },
-  { to: '/clinic/staff', label: 'Staff', icon: UserCog, owners: true },
-  { to: '/clinic/services', label: 'Services', icon: Stethoscope },
+  { label: 'Client portal', icon: UserRound, children: [
+    { to: '/clients', label: 'Masterlist' },
+  ] },
+  { label: 'Medical records', icon: FolderOpen, soon: true, children: [
+    { to: '/records', label: 'Records list', soon: true },
+    { to: '/records/templates', label: 'Templates', soon: true },
+  ] },
   { to: '/inbox', label: 'Inbox', icon: Inbox, soon: true },
 ]
+
+const isInside = (group, pathname) => group.children.some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`) || (c.to === '/clients' && pathname.startsWith('/pets')))
+
+function NavGroup({ group, pathname, staff }) {
+  const inside = isInside(group, pathname)
+  const [open, setOpen] = useState(inside)
+  useEffect(() => { if (inside) setOpen(true) }, [inside])
+  const Chevron = open ? ChevronDown : ChevronRight
+  return (
+    <div className="nav-groupbox">
+      <button type="button" className={`nav-link nav-parent ${inside ? 'inside' : ''}`} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <group.icon aria-hidden /> {group.label}
+        {group.soon && <span className="badge badge-soft soon">Soon</span>}
+        <Chevron className="nav-chevron" aria-hidden />
+      </button>
+      {open && (
+        <div className="nav-children">
+          {group.children.filter((c) => !c.owners || canManage(staff)).map((c) => (
+            <NavLink key={c.to} to={c.to} end={c.to === '/records'} className={({ isActive }) => `nav-link nav-child ${isActive || (c.to === '/clients' && pathname.startsWith('/pets')) ? 'active' : ''}`}>
+              {c.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function Brand() {
   return (
@@ -63,8 +97,8 @@ export default function Layout({ staff }) {
             </button>
           )}
         </div>
-        {NAV.filter((item) => !item.owners || canManage(staff)).map((item) => item.group ? (
-          <div key={item.group} className="nav-group label">{item.group}</div>
+        {NAV.map((item) => item.children ? (
+          <NavGroup key={item.label} group={item} pathname={pathname} staff={staff} />
         ) : (
           <NavLink key={item.to} to={item.to} end={item.end} className="nav-link">
             <item.icon aria-hidden /> {item.label}

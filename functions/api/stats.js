@@ -20,7 +20,9 @@ export async function onRequestGet({ env }) {
       (SELECT COUNT(*) FROM owners WHERE deleted_at IS NULL AND ${added} >= ?2 AND ${added} <= ?3) AS owners_prev,
       (SELECT COUNT(*) FROM pets WHERE deleted_at IS NULL AND ${added} >= ?1) AS pets_mtd,
       (SELECT COUNT(*) FROM pets WHERE deleted_at IS NULL AND ${added} >= ?2 AND ${added} <= ?3) AS pets_prev,
-      (SELECT COUNT(*) FROM owners WHERE deleted_at IS NULL AND review_flags != '[]') AS owners_to_review
+      (SELECT COUNT(*) FROM owners WHERE deleted_at IS NULL AND review_flags != '[]') AS owners_to_review,
+      (SELECT COUNT(*) FROM pets p JOIN owners o ON o.id = p.owner_id WHERE p.deleted_at IS NULL AND o.deleted_at IS NULL AND p.deceased_on IS NULL) AS pets_active,
+      (SELECT COUNT(*) FROM pets p JOIN owners o ON o.id = p.owner_id WHERE p.deleted_at IS NULL AND o.deleted_at IS NULL AND p.deceased_on IS NOT NULL) AS pets_deceased
   `).bind(monthStart, prevStart, prevSameDay).first()
 
   return json({
@@ -28,5 +30,7 @@ export async function onRequestGet({ env }) {
     owners: { total: row.owners, monthToDate: row.owners_mtd, previous: row.owners_prev },
     pets: { total: row.pets, monthToDate: row.pets_mtd, previous: row.pets_prev },
     ownersToReview: row.owners_to_review,
+    petsActive: row.pets_active,
+    petsDeceased: row.pets_deceased,
   })
 }
