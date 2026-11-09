@@ -57,7 +57,7 @@ function save() {
   writeFileSync(PROGRESS + '.tmp', JSON.stringify(progress, null, 2))
   renameSync(PROGRESS + '.tmp', PROGRESS)
 }
-if (!existsSync(CSV)) writeFileSync(CSV, 'seq,page,pet,owner,phone,zip,downloaded_at\n')
+if (!existsSync(CSV)) writeFileSync(CSV, 'seq,page,pet,owner,phone,records,zip,downloaded_at\n')
 const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
 
 // ---------- Small helpers ----------
@@ -205,20 +205,30 @@ async function downloadPet(page, row, pageNo, key) {
   const seq = ++progress.seq
   const file = `${String(seq).padStart(4, '0')}-${slug(row.pet)}-${digits(row.phone) || slug(row.owner)}.zip`
   const part = join(ZIPS, file + '.part')
-  const [download] = await Promise.all([
-    page.waitForEvent('download', { timeout: DOWNLOAD_TIMEOUT_MS }),
-    button.click(),
-  ])
+  // The old system first asks "Download All Medical Records: You are about to download N medical
+  // records for <pet>…" with Cancel / Download All. Confirm it, and note N to check the zip later.
+  const downloadStarted = page.waitForEvent('download', { timeout: DOWNLOAD_TIMEOUT_MS })
+  downloadStarted.catch(() => {}) // handled below
+  await button.click()
+  const confirm = page.locator('button, [role="button"]').filter({ hasText: /^\s*download all\s*$/i }).filter({ visible: true }).first()
+  let expected = null
+  if (await confirm.waitFor({ state: 'visible', timeout: 15000 }).then(() => true).catch(() => false)) {
+    const text = await page.getByText(/you are about to download/i).first().innerText().catch(() => '')
+    const m = text.match(/download\s+(\d+)\s+medical record/i)
+    if (m) expected = Number(m[1])
+    await confirm.click()
+  }
+  const download = await downloadStarted
   const failure = await download.failure()
   if (failure) throw new Error(`download failed: ${failure}`)
   await download.saveAs(part)
   renameSync(part, join(ZIPS, file))
 
-  progress.done[key] = { file, pet: row.pet, owner: row.owner, phone: row.phone, page: pageNo, at: new Date().toISOString() }
+  progress.done[key] = { file, pet: row.pet, owner: row.owner, phone: row.phone, page: pageNo, records: expected, at: new Date().toISOString() }
   delete progress.failed[key]
   save()
-  appendFileSync(CSV, [seq, pageNo, row.pet, row.owner, row.phone, file, progress.done[key].at].map(csvCell).join(',') + '\n')
-  log(`  Saved ${file}`)
+  appendFileSync(CSV, [seq, pageNo, row.pet, row.owner, row.phone, expected ?? '', file, progress.done[key].at].map(csvCell).join(',') + '\n')
+  log(`  Saved ${file}${expected ? ` (${expected} record${expected === 1 ? '' : 's'})` : ''}`)
   if (seq % 20 === 0) await rememberLogin()
 }
 
