@@ -20,7 +20,7 @@ function Brand() {
     <NavLink to="/" className="brand" aria-label="Hanna Pet Wellness Center: dashboard">
       <img src="/brand/logo-192.png" alt="" width="40" height="40" />
       <span>
-        <span className="wordmark">hanna <em>pet</em> wellness</span>
+        <span className="wordmark">hanna pet wellness</span>
         <small>Clinic app</small>
       </span>
     </NavLink>

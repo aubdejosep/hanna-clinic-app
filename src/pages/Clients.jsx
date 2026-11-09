@@ -121,7 +121,7 @@ export default function Clients() {
 
   return (
     <>
-      <PageHead title={<>Clients &amp; <em>pets</em></>} intro="Search by owner, mobile number, customer number or pet.">
+      <PageHead title={<>Clients &amp; pets</>} intro="Search by owner, mobile number, customer number or pet.">
         <button type="button" className="btn" onClick={() => update({ new: '1' })}><UserPlus aria-hidden /> Register owner</button>
       </PageHead>
 

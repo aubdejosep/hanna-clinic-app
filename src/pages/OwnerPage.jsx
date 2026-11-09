@@ -71,7 +71,7 @@ export default function OwnerPage() {
 
           <section className="card">
             <div className="card-head">
-              <div><h2><em>Pets</em></h2><p>{o.pets.length} on file</p></div>
+              <div><h2>Pets</h2><p>{o.pets.length} on file</p></div>
               <button type="button" className="btn" onClick={() => setPanel({ kind: 'pet' })}><Plus aria-hidden /> Add pet</button>
             </div>
             {o.pets.length ? (
@@ -98,13 +98,13 @@ export default function OwnerPage() {
           </section>
 
           <section className="card placeholder">
-            <div className="card-head"><div><h2>Visit <em>history</em></h2><p>Appointments for all of this owner's pets</p></div></div>
+            <div className="card-head"><div><h2>Visit history</h2><p>Appointments for all of this owner's pets</p></div></div>
             <Empty icon={CalendarDays} title="Arrives in phase 2" text="Past and upcoming appointments will be listed here." />
           </section>
         </div>
 
         <section className="card">
-          <div className="card-head"><div><h2><em>Details</em></h2></div></div>
+          <div className="card-head"><div><h2>Details</h2></div></div>
           <div className="facts" style={{ paddingTop: 16, gridTemplateColumns: '1fr' }}>
             <div className="fact"><span className="label">Additional owner</span><span className="fact-value">{o.additionalOwner || '—'}</span></div>
             <div className="fact"><span className="label">Messenger</span><span className="fact-value">{o.messenger || '—'}</span></div>

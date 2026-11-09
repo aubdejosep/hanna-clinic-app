@@ -4,23 +4,23 @@ import { Empty, PageHead } from '../components/ui.jsx'
 
 const MODULES = {
   appointments: {
-    icon: CalendarDays, title: <>Appoint<em>ments</em></>, phase: 'Phase 2',
+    icon: CalendarDays, title: <>Appointments</>, phase: 'Phase 2',
     text: 'Table and calendar views, booking, walk-ins, NFC tag check-in and the appointment page with status steps.',
   },
   records: {
-    icon: FileHeart, title: <>Medical <em>records</em></>, phase: 'Phase 3',
+    icon: FileHeart, title: <>Medical records</>, phase: 'Phase 3',
     text: 'Notes, diagnoses, vaccinations, treatment plans, consent forms and prescriptions, plus templates and PDF export. Old records arrive with the scraped export.',
   },
   clinic: {
-    icon: Building2, title: <>Clinic <em>operations</em></>, phase: 'Phase 1',
+    icon: Building2, title: <>Clinic operations</>, phase: 'Phase 1',
     text: 'Clinic profile and hours, staff and their roles, and the services price list.',
   },
   inbox: {
-    icon: Inbox, title: <>In<em>box</em></>, phase: 'Phase 7',
+    icon: Inbox, title: <>Inbox</>, phase: 'Phase 7',
     text: 'Mail to hello@hannapetwellnesscenter.com, read and answered from here, while copies still go to the current mailbox.',
   },
   missing: {
-    icon: MapPin, title: <>Page not <em>found</em></>, phase: null,
+    icon: MapPin, title: <>Page not found</>, phase: null,
     text: "This address doesn't match a page in the clinic app.",
   },
 }

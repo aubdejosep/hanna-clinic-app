@@ -73,14 +73,14 @@ export default function PetPage() {
           </section>
 
           <section className="card placeholder">
-            <div className="card-head"><div><h2>Medical <em>history</em></h2><p>Notes, diagnoses, treatment plans and prescriptions</p></div></div>
+            <div className="card-head"><div><h2>Medical history</h2><p>Notes, diagnoses, treatment plans and prescriptions</p></div></div>
             <Empty icon={FileHeart} title="Arrives in phase 3" text="Records from the old system will be matched to this pet once the scraped export is in." />
           </section>
         </div>
 
         <div className="stack">
           <section className="card">
-            <div className="card-head"><div><h2>NFC <em>tag</em></h2><p>Tap at the front desk to check in</p></div></div>
+            <div className="card-head"><div><h2>NFC tag</h2><p>Tap at the front desk to check in</p></div></div>
             <div className="card-pad">
               {p.tag ? (
                 <p style={{ margin: 0 }}><span className="badge"><Nfc aria-hidden /> {p.tag.uid}</span> <span className="cell-sub">Assigned {prettyDay(p.tag.assigned_at.slice(0, 10))}</span></p>
@@ -90,7 +90,7 @@ export default function PetPage() {
             </div>
           </section>
           <section className="card placeholder">
-            <div className="card-head"><div><h2><em>Vaccinations</em></h2></div></div>
+            <div className="card-head"><div><h2>Vaccinations</h2></div></div>
             <Empty icon={Syringe} title="Arrives in phase 3" text="The vaccination card, with due dates for the next shots." />
           </section>
         </div>

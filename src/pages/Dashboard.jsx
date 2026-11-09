@@ -32,7 +32,7 @@ export default function Dashboard() {
   const s = data
   return (
     <>
-      <PageHead title={<>Clinic <em>dashboard</em></>} intro={s ? prettyDay(s.today) : ' '}>
+      <PageHead title={<>Clinic dashboard</>} intro={s ? prettyDay(s.today) : ' '}>
         <Link className="btn" to="/clients?new=1"><UserPlus aria-hidden /> Register owner</Link>
       </PageHead>
       <ErrorNote error={error} />
@@ -55,13 +55,13 @@ export default function Dashboard() {
       <div className="grid grid-2">
         <section className="card placeholder">
           <div className="card-head">
-            <div><h2>Today&rsquo;s <em>appointments</em></h2><p>Arrived, waiting and done</p></div>
+            <div><h2>Today&rsquo;s appointments</h2><p>Arrived, waiting and done</p></div>
           </div>
           <Empty icon={CalendarDays} title="Arrives in phase 2" text="Today's list, walk-ins and NFC tag check-ins will show here." />
         </section>
         <section className="card">
           <div className="card-head">
-            <div><h2>Records to <em>check</em></h2><p>Found while importing from the old system</p></div>
+            <div><h2>Records to check</h2><p>Found while importing from the old system</p></div>
           </div>
           <div className="card-pad">
             {s && s.ownersToReview > 0 ? (

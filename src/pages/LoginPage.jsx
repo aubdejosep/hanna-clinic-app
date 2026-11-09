@@ -33,7 +33,7 @@ export default function LoginPage({ onLoggedIn }) {
     <main className="login">
       <form className="card login-card" onSubmit={submit} noValidate>
         <img src="/brand/logo-192.png" alt="Hanna Pet Wellness Center" width="96" height="96" />
-        <h1>Welcome <em>back</em></h1>
+        <h1>Welcome back</h1>
         <p className="muted">Log in to the clinic app to continue.</p>
 
         <ErrorNote error={error} />

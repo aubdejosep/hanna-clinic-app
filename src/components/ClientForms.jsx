@@ -139,7 +139,7 @@ export function RegisterPanel({ onClose, onDone }) {
 
   return (
     <Panel
-      title={<>Register <em>owner</em></>}
+      title={<>Register owner</>}
       intro="Owner first, then their pets. You can add more pets later from the owner's page."
       onClose={onClose}
       busy={busy}
@@ -214,7 +214,7 @@ export function EditOwnerPanel({ owner, onClose, onDone }) {
   const errors = fieldErrors(error)
   return (
     <Panel
-      title={<>Edit <em>owner</em></>}
+      title={<>Edit owner</>}
       intro={owner.customerNo}
       onClose={onClose}
       busy={busy}
@@ -259,7 +259,7 @@ export function PetPanel({ ownerId, pet, onClose, onDone }) {
   const errors = fieldErrors(error)
   return (
     <Panel
-      title={pet ? <>Edit <em>{pet.name}</em></> : <>Add a <em>pet</em></>}
+      title={pet ? <>Edit {pet.name}</> : <>Add a pet</>}
       onClose={onClose}
       busy={busy}
       footer={(
