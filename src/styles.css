@@ -7,8 +7,11 @@
    --text for everything else. Teal and apricot are for buttons, icons, badges and highlights,
    never for words. The one exception is red for error messages.
 
-   One font everywhere: the computer's own (Segoe UI on Windows).
+   One font everywhere: Figtree (free, SIL Open Font License), served from /fonts, regular and bold.
    The tokens below are the only sizes, colours and shadows to use. */
+
+@font-face { font-family: "Figtree"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/figtree-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Figtree"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/figtree-latin-700-normal.woff2") format("woff2"); }
 
 :root {
   /* Brand */
@@ -45,7 +48,7 @@
   --radius-field: 10px;
 
   --font-head: var(--font-body);
-  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Figtree", "Segoe UI", system-ui, sans-serif;
 
   /* Type scale (the only sizes in the app) */
   --fs-h1: 1.75rem;     /* 28px page titles */
