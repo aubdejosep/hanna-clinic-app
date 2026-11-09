@@ -9,4 +9,4 @@ export function canManage(staff) {
   return staff?.role === 'owner' || staff?.role === 'admin'
 }
 
-export const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', vet: 'Veterinarian', front_desk: 'Front desk', groomer: 'Groomer' }
+export const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', vet: 'Veterinarian', front_desk: 'Front Desk', groomer: 'Groomer' }

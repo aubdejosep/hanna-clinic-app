@@ -26,8 +26,8 @@ export function RemoveOwnerPanel({ owner, onClose, onDone }) {
       busy={busy}
       footer={(
         <>
-          <button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Keep owner</button>
-          <button type="button" className="btn" onClick={remove} disabled={busy}>{busy ? 'Removing…' : 'Remove owner'}</button>
+          <button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Keep Owner</button>
+          <button type="button" className="btn" onClick={remove} disabled={busy}>{busy ? 'Removing…' : 'Remove Owner'}</button>
         </>
       )}
     >
@@ -72,7 +72,7 @@ export function RemovePetPanel({ pet, onClose, onDone }) {
         <>
           <button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Keep {pet.name}</button>
           <button type="button" className="btn" onClick={remove} disabled={busy}>
-            {busy ? 'Saving…' : reason === 'passed_away' ? 'Mark as passed away' : `Remove ${pet.name}`}
+            {busy ? 'Saving…' : reason === 'passed_away' ? 'Mark as Passed Away' : `Remove ${pet.name}`}
           </button>
         </>
       )}
@@ -83,7 +83,7 @@ export function RemovePetPanel({ pet, onClose, onDone }) {
           <input type="radio" name="reason" checked={reason === 'passed_away'} onChange={() => setReason('passed_away')} />
           <span>
             <strong>{pet.name} has passed away</strong><br />
-            The pet and all its records stay on file, marked "Passed away", so the history isn't lost.
+            The pet and all its records stay on file, marked "Passed Away", so the history isn't lost.
           </span>
         </label>
         {reason === 'passed_away' && (
@@ -94,7 +94,7 @@ export function RemovePetPanel({ pet, onClose, onDone }) {
         <label className="check">
           <input type="radio" name="reason" checked={reason === 'mistake'} onChange={() => setReason('mistake')} />
           <span>
-            <strong>Added by mistake, or a duplicate</strong><br />
+            <strong>Added by Mistake, or a Duplicate</strong><br />
             {pet.name} disappears from lists and search. You can bring it back from <strong>Masterlist → Removed</strong>.
           </span>
         </label>

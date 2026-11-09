@@ -25,7 +25,7 @@ function OwnersTable({ q, page, review, setPage, navigate }) {
   return (
     <>
       <table className="table">
-        <thead><tr><th>Owner</th><th>Mobile</th><th>Pets</th><th className="hide-sm">Client since</th></tr></thead>
+        <thead><tr><th>Owner</th><th>Mobile</th><th>Pets</th><th className="hide-sm">Client Since</th></tr></thead>
         <tbody aria-busy={loading}>
           {!data ? <LoadingRows cols={4} /> : data.owners.map((o) => (
             <tr key={o.id} onClick={() => navigate(`/clients/${o.id}`)}>
@@ -74,7 +74,7 @@ function PetsTable({ q, page, species, status, setPage, navigate }) {
                     <Link className="row-link" to={`/pets/${p.id}`} onClick={(e) => e.stopPropagation()}><strong>{p.name}</strong></Link>
                     <span className="cell-sub">{SPECIES_LABEL[p.species]}{p.breed ? ` · ${p.breed}` : ''}</span>
                   </span>
-                  {p.deceasedOn && <span className="badge badge-soft">Passed away</span>}
+                  {p.deceasedOn && <span className="badge badge-soft">Passed Away</span>}
                   <ReviewBadge flags={p.reviewFlags} />
                 </div>
               </td>
@@ -189,17 +189,17 @@ export default function Clients() {
 
   return (
     <>
-      <PageHead crumbs={[{ label: 'Client portal' }, { label: 'Masterlist' }]} title="Masterlist" intro="View and manage clients and their pets.">
+      <PageHead crumbs={[{ label: 'Client Portal' }, { label: 'Masterlist' }]} title="Masterlist" intro="View and manage clients and their pets.">
         <div className="head-actions">
-          <button type="button" className="btn" onClick={() => update({ new: '1' })}><UserPlus aria-hidden /> Register owner</button>
-          <button type="button" className="btn btn-quiet" onClick={() => update({ newpet: '1' })}><PawPrint aria-hidden /> Register pet</button>
+          <button type="button" className="btn" onClick={() => update({ new: '1' })}><UserPlus aria-hidden /> Register Owner</button>
+          <button type="button" className="btn btn-quiet" onClick={() => update({ newpet: '1' })}><PawPrint aria-hidden /> Register Pet</button>
         </div>
       </PageHead>
 
       <section className="card">
         <div className="toolbar">
           <div className="tabs" role="group" aria-label="Show">
-            {[['owners', 'Pet owners', counts?.owners.total], ['pets', 'Active pets', counts?.petsActive], ['deceased', 'Deceased pets', counts?.petsDeceased]].map(([key, label, n]) => (
+            {[['owners', 'Pet Owners', counts?.owners.total], ['pets', 'Active Pets', counts?.petsActive], ['deceased', 'Deceased Pets', counts?.petsDeceased]].map(([key, label, n]) => (
               <button key={key} type="button" className="tab" aria-pressed={tab === key}
                 onClick={() => update({ tab: key === 'owners' ? '' : key, page: '', review: '', species: '' })}>
                 {label}{n != null && <span className="tab-count">{n.toLocaleString()}</span>}

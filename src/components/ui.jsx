@@ -64,10 +64,10 @@ export function Pager({ page, pageSize, total, onPage, noun }) {
     <div className="pager">
       <span>{from.toLocaleString()}–{to.toLocaleString()} of {total.toLocaleString()} {noun}</span>
       <div className="pager-btns">
-        <button type="button" className="icon-btn" onClick={() => onPage(page - 1)} disabled={page <= 1} aria-label="Previous page" title="Previous page">
+        <button type="button" className="icon-btn" onClick={() => onPage(page - 1)} disabled={page <= 1} aria-label="Previous Page" title="Previous Page">
           <ChevronLeft />
         </button>
-        <button type="button" className="icon-btn" onClick={() => onPage(page + 1)} disabled={page >= pages} aria-label="Next page" title="Next page">
+        <button type="button" className="icon-btn" onClick={() => onPage(page + 1)} disabled={page >= pages} aria-label="Next Page" title="Next Page">
           <ChevronRight />
         </button>
       </div>

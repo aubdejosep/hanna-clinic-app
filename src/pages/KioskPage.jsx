@@ -8,16 +8,16 @@ import { BREED_NAMES } from '../lib/breeds.js'
 import { ErrorNote, Field } from '../components/ui.jsx'
 
 const OWNER_STEPS = [
-  { key: 'account', label: 'Account information', icon: User },
-  { key: 'contact', label: 'Contact information', icon: Phone },
-  { key: 'address', label: 'Address information', icon: Home },
+  { key: 'account', label: 'Account Information', icon: User },
+  { key: 'contact', label: 'Contact Information', icon: Phone },
+  { key: 'address', label: 'Address Information', icon: Home },
   { key: 'notify', label: 'Notifications', icon: Bell },
 ]
 const PET_STEPS = [
-  { key: 'basic', label: 'Basic info', icon: PawPrint },
-  { key: 'details', label: 'Pet details', icon: Check },
+  { key: 'basic', label: 'Basic Info', icon: PawPrint },
+  { key: 'details', label: 'Pet Details', icon: Check },
   { key: 'age', label: 'Age', icon: Cake },
-  { key: 'health', label: 'Health info', icon: HeartPulse },
+  { key: 'health', label: 'Health Info', icon: HeartPulse },
 ]
 const blankOwner = () => ({ firstName: '', lastName: '', mobile: '', messenger: '', email: '', street: '', city: '', province: '', postalCode: '', country: 'Philippines', reminders: false })
 const blankPet = () => ({ name: '', microchip: '', species: 'dog', breed: '', sex: 'unknown', colorMarkings: '', birthdate: '', allergies: '', notes: '' })
@@ -184,7 +184,7 @@ export default function KioskPage() {
           <span className="kiosk-tick"><Check aria-hidden /></span>
           <h1>Thank you, {result.firstName}!</h1>
           <p>You’re registered{result.pets.length ? <> with <strong>{result.pets.join(', ')}</strong></> : null}. Please let the front desk know you’re here.</p>
-          <button type="button" className="btn" onClick={restart}>Start a new registration</button>
+          <button type="button" className="btn" onClick={restart}>Start a New Registration</button>
         </div>
       </main>
     )
@@ -193,7 +193,7 @@ export default function KioskPage() {
   const onLastPetStep = stage === 'pet' && step === 3
   return (
     <main className="kiosk">
-      {stage === 'owner' ? header('Pet owner registration', 1) : header(pets.length > 1 ? `Pet registration (${petIndex + 1} of ${pets.length})` : 'Pet registration', 2)}
+      {stage === 'owner' ? header('Pet Owner Registration', 1) : header(pets.length > 1 ? `Pet registration (${petIndex + 1} of ${pets.length})` : 'Pet Registration', 2)}
 
       <div className="card kiosk-card">
         <div className="kiosk-nav">
@@ -208,35 +208,35 @@ export default function KioskPage() {
           <ErrorNote error={error && !Object.keys(errors).length ? error : null} />
 
           {stage === 'owner' && step === 0 && (
-            <section className="form-section"><h2>Account information</h2>
+            <section className="form-section"><h2>Account Information</h2>
               <div className="form-row">
-                <Field label="First name" error={f('owner.firstName')}>{(a) => <input {...a} value={owner.firstName} onChange={(e) => setO({ firstName: e.target.value })} maxLength={50} autoComplete="given-name" autoFocus />}</Field>
-                <Field label="Last name" error={f('owner.lastName')}>{(a) => <input {...a} value={owner.lastName} onChange={(e) => setO({ lastName: e.target.value })} maxLength={50} autoComplete="family-name" />}</Field>
+                <Field label="First Name" error={f('owner.firstName')}>{(a) => <input {...a} value={owner.firstName} onChange={(e) => setO({ firstName: e.target.value })} maxLength={50} autoComplete="given-name" autoFocus />}</Field>
+                <Field label="Last Name" error={f('owner.lastName')}>{(a) => <input {...a} value={owner.lastName} onChange={(e) => setO({ lastName: e.target.value })} maxLength={50} autoComplete="family-name" />}</Field>
               </div>
             </section>
           )}
           {stage === 'owner' && step === 1 && (
-            <section className="form-section"><h2>Contact information</h2>
-              <Field label="Mobile number" hint="For appointment reminders by text." error={f('owner.mobile')}>{(a) => <input {...a} value={owner.mobile} onChange={(e) => setO({ mobile: e.target.value })} inputMode="tel" autoComplete="tel" placeholder="0917 123 4567" />}</Field>
-              <Field label="Messenger name or link" optional>{(a) => <input {...a} value={owner.messenger} onChange={(e) => setO({ messenger: e.target.value })} maxLength={200} />}</Field>
+            <section className="form-section"><h2>Contact Information</h2>
+              <Field label="Mobile Number" hint="For appointment reminders by text." error={f('owner.mobile')}>{(a) => <input {...a} value={owner.mobile} onChange={(e) => setO({ mobile: e.target.value })} inputMode="tel" autoComplete="tel" placeholder="0917 123 4567" />}</Field>
+              <Field label="Messenger Name or Link" optional>{(a) => <input {...a} value={owner.messenger} onChange={(e) => setO({ messenger: e.target.value })} maxLength={200} />}</Field>
               <Field label="Email" optional error={f('owner.email')}>{(a) => <input {...a} type="email" value={owner.email} onChange={(e) => setO({ email: e.target.value })} autoComplete="email" />}</Field>
             </section>
           )}
           {stage === 'owner' && step === 2 && (
-            <section className="form-section"><h2>Address information</h2>
-              <Field label="Street address" optional>{(a) => <input {...a} value={owner.street} onChange={(e) => setO({ street: e.target.value })} maxLength={100} autoComplete="street-address" />}</Field>
+            <section className="form-section"><h2>Address Information</h2>
+              <Field label="Street Address" optional>{(a) => <input {...a} value={owner.street} onChange={(e) => setO({ street: e.target.value })} maxLength={100} autoComplete="street-address" />}</Field>
               <div className="form-row">
                 <Field label="City" optional>{(a) => <input {...a} value={owner.city} onChange={(e) => setO({ city: e.target.value })} maxLength={50} autoComplete="address-level2" />}</Field>
                 <Field label="Province" optional>{(a) => <input {...a} value={owner.province} onChange={(e) => setO({ province: e.target.value })} maxLength={30} autoComplete="address-level1" />}</Field>
               </div>
               <div className="form-row">
-                <Field label="Postal code" optional>{(a) => <input {...a} value={owner.postalCode} onChange={(e) => setO({ postalCode: e.target.value })} maxLength={10} inputMode="numeric" autoComplete="postal-code" />}</Field>
+                <Field label="Postal Code" optional>{(a) => <input {...a} value={owner.postalCode} onChange={(e) => setO({ postalCode: e.target.value })} maxLength={10} inputMode="numeric" autoComplete="postal-code" />}</Field>
                 <Field label="Country">{(a) => <input {...a} value={owner.country} onChange={(e) => setO({ country: e.target.value })} maxLength={40} autoComplete="country-name" />}</Field>
               </div>
             </section>
           )}
           {stage === 'owner' && step === 3 && (
-            <section className="form-section"><h2>Stay updated</h2>
+            <section className="form-section"><h2>Stay Updated</h2>
               <label className="check">
                 <input type="checkbox" checked={owner.reminders} onChange={(e) => setO({ reminders: e.target.checked })} />
                 <span>I’d like to receive appointment reminders from {config.clinicName}.</span>
@@ -256,25 +256,25 @@ export default function KioskPage() {
           )}
 
           {stage === 'pet' && step === 0 && (
-            <section className="form-section"><h2>Basic information</h2>
+            <section className="form-section"><h2>Basic Information</h2>
               <div className="form-row">
-                <Field label="Pet name" error={f(`pets.${petIndex}.name`)}>{(a) => <input {...a} value={pet.name} onChange={(e) => setP({ name: e.target.value })} maxLength={25} autoFocus />}</Field>
-                <Field label="Microchip (iChip) number" optional>{(a) => <input {...a} value={pet.microchip} onChange={(e) => setP({ microchip: e.target.value })} maxLength={30} inputMode="numeric" />}</Field>
+                <Field label="Pet Name" error={f(`pets.${petIndex}.name`)}>{(a) => <input {...a} value={pet.name} onChange={(e) => setP({ name: e.target.value })} maxLength={25} autoFocus />}</Field>
+                <Field label="Microchip (iChip) Number" optional>{(a) => <input {...a} value={pet.microchip} onChange={(e) => setP({ microchip: e.target.value })} maxLength={30} inputMode="numeric" />}</Field>
               </div>
             </section>
           )}
           {stage === 'pet' && step === 1 && (
-            <section className="form-section"><h2>Pet details</h2>
+            <section className="form-section"><h2>Pet Details</h2>
               <datalist id="kiosk-breeds">{BREED_NAMES.map((b) => <option key={b} value={b} />)}</datalist>
               <div className="field"><span>Species</span>
                 <div className="seg" role="radiogroup">{[['dog', 'Dog'], ['cat', 'Cat'], ['other', 'Other']].map(([v, l]) => <label key={v}><input type="radio" name="species" checked={pet.species === v} onChange={() => setP({ species: v })} /><span>{l}</span></label>)}</div>
               </div>
               <div className="field"><span>Sex</span>
-                <div className="seg" role="radiogroup">{[['male', 'Male'], ['female', 'Female'], ['unknown', 'Not sure']].map(([v, l]) => <label key={v}><input type="radio" name="sex" checked={pet.sex === v} onChange={() => setP({ sex: v })} /><span>{l}</span></label>)}</div>
+                <div className="seg" role="radiogroup">{[['male', 'Male'], ['female', 'Female'], ['unknown', 'Not Sure']].map(([v, l]) => <label key={v}><input type="radio" name="sex" checked={pet.sex === v} onChange={() => setP({ sex: v })} /><span>{l}</span></label>)}</div>
               </div>
               <div className="form-row">
                 <Field label="Breed" optional hint="Pick from the list or type it.">{(a) => <input {...a} value={pet.breed} onChange={(e) => setP({ breed: e.target.value })} list="kiosk-breeds" maxLength={60} autoComplete="off" />}</Field>
-                <Field label="Colour and markings" optional>{(a) => <input {...a} value={pet.colorMarkings} onChange={(e) => setP({ colorMarkings: e.target.value })} maxLength={100} />}</Field>
+                <Field label="Colour and Markings" optional>{(a) => <input {...a} value={pet.colorMarkings} onChange={(e) => setP({ colorMarkings: e.target.value })} maxLength={100} />}</Field>
               </div>
             </section>
           )}
@@ -284,7 +284,7 @@ export default function KioskPage() {
             </section>
           )}
           {stage === 'pet' && step === 3 && (
-            <section className="form-section"><h2>Health information</h2>
+            <section className="form-section"><h2>Health Information</h2>
               <Field label="Allergies" optional hint="Food or medicine your pet reacts to.">{(a) => <textarea {...a} value={pet.allergies} onChange={(e) => setP({ allergies: e.target.value })} rows={2} maxLength={500} />}</Field>
               <Field label="Anything else we should know?" optional>{(a) => <textarea {...a} value={pet.notes} onChange={(e) => setP({ notes: e.target.value })} rows={3} maxLength={1000} />}</Field>
             </section>
@@ -293,10 +293,10 @@ export default function KioskPage() {
       </div>
 
       <div className="kiosk-actions">
-        {stage === 'owner' && step === 3 && <button type="button" className="btn kiosk-cta" onClick={next}>Next: Register pet</button>}
+        {stage === 'owner' && step === 3 && <button type="button" className="btn kiosk-cta" onClick={next}>Next: Register Pet</button>}
         {onLastPetStep && (
           <>
-            {pets.length < 5 && <button type="button" className="btn btn-quiet kiosk-cta" onClick={addPet}><Plus aria-hidden /> Add another pet</button>}
+            {pets.length < 5 && <button type="button" className="btn btn-quiet kiosk-cta" onClick={addPet}><Plus aria-hidden /> Add Another Pet</button>}
             <Turnstile siteKey={config.turnstileSiteKey} onToken={setToken} />
             <button type="button" className="btn kiosk-cta" onClick={register} disabled={busy || !token}>{busy ? 'Registering…' : 'Register'}</button>
             {!token && <span className="field-hint">Tick “I’m human” above to register.</span>}

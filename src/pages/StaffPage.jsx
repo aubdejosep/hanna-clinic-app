@@ -27,16 +27,16 @@ export default function StaffPage() {
   if (!canManage(me)) {
     return (
       <>
-        <PageHead title="Manage staff" />
-        <div className="card"><Empty icon={Lock} title="For clinic owners" text="Only the clinic owners can see and change staff details." /></div>
+        <PageHead title="Manage Staff" />
+        <div className="card"><Empty icon={Lock} title="For Clinic Owners" text="Only the clinic owners can see and change staff details." /></div>
       </>
     )
   }
 
   return (
     <>
-      <PageHead crumbs={[{ label: 'Clinic operations' }, { label: 'Staff' }]} title="Manage staff" intro="View, add and manage the people who use the clinic app.">
-        <button type="button" className="btn" onClick={() => setPanel({ staff: null })}><UserPlus aria-hidden /> Add staff</button>
+      <PageHead crumbs={[{ label: 'Clinic Operations' }, { label: 'Staff' }]} title="Manage Staff" intro="View, add and manage the people who use the clinic app.">
+        <button type="button" className="btn" onClick={() => setPanel({ staff: null })}><UserPlus aria-hidden /> Add Staff</button>
       </PageHead>
       <ErrorNote error={error} />
 
@@ -49,10 +49,10 @@ export default function StaffPage() {
           <span className="field-hint">{data ? `${data.staff.length} staff member${data.staff.length === 1 ? '' : 's'}` : ' '}</span>
         </div>
         {data && !data.staff.length ? (
-          <Empty icon={Users} title="No staff yet" text="Add the first staff member so they can log in." />
+          <Empty icon={Users} title="No Staff Yet" text="Add the first staff member so they can log in." />
         ) : (
           <table className="table">
-            <thead><tr><th>Name / email</th><th>Mobile</th><th>Role</th><th>Shift schedule</th><th>Access</th><th><span className="sr-only">Edit</span></th></tr></thead>
+            <thead><tr><th>Name / Email</th><th>Mobile</th><th>Role</th><th>Shift Schedule</th><th>Access</th><th><span className="sr-only">Edit</span></th></tr></thead>
             <tbody aria-busy={loading}>
               {(data?.staff || []).map((s) => (
                 <tr key={s.id} onClick={() => setPanel({ staff: s })}>
@@ -72,14 +72,14 @@ export default function StaffPage() {
                   </td>
                   <td data-label="Shift">
                     {hoursSummary(s.schedule) || <span>No shifts set</span>}
-                    <span className="day-chips" aria-label="Working days">
+                    <span className="day-chips" aria-label="Working Days">
                       {DAY_KEYS.map((d) => <span key={d} className={`day-chip ${s.schedule[d] ? 'on' : ''}`}>{DAY_CHIPS[d]}</span>)}
                     </span>
                   </td>
                   <td data-label="Access">
-                    {!s.active ? <span className="badge badge-soft">Switched off</span>
+                    {!s.active ? <span className="badge badge-soft">Switched Off</span>
                       : s.lockedUntil ? <span className="badge badge-warm">Paused</span>
-                        : <span className="badge">Can log in</span>}
+                        : <span className="badge">Can Log In</span>}
                     <span className="cell-sub">{s.lastLoginAt ? `Last login ${prettyDay(s.lastLoginAt.slice(0, 10))}` : 'Never logged in'}</span>
                   </td>
                   <td style={{ textAlign: 'right' }}>

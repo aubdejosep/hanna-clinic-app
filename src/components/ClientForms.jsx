@@ -24,7 +24,7 @@ function Seg({ name, value, options, onChange }) {
 function OwnerFields({ value, set, errors }) {
   return (
     <>
-      <Field label="Full name" error={errors.name}>
+      <Field label="Full Name" error={errors.name}>
         {(a) => <input {...a} value={value.name} onChange={(e) => set({ name: e.target.value })} autoComplete="off" maxLength={100} />}
       </Field>
       <div className="form-row">
@@ -36,10 +36,10 @@ function OwnerFields({ value, set, errors }) {
         </Field>
       </div>
       <div className="form-row">
-        <Field label="Additional owner" optional hint="Family member who also brings the pets in.">
+        <Field label="Additional Owner" optional hint="Family member who also brings the pets in.">
           {(a) => <input {...a} value={value.additionalOwner} onChange={(e) => set({ additionalOwner: e.target.value })} maxLength={100} />}
         </Field>
-        <Field label="Messenger name or link" optional>
+        <Field label="Messenger Name or Link" optional>
           {(a) => <input {...a} value={value.messenger} onChange={(e) => set({ messenger: e.target.value })} maxLength={200} />}
         </Field>
       </div>
@@ -58,7 +58,7 @@ function PetFields({ value, set, errors = {}, idx = 0, full }) {
   return (
     <>
       <div className="form-row">
-        <Field label="Pet's name" error={errors.name}>
+        <Field label="Pet's Name" error={errors.name}>
           {(a) => <input {...a} value={value.name} onChange={(e) => set({ name: e.target.value })} maxLength={50} autoComplete="off" />}
         </Field>
         <Field label="Breed" optional hint="Pick from the list or type it.">
@@ -72,7 +72,7 @@ function PetFields({ value, set, errors = {}, idx = 0, full }) {
         </div>
         <div className="field">
           <span>Sex</span>
-          <Seg name={`sex-${idx}`} value={value.sex} onChange={(sex) => set({ sex })} options={[['male', 'Male'], ['female', 'Female'], ['unknown', 'Not sure']]} />
+          <Seg name={`sex-${idx}`} value={value.sex} onChange={(sex) => set({ sex })} options={[['male', 'Male'], ['female', 'Female'], ['unknown', 'Not Sure']]} />
         </div>
       </div>
       <Field label="Birthdate" optional hint="An estimate is fine." error={errors.birthdate}>
@@ -81,10 +81,10 @@ function PetFields({ value, set, errors = {}, idx = 0, full }) {
       {full && (
         <>
           <div className="form-row">
-            <Field label="Colour and markings" optional>
+            <Field label="Colour and Markings" optional>
               {(a) => <input {...a} value={value.colorMarkings} onChange={(e) => set({ colorMarkings: e.target.value })} maxLength={100} />}
             </Field>
-            <Field label="Microchip number" optional>
+            <Field label="Microchip Number" optional>
               {(a) => <input {...a} value={value.microchip} onChange={(e) => set({ microchip: e.target.value })} inputMode="numeric" maxLength={30} />}
             </Field>
           </div>
@@ -95,7 +95,7 @@ function PetFields({ value, set, errors = {}, idx = 0, full }) {
             {(a) => <textarea {...a} value={value.notes} onChange={(e) => set({ notes: e.target.value })} rows={3} maxLength={2000} />}
           </Field>
           {'deceasedOn' in value && (
-            <Field label="Passed away on" optional hint="Clear the date if this was marked by mistake." error={errors.deceasedOn}>
+            <Field label="Passed Away On" optional hint="Clear the date if this was marked by mistake." error={errors.deceasedOn}>
               {(a) => <input {...a} type="date" value={value.deceasedOn || ''} onChange={(e) => set({ deceasedOn: e.target.value })} max={new Date().toISOString().slice(0, 10)} />}
             </Field>
           )}
@@ -144,14 +144,14 @@ export function RegisterPanel({ onClose, onDone }) {
 
   return (
     <Panel
-      title={<>Register owner</>}
+      title={<>Register Owner</>}
       intro="Owner first, then their pets. You can add more pets later from the owner's page."
       onClose={onClose}
       busy={busy}
       footer={(
         <>
           <button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="button" className="btn" onClick={() => save(false)} disabled={busy}>{busy ? 'Saving…' : 'Register owner'}</button>
+          <button type="button" className="btn" onClick={() => save(false)} disabled={busy}>{busy ? 'Saving…' : 'Register Owner'}</button>
         </>
       )}
     >
@@ -164,7 +164,7 @@ export function RegisterPanel({ onClose, onDone }) {
             <ul style={{ margin: '8px 0', paddingLeft: 18 }}>
               {dupes.map((d) => <li key={d.id}><Link to={`/clients/${d.id}`} onClick={onClose}>{d.name}</Link> · {d.customerNo}</li>)}
             </ul>
-            <button type="button" className="btn btn-quiet" onClick={() => save(true)} disabled={busy}>Register anyway</button>
+            <button type="button" className="btn btn-quiet" onClick={() => save(true)} disabled={busy}>Register Anyway</button>
           </div>
         </div>
       )}
@@ -178,7 +178,7 @@ export function RegisterPanel({ onClose, onDone }) {
           <div className="form-section-head">
             <h3 className="label">Pet {pets.length > 1 ? i + 1 : ''}</h3>
             {pets.length > 1 && (
-              <button type="button" className="icon-btn" onClick={() => setPets((ps) => ps.filter((_, j) => j !== i))} aria-label={`Remove pet ${i + 1}`} title="Remove this pet">
+              <button type="button" className="icon-btn" onClick={() => setPets((ps) => ps.filter((_, j) => j !== i))} aria-label={`Remove pet ${i + 1}`} title="Remove This Pet">
                 <Trash2 />
               </button>
             )}
@@ -219,14 +219,14 @@ export function EditOwnerPanel({ owner, onClose, onDone }) {
   const errors = fieldErrors(error)
   return (
     <Panel
-      title={<>Edit owner</>}
+      title={<>Edit Owner</>}
       intro={owner.customerNo}
       onClose={onClose}
       busy={busy}
       footer={(
         <>
           <button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="button" className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</button>
+          <button type="button" className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save Changes'}</button>
         </>
       )}
     >
@@ -265,14 +265,14 @@ export function PetPanel({ ownerId, ownerName, pet, onClose, onDone }) {
   const errors = fieldErrors(error)
   return (
     <Panel
-      title={pet ? <>Edit {pet.name}</> : <>Add a pet</>}
+      title={pet ? <>Edit {pet.name}</> : <>Add a Pet</>}
       intro={!pet && ownerName ? `Owner: ${ownerName}` : undefined}
       onClose={onClose}
       busy={busy}
       footer={(
         <>
           <button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="button" className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : pet ? 'Save changes' : 'Add pet'}</button>
+          <button type="button" className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : pet ? 'Save Changes' : 'Add Pet'}</button>
         </>
       )}
     >
@@ -308,7 +308,7 @@ export function RegisterPetPanel({ onClose, onDone }) {
     return <PetPanel ownerId={owner.id} ownerName={owner.name} onClose={onClose} onDone={onDone} />
   }
   return (
-    <Panel title="Register pet" intro="First, find the pet’s owner." onClose={onClose}
+    <Panel title="Register Pet" intro="First, find the pet’s owner." onClose={onClose}
       footer={<button type="button" className="btn btn-quiet" onClick={onClose}>Cancel</button>}>
       <ErrorNote error={error} />
       <section className="form-section">
@@ -326,7 +326,7 @@ export function RegisterPetPanel({ onClose, onDone }) {
               </li>
             ))}
           </ul>
-        ) : <p className="field-hint" style={{ margin: 0 }}>No owner matches “{text}”. Register the owner first with <strong>Register owner</strong>.</p>)}
+        ) : <p className="field-hint" style={{ margin: 0 }}>No owner matches “{text}”. Register the owner first with <strong>Register Owner</strong>.</p>)}
       </section>
     </Panel>
   )

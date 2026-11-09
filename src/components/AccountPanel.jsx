@@ -39,17 +39,17 @@ export default function AccountPanel({ staff, onClose, onLogOut }) {
 
   return (
     <Panel
-      title="My account"
+      title="My Account"
       intro={`${staff.name} · ${staff.title || ROLE_LABEL[staff.role] || staff.role}`}
       onClose={onClose}
       busy={busy}
       footer={(
         <>
           <button type="button" className="btn btn-quiet" onClick={onLogOut} disabled={busy} style={{ marginRight: 'auto' }}>
-            <LogOut aria-hidden /> Log out
+            <LogOut aria-hidden /> Log Out
           </button>
           <button type="button" className="btn" onClick={save} disabled={busy || !form.current || !form.next || !form.again}>
-            {busy ? 'Saving…' : 'Change password'}
+            {busy ? 'Saving…' : 'Change Password'}
           </button>
         </>
       )}
@@ -63,19 +63,19 @@ export default function AccountPanel({ staff, onClose, onLogOut }) {
 
       <section className="form-section">
         <div className="form-section-head">
-          <h3 className="label">Change password</h3>
-          <button type="button" className="icon-btn" onClick={() => setShow((s) => !s)} aria-label={show ? 'Hide passwords' : 'Show passwords'} title={show ? 'Hide passwords' : 'Show passwords'}>
+          <h3 className="label">Change Password</h3>
+          <button type="button" className="icon-btn" onClick={() => setShow((s) => !s)} aria-label={show ? 'Hide Passwords' : 'Show Passwords'} title={show ? 'Hide Passwords' : 'Show Passwords'}>
             {show ? <EyeOff /> : <Eye />}
           </button>
         </div>
         <ErrorNote error={error && !Object.keys(errors).length ? error : null} />
-        <Field label="Current password" error={errors.current}>
+        <Field label="Current Password" error={errors.current}>
           {(a) => <PasswordInput {...a} value={form.current} onChange={set('current')} show={show} autoComplete="current-password" />}
         </Field>
-        <Field label="New password" hint="At least 10 characters. A short sentence is easy to remember." error={errors.next}>
+        <Field label="New Password" hint="At least 10 characters. A short sentence is easy to remember." error={errors.next}>
           {(a) => <PasswordInput {...a} value={form.next} onChange={set('next')} show={show} autoComplete="new-password" />}
         </Field>
-        <Field label="New password again" error={mismatch}>
+        <Field label="New Password Again" error={mismatch}>
           {(a) => <PasswordInput {...a} value={form.again} onChange={set('again')} show={show} autoComplete="new-password" />}
         </Field>
         <p className="field-hint" style={{ margin: 0 }}>Changing it logs you out on every other computer and phone. This one stays logged in.</p>

@@ -7,7 +7,7 @@ import { DAY_KEYS, DAY_NAMES } from '../lib/schedule.js'
 import { ErrorNote, Field, Panel } from './ui.jsx'
 import SignaturePad from './SignaturePad.jsx'
 
-const ROLE_OPTIONS = [['owner', 'Owner'], ['vet', 'Veterinarian'], ['front_desk', 'Front desk'], ['groomer', 'Groomer']]
+const ROLE_OPTIONS = [['owner', 'Owner'], ['vet', 'Veterinarian'], ['front_desk', 'Front Desk'], ['groomer', 'Groomer']]
 
 function initialForm(s) {
   return {
@@ -75,14 +75,14 @@ export default function StaffPanel({ staff, me, onClose, onDone }) {
 
   return (
     <Panel
-      title={editing ? `Edit ${staff.name}` : 'Add staff member'}
+      title={editing ? `Edit ${staff.name}` : 'Add Staff Member'}
       intro={editing ? 'Update the staff member’s details below.' : 'They log in with the email and password you set here.'}
       onClose={onClose}
       busy={busy}
       footer={(
         <>
           <button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="button" className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : editing ? 'Update staff' : 'Add staff'}</button>
+          <button type="button" className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : editing ? 'Update Staff' : 'Add Staff'}</button>
         </>
       )}
     >
@@ -90,44 +90,44 @@ export default function StaffPanel({ staff, me, onClose, onDone }) {
       {Object.keys(errors).length > 0 && <ErrorNote error={new Error('Some details need fixing. They’re marked below.')} />}
 
       <section className="form-section">
-        <h3 className="label">Profile picture <small>(optional)</small></h3>
+        <h3 className="label">Profile Picture <small>(optional)</small></h3>
         <div className="photo-row">
           <span className="avatar avatar-lg photo">{photoSrc ? <img src={photoSrc} alt="" /> : (form.firstName[0] || '?').toUpperCase()}</span>
           <div className="photo-btns">
             <label className="btn btn-quiet"><Camera aria-hidden /> Take a photo<input type="file" accept="image/*" capture="user" onChange={pickPhoto} hidden /></label>
             <label className="btn btn-quiet"><Upload aria-hidden /> Upload a file<input type="file" accept="image/png,image/jpeg,image/webp" onChange={pickPhoto} hidden /></label>
-            {photoSrc && <button type="button" className="icon-btn" onClick={() => setPhoto(null)} aria-label="Remove photo" title="Remove photo"><Trash2 /></button>}
+            {photoSrc && <button type="button" className="icon-btn" onClick={() => setPhoto(null)} aria-label="Remove Photo" title="Remove Photo"><Trash2 /></button>}
           </div>
         </div>
       </section>
 
       <section className="form-section">
-        <h3 className="label">Staff role</h3>
+        <h3 className="label">Staff Role</h3>
         <div className="form-row">
-          <Field label="Access role" hint="Owners can manage staff and remove records." error={errors.role}>
+          <Field label="Access Role" hint="Owners can manage staff and remove records." error={errors.role}>
             {(a) => (
               <select {...a} value={form.role} onChange={(e) => set({ role: e.target.value })} disabled={isMe && staff.role === 'owner'}>
                 {ROLE_OPTIONS.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
               </select>
             )}
           </Field>
-          <Field label="Job title" optional hint="Shown next to their name, e.g. Resident Veterinarian.">
+          <Field label="Job Title" optional hint="Shown next to their name, e.g. Resident Veterinarian.">
             {(a) => <input {...a} value={form.title} onChange={(e) => set({ title: e.target.value })} maxLength={60} />}
           </Field>
         </div>
         <div className="form-row">
-          <Field label="License number" optional error={errors.licenseNo}>
+          <Field label="License Number" optional error={errors.licenseNo}>
             {(a) => <input {...a} value={form.licenseNo} onChange={(e) => set({ licenseNo: e.target.value })} placeholder="e.g. VET-2024-001234" maxLength={30} />}
           </Field>
-          <Field label="License expiry date" optional error={errors.licenseExpiry}>
+          <Field label="License Expiry Date" optional error={errors.licenseExpiry}>
             {(a) => <input {...a} type="date" value={form.licenseExpiry} onChange={(e) => set({ licenseExpiry: e.target.value })} />}
           </Field>
         </div>
         <div className="form-row">
-          <Field label="PTR number" optional>
+          <Field label="PTR Number" optional>
             {(a) => <input {...a} value={form.ptrNo} onChange={(e) => set({ ptrNo: e.target.value })} placeholder="e.g. PTR-2024-001234" maxLength={30} />}
           </Field>
-          <Field label="S2 number" optional>
+          <Field label="S2 Number" optional>
             {(a) => <input {...a} value={form.s2No} onChange={(e) => set({ s2No: e.target.value })} placeholder="e.g. 0012345" maxLength={30} />}
           </Field>
         </div>
@@ -138,12 +138,12 @@ export default function StaffPanel({ staff, me, onClose, onDone }) {
       </section>
 
       <section className="form-section">
-        <h3 className="label">Account information</h3>
+        <h3 className="label">Account Information</h3>
         <div className="form-row">
-          <Field label="First name" error={errors.firstName}>
+          <Field label="First Name" error={errors.firstName}>
             {(a) => <input {...a} value={form.firstName} onChange={(e) => set({ firstName: e.target.value })} maxLength={50} />}
           </Field>
-          <Field label="Last name" optional>
+          <Field label="Last Name" optional>
             {(a) => <input {...a} value={form.lastName} onChange={(e) => set({ lastName: e.target.value })} maxLength={50} />}
           </Field>
         </div>
@@ -167,7 +167,7 @@ export default function StaffPanel({ staff, me, onClose, onDone }) {
 
       <section className="form-section">
         <h3 className="label">Address <small>(optional)</small></h3>
-        <Field label="Street address">
+        <Field label="Street Address">
           {(a) => <input {...a} value={form.street} onChange={(e) => set({ street: e.target.value })} maxLength={255} />}
         </Field>
         <div className="form-row">
@@ -175,15 +175,15 @@ export default function StaffPanel({ staff, me, onClose, onDone }) {
           <Field label="Province">{(a) => <input {...a} value={form.province} onChange={(e) => set({ province: e.target.value })} maxLength={100} />}</Field>
         </div>
         <div className="form-row">
-          <Field label="Postal code">{(a) => <input {...a} value={form.postalCode} onChange={(e) => set({ postalCode: e.target.value })} maxLength={20} />}</Field>
+          <Field label="Postal Code">{(a) => <input {...a} value={form.postalCode} onChange={(e) => set({ postalCode: e.target.value })} maxLength={20} />}</Field>
           <Field label="Country">{(a) => <input {...a} value={form.country} onChange={(e) => set({ country: e.target.value })} maxLength={60} />}</Field>
         </div>
       </section>
 
       <section className="form-section">
         <div className="form-section-head">
-          <h3 className="label">Shift schedule</h3>
-          <button type="button" className="btn btn-quiet" onClick={copyFirstDay} title="Give every working day the first day’s hours"><Copy aria-hidden /> Same hours every day</button>
+          <h3 className="label">Shift Schedule</h3>
+          <button type="button" className="btn btn-quiet" onClick={copyFirstDay} title="Give every working day the first day’s hours"><Copy aria-hidden /> Same Hours Every Day</button>
         </div>
         {errors.schedule && <span className="field-error">{errors.schedule}</span>}
         <div className="schedule">
@@ -206,18 +206,18 @@ export default function StaffPanel({ staff, me, onClose, onDone }) {
             )
           })}
         </div>
-        <Field label="Max yearly leave days" optional error={errors.maxLeaveDays}>
+        <Field label="Max Yearly Leave Days" optional error={errors.maxLeaveDays}>
           {(a) => <input {...a} type="number" min="0" max="365" value={form.maxLeaveDays} onChange={(e) => set({ maxLeaveDays: e.target.value })} style={{ maxWidth: 160 }} />}
         </Field>
       </section>
 
       {editing && (
         <section className="form-section">
-          <h3 className="label">System access</h3>
+          <h3 className="label">System Access</h3>
           <label className="check">
             <input type="checkbox" checked={form.active} onChange={(e) => set({ active: e.target.checked })} disabled={isMe} />
             <span>
-              <strong>Can log in</strong><br />
+              <strong>Can Log In</strong><br />
               {isMe ? "You can't switch off your own account." : 'Untick when someone leaves. They’re logged out at once, and their name stays on past records.'}
             </span>
           </label>

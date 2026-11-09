@@ -51,31 +51,31 @@ function ServicePanel({ service, categories, onClose, onDone }) {
 
   return (
     <Panel
-      title={editing ? `Edit ${service.name}` : 'Add service'}
+      title={editing ? `Edit ${service.name}` : 'Add Service'}
       intro={editing ? 'Update the details of this service.' : 'Services can be added to appointments and billed.'}
       onClose={onClose}
       busy={busy}
       footer={confirmRemove ? (
         <>
           <span className="field-hint" style={{ marginRight: 'auto' }}>Remove {service.name}? Past appointments keep its name.</span>
-          <button type="button" className="btn btn-quiet" onClick={() => setConfirmRemove(false)} disabled={busy}>Keep it</button>
-          <button type="button" className="btn" onClick={remove} disabled={busy}>Remove service</button>
+          <button type="button" className="btn btn-quiet" onClick={() => setConfirmRemove(false)} disabled={busy}>Keep It</button>
+          <button type="button" className="btn" onClick={remove} disabled={busy}>Remove Service</button>
         </>
       ) : (
         <>
-          {editing && <button type="button" className="icon-btn" style={{ marginRight: 'auto' }} onClick={() => setConfirmRemove(true)} aria-label="Remove service" title="Remove service"><Trash2 /></button>}
+          {editing && <button type="button" className="icon-btn" style={{ marginRight: 'auto' }} onClick={() => setConfirmRemove(true)} aria-label="Remove Service" title="Remove Service"><Trash2 /></button>}
           <button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="button" className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : editing ? 'Update service' : 'Add service'}</button>
+          <button type="button" className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : editing ? 'Update Service' : 'Add Service'}</button>
         </>
       )}
     >
       <ErrorNote error={error && !Object.keys(errors).length ? error : null} />
       <datalist id="service-categories">{categories.map((c) => <option key={c.id} value={c.name} />)}</datalist>
       <section className="form-section">
-        <Field label="Service name" error={errors.name}>{(a) => <input {...a} value={v.name} onChange={(e) => set({ name: e.target.value })} maxLength={60} />}</Field>
+        <Field label="Service Name" error={errors.name}>{(a) => <input {...a} value={v.name} onChange={(e) => set({ name: e.target.value })} maxLength={60} />}</Field>
         <Field label="Description" optional>{(a) => <textarea {...a} value={v.description} onChange={(e) => set({ description: e.target.value })} rows={2} maxLength={300} />}</Field>
         <div className="form-row">
-          <Field label="Base price (₱)" hint={v.variations.length ? 'With variations, each variation has its own price.' : null} error={errors.price}>
+          <Field label="Base Price (₱)" hint={v.variations.length ? 'With variations, each variation has its own price.' : null} error={errors.price}>
             {(a) => <input {...a} value={v.price} onChange={(e) => set({ price: e.target.value })} inputMode="decimal" placeholder="e.g. 2500" />}
           </Field>
           <Field label="Category" hint="Pick one, or type a new category." error={errors.category}>
@@ -84,11 +84,11 @@ function ServicePanel({ service, categories, onClose, onDone }) {
         </div>
         <label className="check">
           <input type="checkbox" checked={v.active} onChange={(e) => set({ active: e.target.checked })} />
-          <span><strong>Service active</strong><br />Available for appointments and billing.</span>
+          <span><strong>Service Active</strong><br />Available for appointments and billing.</span>
         </label>
         <label className="check">
           <input type="checkbox" checked={v.featuredOnline} onChange={(e) => set({ featuredOnline: e.target.checked })} />
-          <span><strong>Featured for online booking</strong><br />Show this service on the website booking form while it’s active.</span>
+          <span><strong>Featured for Online Booking</strong><br />Show this service on the website booking form while it’s active.</span>
         </label>
       </section>
 
@@ -103,10 +103,10 @@ function ServicePanel({ service, categories, onClose, onDone }) {
             <Field label="Price (₱)" error={errors[`variations.${i}.price`]}>
               {(a) => <input {...a} value={x.price} onChange={(e) => set({ variations: v.variations.map((y, j) => (j === i ? { ...y, price: e.target.value } : y)) })} inputMode="decimal" />}
             </Field>
-            <button type="button" className="icon-btn" onClick={() => set({ variations: v.variations.filter((_, j) => j !== i) })} aria-label={`Remove variation ${x.name || i + 1}`} title="Remove variation"><Trash2 /></button>
+            <button type="button" className="icon-btn" onClick={() => set({ variations: v.variations.filter((_, j) => j !== i) })} aria-label={`Remove variation ${x.name || i + 1}`} title="Remove Variation"><Trash2 /></button>
           </div>
         ))}
-        <button type="button" className="btn btn-quiet" style={{ justifySelf: 'start' }} onClick={() => set({ variations: [...v.variations, { name: '', price: v.price }] })}><Plus aria-hidden /> New variation</button>
+        <button type="button" className="btn btn-quiet" style={{ justifySelf: 'start' }} onClick={() => set({ variations: [...v.variations, { name: '', price: v.price }] })}><Plus aria-hidden /> New Variation</button>
       </section>
     </Panel>
   )
@@ -135,8 +135,8 @@ export default function ServicesPage() {
 
   return (
     <>
-      <PageHead crumbs={[{ label: 'Clinic operations' }, { label: 'Services' }]} title="Services" intro="Create and manage the services offered at the clinic.">
-        {canEdit && <button type="button" className="btn" onClick={() => setPanel({ service: null })}><Plus aria-hidden /> Add service</button>}
+      <PageHead crumbs={[{ label: 'Clinic Operations' }, { label: 'Services' }]} title="Services" intro="Create and manage the services offered at the clinic.">
+        {canEdit && <button type="button" className="btn" onClick={() => setPanel({ service: null })}><Plus aria-hidden /> Add Service</button>}
       </PageHead>
       <ErrorNote error={error} />
 
@@ -144,12 +144,12 @@ export default function ServicesPage() {
         <div className="toolbar">
           <div className="search">
             <Search aria-hidden />
-            <label className="sr-only" htmlFor="service-search">Search services</label>
+            <label className="sr-only" htmlFor="service-search">Search Services</label>
             <input id="service-search" type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search services or categories" autoComplete="off" />
           </div>
           <label className="sr-only" htmlFor="service-category">Category</label>
           <select id="service-category" className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">All categories</option>
+            <option value="">All Categories</option>
             {(data?.categories || []).map((c) => <option key={c.id} value={c.id}>{c.name} ({c.services})</option>)}
           </select>
           <div className="tabs" role="group" aria-label="Status">
@@ -161,7 +161,7 @@ export default function ServicesPage() {
         {data && !data.services.length ? (
           <Empty icon={Stethoscope} title={q || category || status !== 'all' ? 'No services match' : 'No services yet'}
             text={q || category || status !== 'all' ? 'Try another search or filter.' : 'The old price list will be added here. You can also add services one by one.'}>
-            {canEdit && !q && <button type="button" className="btn" onClick={() => setPanel({ service: null })}><Plus aria-hidden /> Add service</button>}
+            {canEdit && !q && <button type="button" className="btn" onClick={() => setPanel({ service: null })}><Plus aria-hidden /> Add Service</button>}
           </Empty>
         ) : (
           <table className="table">
@@ -174,7 +174,7 @@ export default function ServicesPage() {
                   <td data-label="Category">{s.category ? <span className="badge badge-soft">{s.category}</span> : '—'}</td>
                   <td data-label="Status">
                     {s.active ? <span className="badge">Active</span> : <span className="badge badge-soft">Inactive</span>}
-                    {s.featuredOnline && <span className="cell-sub">Online booking</span>}
+                    {s.featuredOnline && <span className="cell-sub">Online Booking</span>}
                   </td>
                   <td className="hide-sm">{s.variationCount || '—'}</td>
                 </tr>

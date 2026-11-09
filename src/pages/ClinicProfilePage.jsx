@@ -1,7 +1,7 @@
 // Clinic operations → Clinic profile, laid out like the old system's page:
 // header, then two tabs. Basic Information: Business Information, Social Media, Branches,
 // Invoice Settings, Notification Settings, Kiosk QR Code. Business Availability: opening hours.
-// Each card shows its fields greyed out until "Edit info" is clicked.
+// Each card shows its fields greyed out until "Edit Info" is clicked.
 import { useEffect, useState } from 'react'
 import { Bell, Building2, Clock, Download, ExternalLink, FileText, Info, Mail, MapPin, Pencil, Phone, Plus, QrCode, Receipt, Store, Trash2, Type } from 'lucide-react'
 import QRCode from 'qrcode'
@@ -46,7 +46,7 @@ function Switch({ checked, onChange, disabled, label }) {
   )
 }
 
-// A settings card with "Edit info": fields are disabled until editing; Save / Cancel at the bottom.
+// A settings card with "Edit Info": fields are disabled until editing; Save / Cancel at the bottom.
 function SettingsCard({ icon: Icon, title, sub, canEdit, initial, onSave, children, action }) {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(initial)
@@ -72,7 +72,7 @@ function SettingsCard({ icon: Icon, title, sub, canEdit, initial, onSave, childr
         <Icon aria-hidden />
         <div className="settings-title"><h2>{title}</h2>{sub && <p>{sub}</p>}</div>
         {action}
-        {canEdit && onSave && !editing && <button type="button" className="btn btn-dark" onClick={() => { setError(null); setEditing(true) }}><Pencil aria-hidden /> Edit info</button>}
+        {canEdit && onSave && !editing && <button type="button" className="btn btn-dark" onClick={() => { setError(null); setEditing(true) }}><Pencil aria-hidden /> Edit Info</button>}
       </div>
       <div className="settings-body">
         <ErrorNote error={error && !Object.keys(errors).length ? error : null} />
@@ -80,7 +80,7 @@ function SettingsCard({ icon: Icon, title, sub, canEdit, initial, onSave, childr
         {editing && (
           <div className="panel-actions">
             <button type="button" className="btn btn-quiet" onClick={() => setEditing(false)} disabled={busy}>Cancel</button>
-            <button type="button" className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</button>
+            <button type="button" className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save Changes'}</button>
           </div>
         )}
       </div>
@@ -116,33 +116,33 @@ function KioskCard({ c, canEdit, save }) {
   useEffect(() => { QRCode.toDataURL(url, { width: 640, margin: 2, color: { dark: '#132A6E', light: '#FFFFFF' } }).then(setSrc) }, [url])
   async function run(body) {
     setBusy(true)
-    try { await save('Kiosk agreement')(body); setEditing(false) } finally { setBusy(false) }
+    try { await save('Kiosk Agreement')(body); setEditing(false) } finally { setBusy(false) }
   }
   return (
     <section className="card settings-card">
       <div className="settings-head">
         <QrCode aria-hidden />
-        <div className="settings-title"><h2>Kiosk QR code</h2><p>Display this QR code at your clinic for walk-in registrations</p></div>
+        <div className="settings-title"><h2>Kiosk QR Code</h2><p>Display this QR code at your clinic for walk-in registrations</p></div>
       </div>
       <div className="settings-body">
         <div className="qr-frame">{src ? <img src={src} alt={`QR code for ${url}`} width="150" height="150" /> : <span className="skeleton" style={{ width: 150, height: 150 }} />}</div>
         <div className="kiosk-url"><span className="label">Kiosk URL</span><a href={url} target="_blank" rel="noreferrer">{url} <ExternalLink size={14} aria-hidden /></a></div>
-        <a className="btn btn-block" href={src || undefined} download="hanna-kiosk-qr.png"><Download aria-hidden /> Download QR code</a>
+        <a className="btn btn-block" href={src || undefined} download="hanna-kiosk-qr.png"><Download aria-hidden /> Download QR Code</a>
         <hr className="divider" />
         <div className="agreement-head">
-          <div><strong>Kiosk agreement</strong><span className="cell-sub">Required at the end of public kiosk registration</span></div>
+          <div><strong>Kiosk Agreement</strong><span className="cell-sub">Required at the end of public kiosk registration</span></div>
           <div className="agreement-tools">
-            <Switch checked={c.kioskAgreementEnabled} onChange={(v) => run({ kioskAgreementEnabled: v })} disabled={!canEdit || busy} label="Kiosk agreement enabled" />
+            <Switch checked={c.kioskAgreementEnabled} onChange={(v) => run({ kioskAgreementEnabled: v })} disabled={!canEdit || busy} label="Kiosk Agreement Enabled" />
             <span className="field-hint">{c.kioskAgreementEnabled ? 'Enabled' : 'Off'}</span>
-            {canEdit && !editing && <button type="button" className="icon-btn" onClick={() => { setText(c.kioskAgreement || ''); setEditing(true) }} aria-label="Edit agreement" title="Edit agreement"><Pencil /></button>}
+            {canEdit && !editing && <button type="button" className="icon-btn" onClick={() => { setText(c.kioskAgreement || ''); setEditing(true) }} aria-label="Edit Agreement" title="Edit Agreement"><Pencil /></button>}
           </div>
         </div>
         {editing ? (
           <div className="stack" style={{ gap: 10 }}>
-            <IconInput multiline value={text} onChange={setText} max={3000} label="Agreement text" placeholder="e.g. a privacy notice clients agree to" />
+            <IconInput multiline value={text} onChange={setText} max={3000} label="Agreement Text" placeholder="e.g. a privacy notice clients agree to" />
             <div className="panel-actions">
               <button type="button" className="btn btn-quiet" onClick={() => setEditing(false)} disabled={busy}>Cancel</button>
-              <button type="button" className="btn" onClick={() => run({ kioskAgreement: text })} disabled={busy}>{busy ? 'Saving…' : 'Save agreement'}</button>
+              <button type="button" className="btn" onClick={() => run({ kioskAgreement: text })} disabled={busy}>{busy ? 'Saving…' : 'Save Agreement'}</button>
             </div>
           </div>
         ) : (
@@ -155,8 +155,8 @@ function KioskCard({ c, canEdit, save }) {
 
 function HoursCard({ c, canEdit, save }) {
   return (
-    <SettingsCard icon={Clock} title="Business availability" sub="Set the clinic’s opening hours for each day" canEdit={canEdit}
-      initial={{ hours: c.hours }} onSave={save('Opening hours')}>
+    <SettingsCard icon={Clock} title="Business Availability" sub="Set the clinic’s opening hours for each day" canEdit={canEdit}
+      initial={{ hours: c.hours }} onSave={save('Opening Hours')}>
       {(v, set, disabled, errors) => {
         const setDay = (day, next) => set({ hours: { ...v.hours, [day]: next } })
         return (
@@ -180,13 +180,13 @@ function HoursCard({ c, canEdit, save }) {
                         {d.breaks.map((b, i) => (
                           <div className="time-pair" key={i}>
                             <span className="field-hint">Break</span>
-                            <input type="time" value={b.start} disabled={disabled} onChange={(e) => setDay(day, { ...d, breaks: d.breaks.map((x, j) => (j === i ? { ...x, start: e.target.value } : x)) })} aria-label="Break starts" />
+                            <input type="time" value={b.start} disabled={disabled} onChange={(e) => setDay(day, { ...d, breaks: d.breaks.map((x, j) => (j === i ? { ...x, start: e.target.value } : x)) })} aria-label="Break Starts" />
                             <span className="field-hint">to</span>
-                            <input type="time" value={b.end} disabled={disabled} onChange={(e) => setDay(day, { ...d, breaks: d.breaks.map((x, j) => (j === i ? { ...x, end: e.target.value } : x)) })} aria-label="Break ends" />
-                            {!disabled && <button type="button" className="icon-btn" onClick={() => setDay(day, { ...d, breaks: d.breaks.filter((_, j) => j !== i) })} aria-label="Remove break" title="Remove break"><Trash2 /></button>}
+                            <input type="time" value={b.end} disabled={disabled} onChange={(e) => setDay(day, { ...d, breaks: d.breaks.map((x, j) => (j === i ? { ...x, end: e.target.value } : x)) })} aria-label="Break Ends" />
+                            {!disabled && <button type="button" className="icon-btn" onClick={() => setDay(day, { ...d, breaks: d.breaks.filter((_, j) => j !== i) })} aria-label="Remove Break" title="Remove Break"><Trash2 /></button>}
                           </div>
                         ))}
-                        {!disabled && d.breaks.length < 3 && <button type="button" className="text-btn" onClick={() => setDay(day, { ...d, breaks: [...d.breaks, { start: '12:00', end: '13:00' }] })}><Plus size={14} aria-hidden /> Add break</button>}
+                        {!disabled && d.breaks.length < 3 && <button type="button" className="text-btn" onClick={() => setDay(day, { ...d, breaks: [...d.breaks, { start: '12:00', end: '13:00' }] })}><Plus size={14} aria-hidden /> Add Break</button>}
                       </>
                     ) : <span className="field-hint">Closed all day</span>}
                   </div>
@@ -217,51 +217,51 @@ export default function ClinicProfilePage() {
     setData(res)
     toast(`${label} saved`)
   }
-  const crumbs = [{ label: 'Clinic operations' }, { label: 'Clinic profile' }]
+  const crumbs = [{ label: 'Clinic Operations' }, { label: 'Clinic Profile' }]
 
-  if (error) return <><PageHead crumbs={crumbs} title="Clinic profile" /><ErrorNote error={error} /></>
+  if (error) return <><PageHead crumbs={crumbs} title="Clinic Profile" /><ErrorNote error={error} /></>
   if (!c) return <PageHead crumbs={crumbs} title=" " />
 
   return (
     <div className="profile-page">
-      <nav className="crumbs" aria-label="Breadcrumb"><span>Clinic operations</span> › <span aria-current="page">Clinic profile</span></nav>
+      <nav className="crumbs" aria-label="Breadcrumb"><span>Clinic Operations</span> › <span aria-current="page">Clinic Profile</span></nav>
       <header className="clinic-header">
         <img src="/brand/logo-192.png" alt="" width="64" height="64" />
         <div><h1>{c.name}</h1><p>{c.tagline}</p></div>
       </header>
 
       <div className="profile-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === 'basic'} onClick={() => setTab('basic')}><Info aria-hidden /> Basic information</button>
-        <button type="button" role="tab" aria-selected={tab === 'hours'} onClick={() => setTab('hours')}><Clock aria-hidden /> Business availability</button>
+        <button type="button" role="tab" aria-selected={tab === 'basic'} onClick={() => setTab('basic')}><Info aria-hidden /> Basic Information</button>
+        <button type="button" role="tab" aria-selected={tab === 'hours'} onClick={() => setTab('hours')}><Clock aria-hidden /> Business Availability</button>
       </div>
 
       {tab === 'hours' ? <HoursCard c={c} canEdit={canEdit} save={save} /> : (
         <div className="stack">
-          <SettingsCard icon={Info} title="Business information" sub="Manage your business’s information" canEdit={canEdit}
+          <SettingsCard icon={Info} title="Business Information" sub="Manage your business’s information" canEdit={canEdit}
             initial={{ name: c.name, tagline: c.tagline || '', phone1: c.phones[0] || '', phone2: c.phones[1] || '', email: c.email || '', address: c.address || '', about: c.about || '', emailBrandColor: c.emailBrandColor }}
-            onSave={(v) => save('Business information')({ name: v.name, tagline: v.tagline, phones: [v.phone1, v.phone2], email: v.email, address: v.address, about: v.about, emailBrandColor: v.emailBrandColor })}>
+            onSave={(v) => save('Business Information')({ name: v.name, tagline: v.tagline, phones: [v.phone1, v.phone2], email: v.email, address: v.address, about: v.about, emailBrandColor: v.emailBrandColor })}>
             {(v, set, disabled, errors) => {
               const ratio = contrastWithWhite(v.emailBrandColor)
               return (
                 <>
                   <div className="form-row">
-                    <Labeled label="Business name" error={errors.name}><IconInput icon={Building2} value={v.name} onChange={(x) => set({ name: x })} disabled={disabled} max={50} label="Business name" /></Labeled>
-                    <Labeled label="Business tagline"><IconInput icon={Type} value={v.tagline} onChange={(x) => set({ tagline: x })} disabled={disabled} max={100} label="Business tagline" /></Labeled>
+                    <Labeled label="Business Name" error={errors.name}><IconInput icon={Building2} value={v.name} onChange={(x) => set({ name: x })} disabled={disabled} max={50} label="Business Name" /></Labeled>
+                    <Labeled label="Business Tagline"><IconInput icon={Type} value={v.tagline} onChange={(x) => set({ tagline: x })} disabled={disabled} max={100} label="Business Tagline" /></Labeled>
                   </div>
                   <div className="form-row">
-                    <Labeled label="Phone number"><IconInput icon={Phone} value={v.phone1} onChange={(x) => set({ phone1: x })} disabled={disabled} label="Phone number" /></Labeled>
-                    <Labeled label="Secondary phone" optional><IconInput icon={Phone} value={v.phone2} onChange={(x) => set({ phone2: x })} disabled={disabled} placeholder="Enter secondary phone number" label="Secondary phone" /></Labeled>
+                    <Labeled label="Phone Number"><IconInput icon={Phone} value={v.phone1} onChange={(x) => set({ phone1: x })} disabled={disabled} label="Phone Number" /></Labeled>
+                    <Labeled label="Secondary Phone" optional><IconInput icon={Phone} value={v.phone2} onChange={(x) => set({ phone2: x })} disabled={disabled} placeholder="Enter secondary phone number" label="Secondary Phone" /></Labeled>
                   </div>
                   <div className="form-row">
-                    <Labeled label="Email address" error={errors.email}><IconInput icon={Mail} type="email" value={v.email} onChange={(x) => set({ email: x })} disabled={disabled} max={50} label="Email address" /></Labeled>
+                    <Labeled label="Email Address" error={errors.email}><IconInput icon={Mail} type="email" value={v.email} onChange={(x) => set({ email: x })} disabled={disabled} max={50} label="Email Address" /></Labeled>
                   </div>
                   <Labeled label="Address" error={errors.address}><IconInput icon={MapPin} multiline value={v.address} onChange={(x) => set({ address: x })} disabled={disabled} max={150} label="Address" /></Labeled>
-                  <Labeled label="About the business"><IconInput icon={FileText} multiline value={v.about} onChange={(x) => set({ about: x })} disabled={disabled} max={150} label="About the business" /></Labeled>
-                  <Labeled label="Email brand colour" hint="Accent used in outgoing email headers and headings." error={errors.emailBrandColor}>
+                  <Labeled label="About the Business"><IconInput icon={FileText} multiline value={v.about} onChange={(x) => set({ about: x })} disabled={disabled} max={150} label="About the Business" /></Labeled>
+                  <Labeled label="Email Brand Colour" hint="Accent used in outgoing email headers and headings." error={errors.emailBrandColor}>
                     <div className="brand-colour">
-                      <input type="color" value={v.emailBrandColor} onChange={(e) => set({ emailBrandColor: e.target.value.toUpperCase() })} disabled={disabled} aria-label="Pick colour" />
-                      <IconInput value={v.emailBrandColor} onChange={(x) => set({ emailBrandColor: x })} disabled={disabled} label="Colour code" />
-                      <span className="colour-preview" style={{ background: v.emailBrandColor }}>White text preview</span>
+                      <input type="color" value={v.emailBrandColor} onChange={(e) => set({ emailBrandColor: e.target.value.toUpperCase() })} disabled={disabled} aria-label="Pick Colour" />
+                      <IconInput value={v.emailBrandColor} onChange={(x) => set({ emailBrandColor: x })} disabled={disabled} label="Colour Code" />
+                      <span className="colour-preview" style={{ background: v.emailBrandColor }}>White Text Preview</span>
                       {ratio && <span className="field-hint">{ratio.toFixed(2)}:1 contrast (min 4.5:1){ratio < 4.5 ? '. Pick a darker colour so white text is easy to read.' : ''}</span>}
                     </div>
                   </Labeled>
@@ -270,9 +270,9 @@ export default function ClinicProfilePage() {
             }}
           </SettingsCard>
 
-          <SettingsCard icon={Store} title="Social media" sub="Connect your clinic’s social media accounts" canEdit={canEdit}
+          <SettingsCard icon={Store} title="Social Media" sub="Connect your clinic’s social media accounts" canEdit={canEdit}
             initial={{ social: { ...c.social }, on: Object.fromEntries(SOCIAL.map((s) => [s.key, !!c.social[s.key]])) }}
-            onSave={(v) => save('Social media')({ social: { ...Object.fromEntries(SOCIAL.map((s) => [s.key, v.on[s.key] ? v.social[s.key] || '' : ''])), messenger: c.social.messenger || '' } })}>
+            onSave={(v) => save('Social Media')({ social: { ...Object.fromEntries(SOCIAL.map((s) => [s.key, v.on[s.key] ? v.social[s.key] || '' : ''])), messenger: c.social.messenger || '' } })}>
             {(v, set, disabled) => (
               <div className="social-grid">
                 {SOCIAL.map((s) => (
@@ -302,22 +302,22 @@ export default function ClinicProfilePage() {
             </div>
           </section>
 
-          <SettingsCard icon={Receipt} title="Invoice settings" sub="Configure tax rates and other invoice-related settings" canEdit={canEdit}
-            initial={{ taxRate: String(c.taxRate) }} onSave={(v) => save('Invoice settings')({ taxRate: v.taxRate })}>
+          <SettingsCard icon={Receipt} title="Invoice Settings" sub="Configure tax rates and other invoice-related settings" canEdit={canEdit}
+            initial={{ taxRate: String(c.taxRate) }} onSave={(v) => save('Invoice Settings')({ taxRate: v.taxRate })}>
             {(v, set, disabled, errors) => (
-              <Labeled label="Tax rate (%)" hint="This tax rate will be applied to all invoices by default." error={errors.taxRate}>
-                <IconInput value={v.taxRate} onChange={(x) => set({ taxRate: x })} disabled={disabled} label="Tax rate" suffix="%" />
+              <Labeled label="Tax Rate (%)" hint="This tax rate will be applied to all invoices by default." error={errors.taxRate}>
+                <IconInput value={v.taxRate} onChange={(x) => set({ taxRate: x })} disabled={disabled} label="Tax Rate" suffix="%" />
               </Labeled>
             )}
           </SettingsCard>
 
-          <SettingsCard icon={Bell} title="Notification settings" sub="Configure how your business receives email notifications" canEdit={canEdit}
-            initial={{ ccBusinessEmail: c.ccBusinessEmail }} onSave={(v) => save('Notification settings')({ ccBusinessEmail: v.ccBusinessEmail })}>
+          <SettingsCard icon={Bell} title="Notification Settings" sub="Configure how your business receives email notifications" canEdit={canEdit}
+            initial={{ ccBusinessEmail: c.ccBusinessEmail }} onSave={(v) => save('Notification Settings')({ ccBusinessEmail: v.ccBusinessEmail })}>
             {(v, set, disabled) => (
               <div className="setting-line">
                 <Mail aria-hidden />
-                <div><strong>CC business email on all notifications</strong><span className="cell-sub">When on, the business email gets a copy of every email the app sends (appointments, invoices, certificates and so on).</span></div>
-                <Switch checked={v.ccBusinessEmail} onChange={(x) => set({ ccBusinessEmail: x })} disabled={disabled} label="CC business email on all notifications" />
+                <div><strong>CC Business Email on All Notifications</strong><span className="cell-sub">When on, the business email gets a copy of every email the app sends (appointments, invoices, certificates and so on).</span></div>
+                <Switch checked={v.ccBusinessEmail} onChange={(x) => set({ ccBusinessEmail: x })} disabled={disabled} label="CC Business Email on All Notifications" />
               </div>
             )}
           </SettingsCard>

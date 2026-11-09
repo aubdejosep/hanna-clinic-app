@@ -31,6 +31,7 @@ Staff-only app at app.hannapetwellnesscenter.com that replaces the clinic's paid
 - **Soft UI** look: plain cream page, white cards with a hairline border and a very soft low shadow, white fields with a border, solid teal buttons. Not neumorphic: no double shadows, nothing sunk in. Use the tokens in `src/styles.css`, not new shadows or colours.
 - Only the size tokens at the top of `src/styles.css`. Lucide line icons; dog and cat only.
 - Copy: plain English, short, never blames the user, always says what to do next. Buttons start with a verb.
+- **Title Case** for names and labels, like the old system: menu items, page and card titles, tabs, table headers, field labels, buttons and badges ("Clinic Operations", "Phone Number", "Save Changes"). Small words stay lowercase inside a label ("Records to Check", "Mark as Checked"). Sentences (hints, descriptions, messages, toasts) stay in normal sentence case.
 - Must work on phones (the menu collapses; tables become stacked rows).
 
 ## Commands

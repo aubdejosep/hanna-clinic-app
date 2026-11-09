@@ -19,7 +19,7 @@ export default function OwnerPage() {
   const navigate = useNavigate()
   const staff = useStaff()
   const o = data?.owner
-  const crumbs = [{ label: 'Client portal' }, { label: 'Masterlist', to: '/clients' }, { label: o?.name || '…' }]
+  const crumbs = [{ label: 'Client Portal' }, { label: 'Masterlist', to: '/clients' }, { label: o?.name || '…' }]
 
   if (error) return <><PageHead crumbs={crumbs} title="Owner" /><ErrorNote error={error} /></>
   if (!o) return <PageHead crumbs={crumbs} title=" " />
@@ -43,10 +43,10 @@ export default function OwnerPage() {
         <div className="alert" role="note" style={{ marginBottom: 16 }}>
           <TriangleAlert aria-hidden />
           <div style={{ flex: 1 }}>
-            <strong>Please check:</strong> {o.reviewFlags.map((f) => REVIEW_LABELS[f] || f).join(' · ')}.
+            <strong>Please Check:</strong> {o.reviewFlags.map((f) => REVIEW_LABELS[f] || f).join(' · ')}.
             {o.reviewFlags.includes('shared_phone') && ' If it\'s a family member, that\'s fine. If it\'s the same person registered twice, tell the clinic owner so the records can be merged.'}
           </div>
-          <button type="button" className="btn btn-quiet" onClick={markChecked} disabled={busy}>Mark as checked</button>
+          <button type="button" className="btn btn-quiet" onClick={markChecked} disabled={busy}>Mark as Checked</button>
         </div>
       )}
 
@@ -70,7 +70,7 @@ export default function OwnerPage() {
               <div className="profile-actions">
                 <button type="button" className="btn btn-quiet" onClick={() => setPanel({ kind: 'owner' })}><Pencil aria-hidden /> Edit</button>
                 {canManage(staff) && (
-                  <button type="button" className="icon-btn" onClick={() => setPanel({ kind: 'remove' })} aria-label={`Remove ${o.name}`} title="Remove owner">
+                  <button type="button" className="icon-btn" onClick={() => setPanel({ kind: 'remove' })} aria-label={`Remove ${o.name}`} title="Remove Owner">
                     <Trash2 />
                   </button>
                 )}
@@ -81,7 +81,7 @@ export default function OwnerPage() {
           <section className="card">
             <div className="card-head">
               <div><h2>Pets</h2><p>{o.pets.length} on file</p></div>
-              <button type="button" className="btn" onClick={() => setPanel({ kind: 'pet' })}><Plus aria-hidden /> Add pet</button>
+              <button type="button" className="btn" onClick={() => setPanel({ kind: 'pet' })}><Plus aria-hidden /> Add Pet</button>
             </div>
             {o.pets.length ? (
               <ul className="pet-list">
@@ -95,7 +95,7 @@ export default function OwnerPage() {
                           {[SPECIES_LABEL[p.species], p.breed, age(p.birthdate)].filter(Boolean).join(' · ')}
                         </span>
                       </span>
-                      {p.deceasedOn && <span className="badge badge-soft">Passed away</span>}
+                      {p.deceasedOn && <span className="badge badge-soft">Passed Away</span>}
                       {p.allergies && !p.deceasedOn && <span className="badge badge-warm">Allergies</span>}
                       <ChevronRight className="chev" aria-hidden />
                     </Link>
@@ -103,20 +103,20 @@ export default function OwnerPage() {
                 ))}
               </ul>
             ) : (
-              <Empty title="No pets yet" text="Add this owner's first pet." />
+              <Empty title="No Pets Yet" text="Add this owner's first pet." />
             )}
           </section>
 
           <section className="card placeholder">
-            <div className="card-head"><div><h2>Visit history</h2><p>Appointments for all of this owner's pets</p></div></div>
-            <Empty icon={CalendarDays} title="Arrives in phase 2" text="Past and upcoming appointments will be listed here." />
+            <div className="card-head"><div><h2>Visit History</h2><p>Appointments for all of this owner's pets</p></div></div>
+            <Empty icon={CalendarDays} title="Arrives in Phase 2" text="Past and upcoming appointments will be listed here." />
           </section>
         </div>
 
         <section className="card">
           <div className="card-head"><div><h2>Details</h2></div></div>
           <div className="facts" style={{ paddingTop: 16, gridTemplateColumns: '1fr' }}>
-            <div className="fact"><span className="label">Additional owner</span><span className="fact-value">{o.additionalOwner || '—'}</span></div>
+            <div className="fact"><span className="label">Additional Owner</span><span className="fact-value">{o.additionalOwner || '—'}</span></div>
             <div className="fact"><span className="label">Messenger</span><span className="fact-value">{o.messenger || '—'}</span></div>
             <div className="fact"><span className="label">Address</span><span className="fact-value">{o.address || '—'}</span></div>
             <div className="fact"><span className="label">Reminders</span><span className="fact-value">{o.remindersOptIn ? (o.mobile ? 'On (SMS)' : 'On, but no mobile on file') : 'Off'}</span></div>

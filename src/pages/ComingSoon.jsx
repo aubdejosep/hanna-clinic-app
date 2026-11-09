@@ -8,11 +8,11 @@ const MODULES = {
     text: 'Table and calendar views, booking, walk-ins, NFC tag check-in and the appointment page with status steps.',
   },
   records: {
-    icon: FileHeart, title: <>Medical records</>, phase: 'Phase 3',
+    icon: FileHeart, title: <>Medical Records</>, phase: 'Phase 3',
     text: 'Notes, diagnoses, vaccinations, treatment plans, consent forms and prescriptions, plus templates and PDF export. Old records arrive with the scraped export.',
   },
   clinic: {
-    icon: Building2, title: <>Clinic profile</>, phase: 'Phase 1',
+    icon: Building2, title: <>Clinic Profile</>, phase: 'Phase 1',
     text: 'Business details, opening hours with breaks, social media links and the kiosk QR sign-up.',
   },
   services: {
@@ -24,7 +24,7 @@ const MODULES = {
     text: 'Mail to hello@hannapetwellnesscenter.com, read and answered from here, while copies still go to the current mailbox.',
   },
   missing: {
-    icon: MapPin, title: <>Page not found</>, phase: null,
+    icon: MapPin, title: <>Page Not Found</>, phase: null,
     text: "This address doesn't match a page in the clinic app.",
   },
 }
@@ -35,8 +35,8 @@ export default function ComingSoon({ module }) {
     <>
       <PageHead title={m.title} />
       <div className="card placeholder">
-        <Empty icon={m.icon} title={m.phase ? `Coming in ${m.phase.toLowerCase()}` : 'Nothing here'} text={m.text}>
-          <Link className="btn btn-quiet" to="/clients">Open the masterlist</Link>
+        <Empty icon={m.icon} title={m.phase ? `Coming in ${m.phase}` : 'Nothing Here'} text={m.text}>
+          <Link className="btn btn-quiet" to="/clients">Open the Masterlist</Link>
         </Empty>
       </div>
     </>

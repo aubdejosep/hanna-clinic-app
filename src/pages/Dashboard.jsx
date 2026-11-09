@@ -32,19 +32,19 @@ export default function Dashboard() {
   const s = data
   return (
     <>
-      <PageHead title={<>Clinic dashboard</>} intro={s ? prettyDay(s.today) : ' '}>
-        <Link className="btn" to="/clients?new=1"><UserPlus aria-hidden /> Register owner</Link>
+      <PageHead title={<>Clinic Dashboard</>} intro={s ? prettyDay(s.today) : ' '}>
+        <Link className="btn" to="/clients?new=1"><UserPlus aria-hidden /> Register Owner</Link>
       </PageHead>
       <ErrorNote error={error} />
 
       <div className="grid grid-4" style={{ marginBottom: 16 }}>
-        <Stat icon={Users} label="Pet owners" value={s ? s.owners.total.toLocaleString() : '…'}>
+        <Stat icon={Users} label="Pet Owners" value={s ? s.owners.total.toLocaleString() : '…'}>
           {s && <Trend now={s.owners.monthToDate} before={s.owners.previous} />}
         </Stat>
-        <Stat icon={PawPrint} label="Pets registered" value={s ? s.pets.total.toLocaleString() : '…'}>
+        <Stat icon={PawPrint} label="Pets Registered" value={s ? s.pets.total.toLocaleString() : '…'}>
           {s && <Trend now={s.pets.monthToDate} before={s.pets.previous} />}
         </Stat>
-        <Stat icon={Stethoscope} label="Services rendered" value="—" placeholder>
+        <Stat icon={Stethoscope} label="Services Rendered" value="—" placeholder>
           <span className="stat-note">Starts counting with appointments (phase 2)</span>
         </Stat>
         <Stat icon={Coins} label="Revenue" value="—" placeholder>
@@ -55,13 +55,13 @@ export default function Dashboard() {
       <div className="grid grid-2">
         <section className="card placeholder">
           <div className="card-head">
-            <div><h2>Today&rsquo;s appointments</h2><p>Arrived, waiting and done</p></div>
+            <div><h2>Today&rsquo;s Appointments</h2><p>Arrived, waiting and done</p></div>
           </div>
-          <Empty icon={CalendarDays} title="Arrives in phase 2" text="Today's list, walk-ins and NFC tag check-ins will show here." />
+          <Empty icon={CalendarDays} title="Arrives in Phase 2" text="Today's list, walk-ins and NFC tag check-ins will show here." />
         </section>
         <section className="card">
           <div className="card-head">
-            <div><h2>Records to check</h2><p>Found while importing from the old system</p></div>
+            <div><h2>Records to Check</h2><p>Found while importing from the old system</p></div>
           </div>
           <div className="card-pad">
             {s && s.ownersToReview > 0 ? (
@@ -70,7 +70,7 @@ export default function Dashboard() {
                   <strong>{s.ownersToReview} owners</strong> have a missing or shared mobile number, or a duplicate name.
                   Fixing them means reminders reach the right person.
                 </p>
-                <Link className="btn btn-quiet" to="/clients?review=1"><TriangleAlert aria-hidden /> Review owners</Link>
+                <Link className="btn btn-quiet" to="/clients?review=1"><TriangleAlert aria-hidden /> Review Owners</Link>
               </>
             ) : (
               <p className="muted" style={{ margin: 0 }}>{s ? 'Nothing to check. Every owner has a usable mobile number.' : '…'}</p>

@@ -33,7 +33,7 @@ export default function LoginPage({ onLoggedIn }) {
     <main className="login">
       <form className="card login-card" onSubmit={submit} noValidate>
         <img src="/brand/logo-192.png" alt="Hanna Pet Wellness Center" width="96" height="96" />
-        <h1>Welcome back</h1>
+        <h1>Welcome Back</h1>
         <p className="muted">Log in to the clinic app to continue.</p>
 
         <ErrorNote error={error} />
@@ -51,7 +51,7 @@ export default function LoginPage({ onLoggedIn }) {
             <Lock aria-hidden />
             <input type={show ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password" required autoFocus={!!email} />
-            <button type="button" className="reveal" onClick={() => setShow((s) => !s)} aria-label={show ? 'Hide password' : 'Show password'} title={show ? 'Hide password' : 'Show password'}>
+            <button type="button" className="reveal" onClick={() => setShow((s) => !s)} aria-label={show ? 'Hide Password' : 'Show Password'} title={show ? 'Hide Password' : 'Show Password'}>
               {show ? <EyeOff /> : <Eye />}
             </button>
           </span>
@@ -60,7 +60,7 @@ export default function LoginPage({ onLoggedIn }) {
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
           <span>Remember me <span className="muted">(stay logged in on this device for 30 days)</span></span>
         </label>
-        <button type="submit" className="btn login-btn" disabled={busy || !email || !password}>{busy ? 'Logging in…' : 'Log in'}</button>
+        <button type="submit" className="btn login-btn" disabled={busy || !email || !password}>{busy ? 'Logging in…' : 'Log In'}</button>
         <p className="muted login-help">Forgot your password? Ask a clinic owner to set a new one.</p>
       </form>
     </main>

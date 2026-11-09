@@ -10,17 +10,17 @@ import AccountPanel from './AccountPanel.jsx'
 // "soon" items open a placeholder page until their phase lands.
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { label: 'Clinic operations', icon: Activity, children: [
-    { to: '/clinic/profile', label: 'Clinic profile' },
+  { label: 'Clinic Operations', icon: Activity, children: [
+    { to: '/clinic/profile', label: 'Clinic Profile' },
     { to: '/clinic/staff', label: 'Staff', owners: true },
     { to: '/clinic/services', label: 'Services' },
   ] },
   { to: '/appointments', label: 'Appointments', icon: CalendarDays, soon: true },
-  { label: 'Client portal', icon: UserRound, children: [
+  { label: 'Client Portal', icon: UserRound, children: [
     { to: '/clients', label: 'Masterlist' },
   ] },
-  { label: 'Medical records', icon: FolderOpen, soon: true, children: [
-    { to: '/records', label: 'Records list', soon: true },
+  { label: 'Medical Records', icon: FolderOpen, soon: true, children: [
+    { to: '/records', label: 'Records List', soon: true },
     { to: '/records/templates', label: 'Templates', soon: true },
   ] },
   { to: '/inbox', label: 'Inbox', icon: Inbox, soon: true },
@@ -55,11 +55,11 @@ function NavGroup({ group, pathname, staff }) {
 
 function Brand() {
   return (
-    <NavLink to="/" className="brand" aria-label="Hanna Pet Wellness Center: dashboard">
+    <NavLink to="/" className="brand" aria-label="Hanna Pet Wellness Center: Dashboard">
       <img src="/brand/logo-192.png" alt="" width="40" height="40" />
       <span>
         <span className="wordmark">hanna pet wellness</span>
-        <small>Clinic app</small>
+        <small>Clinic App</small>
       </span>
     </NavLink>
   )
@@ -82,7 +82,7 @@ export default function Layout({ staff }) {
   return (
     <div className="shell" data-nav={open ? 'open' : 'closed'}>
       <div className="topbar">
-        <button type="button" className="icon-btn" onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open}>
+        <button type="button" className="icon-btn" onClick={() => setOpen(true)} aria-label="Open Menu" aria-expanded={open}>
           <Menu />
         </button>
         <Brand />
@@ -92,7 +92,7 @@ export default function Layout({ staff }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Brand />
           {open && (
-            <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label="Close menu">
+            <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label="Close Menu">
               <X />
             </button>
           )}
@@ -106,14 +106,14 @@ export default function Layout({ staff }) {
           </NavLink>
         ))}
         <div className="sidebar-foot">
-          <button type="button" className="account-btn" onClick={() => setAccount(true)} title="My account and password">
+          <button type="button" className="account-btn" onClick={() => setAccount(true)} title="My Account and Password">
             <span className="avatar">{initials(staff.name)}</span>
             <span className="who">
               <strong>{staff.name}</strong>
               <span>{staff.title || ROLE_LABEL[staff.role] || staff.role}</span>
             </span>
           </button>
-          <button type="button" className="icon-btn" onClick={logOut} aria-label="Log out" title="Log out">
+          <button type="button" className="icon-btn" onClick={logOut} aria-label="Log Out" title="Log Out">
             <LogOut />
           </button>
         </div>
