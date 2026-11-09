@@ -1,0 +1,13 @@
+{
+  "name": "medical-records-download",
+  "private": true,
+  "type": "module",
+  "description": "Downloads every pet's medical record PDFs from the old VetAssist system, one zip per pet.",
+  "scripts": {
+    "test-run": "node download.mjs --test",
+    "start": "node download.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.63.0"
+  }
+}

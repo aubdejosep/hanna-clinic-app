@@ -46,7 +46,7 @@ The app is usable for day-to-day work after phase 3.
 
 ## Medical records import (phase 3)
 
-The old system can't export medical records in bulk, so they're being scraped. See [MEDICAL-RECORDS-IMPORT.md](MEDICAL-RECORDS-IMPORT.md) for the format the importer expects.
+The old system can't export medical records in bulk. `tools/medical-records-download/` (run on the owner's PC) clicks each pet's **Download All PDFs** and saves one zip per pet. The PDFs identify the pet and owner (name, phone), the record ID, appointment number, visit date, each entry (type, title, description, services/products used) and its photos, so the importer reads the PDFs and matches by owner phone + pet name. Not in the PDFs: who created each entry and vaccination "date administered".
 
 ## Admin Settings (later, owners only)
 
