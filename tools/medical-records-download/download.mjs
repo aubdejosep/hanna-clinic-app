@@ -120,18 +120,28 @@ async function setRowsPerPage(page) {
 }
 
 // Sorts by Pet Name A→Z, so rows don't move if someone edits a record during the run.
+// The old system sorts on its server (it takes a moment) and may put capitals first, so this waits
+// for the rows to change and accepts either kind of A→Z.
 async function sortByPetName(page) {
   const header = page.locator('table thead th').filter({ hasText: /pet name/i }).first()
   if (!(await header.isVisible().catch(() => false))) return log('  (No "Pet Name" column header found; keeping the default order.)')
-  const sorted = async () => {
-    const names = (await readRows(page)).map((r) => r.pet.toLowerCase())
-    return names.length > 1 && names.every((n, i) => i === 0 || names[i - 1].localeCompare(n) <= 0)
-  }
-  for (let i = 0; i < 3 && !(await sorted()); i++) {
+  const names = async () => (await readRows(page)).map((r) => r.pet)
+  const ascending = (list) => list.length > 1 && (
+    list.every((n, i) => i === 0 || list[i - 1].toLowerCase().localeCompare(n.toLowerCase()) <= 0) ||
+    list.every((n, i) => i === 0 || list[i - 1] <= n)
+  )
+  for (let i = 0; i < 4; i++) {
+    if (ascending(await names())) return
+    const before = (await names()).join('|')
     await header.click()
-    await waitForTable(page)
+    for (let w = 0; w < 60; w++) { // up to 15 seconds for the list to re-sort
+      await sleep(250)
+      const now = (await names()).join('|')
+      if (now && now !== before) break
+    }
+    await sleep(400)
   }
-  if (!(await sorted())) log('  (Could not confirm A→Z order. Carrying on; the checking pass at the end catches anything missed.)')
+  if (!ascending(await names())) log('  (Could not confirm A→Z order. Carrying on; the checking pass at the end catches anything missed.)')
 }
 
 // Finds the "next page" button in the pager (the ">" after the page numbers).
@@ -181,7 +191,8 @@ async function downloadPet(page, row, pageNo, key) {
   const eye = tr.locator('td').last().locator('a, button').first()
   await eye.click()
 
-  const button = page.getByRole('button', { name: /download all pdfs/i }).or(page.getByText(/download all pdfs/i)).first()
+  // The page can hold a hidden copy of the label (e.g. for small screens): only use a visible button.
+  const button = page.locator('button, a, [role="button"]').filter({ hasText: /download all pdfs/i }).filter({ visible: true }).first()
   await button.waitFor({ state: 'visible', timeout: PAGE_TIMEOUT_MS })
   await sleep(500)
   if (await button.isDisabled().catch(() => false)) {
@@ -267,7 +278,7 @@ const LOGIN_STATE = join(OUT, 'login-state.json')
 const launch = {
   headless: !!args.headless, // --headless is only for testing; normally you see the window
   // Only this automated window: no download bubble or download scanning popups getting in the way.
-  args: ['--start-maximized', '--disable-features=DownloadBubble,DownloadBubbleV2', '--safebrowsing-disable-download-protection'],
+  args: ['--window-size=1640,1120', '--disable-features=DownloadBubble,DownloadBubbleV2', '--safebrowsing-disable-download-protection'],
   ...(args.browserPath ? { executablePath: args.browserPath } : { channel: 'chrome' }),
 }
 let browser, context, page
@@ -279,7 +290,7 @@ async function openBrowser() {
   })
   context = await browser.newContext({
     acceptDownloads: true,
-    viewport: null,
+    viewport: { width: 1600, height: 1000 },
     ...(existsSync(LOGIN_STATE) ? { storageState: LOGIN_STATE } : {}),
   })
   page = await context.newPage()
