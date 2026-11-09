@@ -25,7 +25,7 @@ Staff-only app at app.hannapetwellnesscenter.com that replaces the clinic's paid
 ## Brand (from the website's CLAUDE.md)
 
 - Colours: navy `#132A6E`, deep teal `#0E7C78`, teal `#12A8A3`, apricot `#F2A65A` / `#B4610F` (sparingly), cream `#FBF7F0`.
-- Montserrat 700 for headings; everything else uses the system font (Segoe UI on Windows). Buttons uppercase, bold, pill-shaped.
+- **Figtree** for everything (headings and text), regular 400 and bold 700 only, self-hosted in `public/fonts/`. No other fonts. Buttons uppercase, bold, pill-shaped.
 - **Two text colours only:** `--heading` (navy) for titles, names and numbers; `--text` for everything else. No coloured words in headings, no teal or apricot text. Teal and apricot are for buttons, icons, badges and highlights. Red only for error messages.
 - **Soft UI** look: plain cream page, white cards with a hairline border and a very soft low shadow, white fields with a border, solid teal buttons. Not neumorphic: no double shadows, nothing sunk in. Use the tokens in `src/styles.css`, not new shadows or colours.
 - Only the size tokens at the top of `src/styles.css`. Lucide line icons; dog and cat only.
