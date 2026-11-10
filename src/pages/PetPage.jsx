@@ -1,12 +1,44 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { FileHeart, Nfc, Pencil, Syringe, Trash2, TriangleAlert, User } from 'lucide-react'
+import { CalendarDays, CalendarPlus, FileHeart, LogIn, Nfc, Pencil, Syringe, Trash2, TriangleAlert, User } from 'lucide-react'
 import { Empty, ErrorNote, PageHead, PetAvatar, ReviewBadge, useToast } from '../components/ui.jsx'
 import { PetPanel } from '../components/ClientForms.jsx'
 import { RemovePetPanel } from '../components/RemovePanels.jsx'
 import { canManage, useStaff } from '../lib/staff.js'
 import { useApi } from '../lib/useApi.js'
 import { age, prettyDay, SEX_LABEL, SPECIES_LABEL } from '../lib/format.js'
+import { api } from '../lib/api.js'
+import { BookPanel, StatusBadge, WalkInPanel } from '../components/AppointmentPanels.jsx'
+import { AssignTagPanel, appointmentsChanged, useAppointmentsChanged } from '../components/TagCheckIn.jsx'
+import { prettyTime } from '../lib/appointments.js'
+
+function PetAppointments({ pet, onBook }) {
+  const { data, error, reload } = useApi(`appointments?petId=${pet.id}&size=10`)
+  useAppointmentsChanged(reload)
+  return (
+    <section className="card">
+      <div className="card-head">
+        <div><h2>Appointments</h2><p>{data ? `${data.total} in all` : '…'}</p></div>
+        {!pet.deceasedOn && <button type="button" className="btn btn-quiet" onClick={onBook}><CalendarPlus aria-hidden /> Book</button>}
+      </div>
+      {error ? <div className="card-pad"><ErrorNote error={error} /></div> : data && !data.total ? (
+        <Empty icon={CalendarDays} title="No appointments yet" text={`Book ${pet.name}'s first visit, or check them in as a walk-in.`} />
+      ) : (
+        <ul className="appt-mini">
+          {(data?.appointments || []).map((a) => (
+            <li key={a.id}>
+              <Link to={`/appointments/${a.id}`}>
+                <span><strong>{prettyDay(a.day)}</strong> <span className="cell-sub">{prettyTime(a.time)}{a.items.length ? ` · ${a.items.join(', ')}` : ''}</span></span>
+                <StatusBadge status={a.status} emergency={a.emergency} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {data && data.total > 10 && <div className="card-pad" style={{ paddingTop: 0 }}><Link to={`/appointments?q=${encodeURIComponent(pet.name)}`}>See all {data.total}</Link></div>}
+    </section>
+  )
+}
 
 export default function PetPage() {
   const { id } = useParams()
@@ -16,6 +48,7 @@ export default function PetPage() {
   const navigate = useNavigate()
   const staff = useStaff()
   const [removing, setRemoving] = useState(false)
+  const [panel, setPanel] = useState(null)
   const p = data?.pet
   const crumbs = [
     { label: 'Client Portal' },
@@ -23,6 +56,17 @@ export default function PetPage() {
     ...(p ? [{ label: p.owner.name, to: `/clients/${p.owner.id}` }] : []),
     { label: p?.name || '…' },
   ]
+
+  async function retireTag() {
+    if (!window.confirm(`Remove ${p.name}'s tag? It will stop checking them in.`)) return
+    try {
+      await api(`pets/${p.id}/tag`, { method: 'DELETE' })
+      reload()
+      toast('Tag removed')
+    } catch (err) {
+      toast(err.message)
+    }
+  }
 
   if (error) return <><PageHead crumbs={crumbs} title="Pet" /><ErrorNote error={error} /></>
   if (!p) return <PageHead crumbs={crumbs} title=" " />
@@ -64,6 +108,7 @@ export default function PetPage() {
                 </div>
               </div>
               <div className="profile-actions">
+                {!p.deceasedOn && <button type="button" className="btn btn-quiet" onClick={() => setPanel('walkin')}><LogIn aria-hidden /> Walk In</button>}
                 <button type="button" className="btn btn-quiet" onClick={() => setEditing(true)}><Pencil aria-hidden /> Edit</button>
                 {canManage(staff) && !p.deceasedOn && (
                   <button type="button" className="icon-btn" onClick={() => setRemoving(true)} aria-label={`Remove ${p.name}`} title="Remove or Mark as Passed Away">
@@ -84,6 +129,8 @@ export default function PetPage() {
             {p.notes && <p style={{ margin: '0 22px 22px', whiteSpace: 'pre-line' }}><span className="label">Notes</span><br />{p.notes}</p>}
           </section>
 
+          <PetAppointments pet={p} onBook={() => setPanel('book')} />
+
           <section className="card placeholder">
             <div className="card-head"><div><h2>Medical History</h2><p>Notes, diagnoses, treatment plans and prescriptions</p></div></div>
             <Empty icon={FileHeart} title="Arrives in Phase 3" text="Records from the old system will be matched to this pet once the scraped export is in." />
@@ -92,12 +139,18 @@ export default function PetPage() {
 
         <div className="stack">
           <section className="card">
-            <div className="card-head"><div><h2>NFC Tag</h2><p>Tap at the front desk to check in</p></div></div>
+            <div className="card-head">
+              <div><h2>NFC Tag</h2><p>Tap at the front desk to check in and out</p></div>
+              {!p.deceasedOn && <button type="button" className="btn btn-quiet" onClick={() => setPanel('tag')}><Nfc aria-hidden /> {p.tag ? 'Replace' : 'Assign Tag'}</button>}
+            </div>
             <div className="card-pad">
               {p.tag ? (
-                <p style={{ margin: 0 }}><span className="badge"><Nfc aria-hidden /> {p.tag.uid}</span> <span className="cell-sub">Assigned {prettyDay(p.tag.assigned_at.slice(0, 10))}</span></p>
+                <div className="stack" style={{ gap: 8 }}>
+                  <p style={{ margin: 0 }}><span className="badge"><Nfc aria-hidden /> {p.tag.uid}</span> <span className="cell-sub">Assigned {prettyDay(p.tag.assigned_at.slice(0, 10))}</span></p>
+                  <button type="button" className="text-btn" onClick={retireTag}>Remove Tag (Lost or Broken)</button>
+                </div>
               ) : (
-                <p className="muted" style={{ margin: 0 }}>No tag yet. Assigning a tag arrives with check-in in phase 2.</p>
+                <p className="muted" style={{ margin: 0 }}>No tag yet. Assign one so {p.name} can check in with a tap.</p>
               )}
             </div>
           </section>
@@ -119,6 +172,9 @@ export default function PetPage() {
           }}
         />
       )}
+      {panel === 'book' && <BookPanel pet={p} onClose={() => setPanel(null)} onDone={(a) => { setPanel(null); appointmentsChanged(); toast(`${p.name} booked for ${prettyDay(a.day)}, ${prettyTime(a.time)}`); navigate(`/appointments/${a.id}`) }} />}
+      {panel === 'walkin' && <WalkInPanel pet={p} onClose={() => setPanel(null)} onDone={(a) => { setPanel(null); appointmentsChanged(); toast(`${p.name} checked in`); navigate(`/appointments/${a.id}`) }} />}
+      {panel === 'tag' && <AssignTagPanel pet={p} onClose={() => setPanel(null)} onDone={() => { setPanel(null); reload(); toast(`Tag assigned to ${p.name}`) }} />}
       {editing && (
         <PetPanel pet={p} onClose={() => setEditing(false)} onDone={() => { setEditing(false); reload(); toast('Pet details saved') }} />
       )}

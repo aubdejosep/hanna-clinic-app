@@ -9,6 +9,31 @@ import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { REVIEW_LABELS } from '../lib/labels.js'
 import { age, initials, prettyDay, SPECIES_LABEL } from '../lib/format.js'
+import { StatusBadge } from '../components/AppointmentPanels.jsx'
+import { prettyTime } from '../lib/appointments.js'
+
+function OwnerVisits({ ownerId }) {
+  const { data, error } = useApi(`appointments?ownerId=${ownerId}&size=10`)
+  return (
+    <section className="card">
+      <div className="card-head"><div><h2>Visit History</h2><p>{data ? `${data.total} appointment${data.total === 1 ? '' : 's'} for this owner's pets` : '…'}</p></div></div>
+      {error ? <div className="card-pad"><ErrorNote error={error} /></div> : data && !data.total ? (
+        <Empty icon={CalendarDays} title="No appointments yet" text="Book a visit from one of the pets' pages." />
+      ) : (
+        <ul className="appt-mini">
+          {(data?.appointments || []).map((a) => (
+            <li key={a.id}>
+              <Link to={`/appointments/${a.id}`}>
+                <span><strong>{a.pet.name}</strong> <span className="cell-sub">{prettyDay(a.day)} · {prettyTime(a.time)}{a.items.length ? ` · ${a.items[0]}` : ''}</span></span>
+                <StatusBadge status={a.status} emergency={a.emergency} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
 
 export default function OwnerPage() {
   const { id } = useParams()
@@ -107,10 +132,7 @@ export default function OwnerPage() {
             )}
           </section>
 
-          <section className="card placeholder">
-            <div className="card-head"><div><h2>Visit History</h2><p>Appointments for all of this owner's pets</p></div></div>
-            <Empty icon={CalendarDays} title="Arrives in Phase 2" text="Past and upcoming appointments will be listed here." />
-          </section>
+          <OwnerVisits ownerId={id} />
         </div>
 
         <section className="card">

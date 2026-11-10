@@ -5,6 +5,7 @@ import { api } from '../lib/api.js'
 import { initials } from '../lib/format.js'
 import { canManage, ROLE_LABEL } from '../lib/staff.js'
 import AccountPanel from './AccountPanel.jsx'
+import TagCheckIn from './TagCheckIn.jsx'
 
 // The menu follows the old system's order and names, with its expandable groups.
 // "soon" items open a placeholder page until their phase lands.
@@ -15,7 +16,7 @@ const NAV = [
     { to: '/clinic/staff', label: 'Staff', owners: true },
     { to: '/clinic/services', label: 'Services' },
   ] },
-  { to: '/appointments', label: 'Appointments', icon: CalendarDays, soon: true },
+  { to: '/appointments', label: 'Appointments', icon: CalendarDays },
   { label: 'Client Portal', icon: UserRound, children: [
     { to: '/clients', label: 'Masterlist' },
   ] },
@@ -122,6 +123,7 @@ export default function Layout({ staff }) {
       <main className="main" id="main">
         <Outlet />
       </main>
+      <TagCheckIn />
       {account && <AccountPanel staff={staff} onClose={() => setAccount(false)} onLogOut={logOut} />}
     </div>
   )

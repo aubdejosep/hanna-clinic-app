@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api.js'
 
-// Loads `path` and reloads whenever it changes. Keeps the last data on screen while the
+// Loads `path` and reloads whenever it changes (a null path loads nothing). Keeps the last data on screen while the
 // next page loads, so lists don't flash empty.
 export function useApi(path) {
   const [state, setState] = useState({ data: null, error: null, loading: true })
   const latest = useRef(path)
   const load = useCallback(() => {
     latest.current = path
+    if (!path) { setState({ data: null, error: null, loading: false }); return }
     setState((s) => ({ ...s, loading: true, error: null }))
     api(path)
       .then((data) => { if (latest.current === path) setState({ data, error: null, loading: false }) })

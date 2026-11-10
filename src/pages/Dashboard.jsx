@@ -3,6 +3,38 @@ import { CalendarDays, Coins, PawPrint, Stethoscope, TriangleAlert, UserPlus, Us
 import { Empty, ErrorNote, PageHead } from '../components/ui.jsx'
 import { useApi } from '../lib/useApi.js'
 import { percentChange, prettyDay } from '../lib/format.js'
+import { StatusBadge } from '../components/AppointmentPanels.jsx'
+import { useAppointmentsChanged } from '../components/TagCheckIn.jsx'
+import { prettyTime } from '../lib/appointments.js'
+
+function TodayCard() {
+  const { data, error, reload } = useApi('appointments/today')
+  useAppointmentsChanged(reload)
+  const c = data?.counts || {}
+  const list = data ? [...data.inClinic, ...data.upcoming].slice(0, 6) : []
+  return (
+    <section className="card">
+      <div className="card-head">
+        <div><h2>Today&rsquo;s Appointments</h2><p>{data ? `${data.inClinic.length} in clinic · ${data.upcoming.length} still to come · ${c.completed || 0} done` : '…'}</p></div>
+        <Link className="btn btn-quiet" to="/appointments">Open Appointments</Link>
+      </div>
+      {error ? <div className="card-pad"><ErrorNote error={error} /></div> : data && !list.length ? (
+        <Empty icon={CalendarDays} title="Nothing else today" text="No pets in clinic and no more bookings today." />
+      ) : (
+        <ul className="appt-mini">
+          {list.map((a) => (
+            <li key={a.id}>
+              <Link to={`/appointments/${a.id}`}>
+                <span><strong>{a.pet.name}</strong> <span className="cell-sub">{prettyTime(a.time)} · {a.owner.name}</span></span>
+                <StatusBadge status={a.status} emergency={a.emergency} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
 
 function Trend({ now, before }) {
   const pct = percentChange(now, before)
@@ -45,7 +77,7 @@ export default function Dashboard() {
           {s && <Trend now={s.pets.monthToDate} before={s.pets.previous} />}
         </Stat>
         <Stat icon={Stethoscope} label="Services Rendered" value="—" placeholder>
-          <span className="stat-note">Starts counting with appointments (phase 2)</span>
+          <span className="stat-note">Counts once the dashboard is built (phase 4)</span>
         </Stat>
         <Stat icon={Coins} label="Revenue" value="—" placeholder>
           <span className="stat-note">Placeholder until billing is planned</span>
@@ -53,12 +85,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-2">
-        <section className="card placeholder">
-          <div className="card-head">
-            <div><h2>Today&rsquo;s Appointments</h2><p>Arrived, waiting and done</p></div>
-          </div>
-          <Empty icon={CalendarDays} title="Arrives in Phase 2" text="Today's list, walk-ins and NFC tag check-ins will show here." />
-        </section>
+        <TodayCard />
         <section className="card">
           <div className="card-head">
             <div><h2>Records to Check</h2><p>Found while importing from the old system</p></div>

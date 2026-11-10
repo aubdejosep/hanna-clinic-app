@@ -24,8 +24,8 @@ The clinic app replaces the paid veterinary system with a lean app that has only
 |---|---|---|
 | 0 | Foundation: project, database, legacy import of owners and pets, house style, own login page, Clients & pets | **Built** |
 | 1 | Clinic operations: staff, clinic profile with hours and social links, services price list, kiosk QR sign-up | **Built**; the services list itself is still to be entered |
-| 2 | Appointments: table and calendar (day/week/month), booking, walk-in, admit inpatient, appointment page with status steps, reschedule/cancel, staff notes, NFC tag check-in | |
-| 3 | Medical records: per-pet records with notes, diagnoses, vaccinations, treatment plans, consent forms and prescriptions; templates; PDF export and email to owner; import of the scraped history | Waiting on the scrape |
+| 2 | Appointments: table and calendar (day/week/month), booking, walk-in, appointment page with status steps (incl. Inpatient and Dispense), reschedule/cancel, emergency, staff assignment and notes, services & products, NFC tap in and tap out, No Show and Not Checked Out, import of the scraped list | **Built** |
+| 3 | Medical records: per-pet records with notes, diagnoses, vaccinations, treatment plans, consent forms and prescriptions; templates; PDF export and email to owner; import of the scraped history; settle the imported bookings left open in the old system (a record that day → Completed, otherwise No Show) | Waiting on the zips |
 | 4 | Dashboard: real numbers for what the clinic uses; redesigned once the lean app is in use | Placeholders now |
 | 5 | Online booking: website `/book` bookings become appointments (match owner by mobile, else create), confirmation and reminders by email | |
 | 6 | SMS: confirmations and reminders (3 days before, day before, morning of) once the provider is approved | Waiting on provider |
@@ -34,15 +34,24 @@ The clinic app replaces the paid veterinary system with a lean app that has only
 
 The app is usable for day-to-day work after phase 3.
 
-## NFC check-in (phase 2)
+## The visit loop (phase 2)
 
-1. The front-desk PC runs the gym's `bridge.py`, with `https://app.hannapetwellnesscenter.com` added to its allowed origins.
-2. The app keeps one connection to `ws://localhost:8765`. A tap sends `{type: "fob_scan", uid}`.
-3. The app looks the UID up in `pet_tags`:
-   - the pet has an appointment today → it is marked **Arrived**;
-   - no appointment → a one-tap **Walk in** for that pet;
-   - unknown tag → "Assign this tag" (search for the pet).
-4. Assigning a tag is a button on the pet's page that captures the next tap (the gym's Assign Fob pattern).
+Statuses keep the old system's names. New bookings start as **Accepted** (the clinic never confirms bookings, so Pending only appears on imported rows).
+
+| Step | How it gets there |
+|---|---|
+| Accepted | Booked by staff (later also from the website's /book) |
+| Arrived | Tap in, or **Check In**. A tap with no booking today offers **Walk In** |
+| Started | **Start Consultation** |
+| Inpatient (if needed) | **Admit as Inpatient**: confinement or recovery; stays open across days |
+| Dispense (if needed) | **Send to Dispense**: front desk prepares medicines and the bill |
+| Completed | Tap out, or **Check Out**. Records time in and time out |
+| Cancelled · No Show | **Cancel** with a reason (or **Reschedule**, which cancels and books a linked new one). Bookings nobody tapped in for become No Show after their day |
+
+- One reader for both directions: the first tap of the day checks in, the next (after 5 minutes) checks out. A second tap within 5 minutes is ignored.
+- Visits tapped in but never tapped out show as **Not Checked Out** the next day; nothing is closed silently.
+- The front-desk PC runs the gym's `bridge.py` (USB reader → `ws://localhost:8765`) with `https://app.hannapetwellnesscenter.com` in `allowed_origins.txt`. Only a PC with **Tag Reader** switched on listens for taps.
+- Imported appointments that the old system left open (past Pending/Accepted, "Missed Vaccination") are kept as they were under **Left Open**; the medical records import settles them.
 
 ## Medical records import (phase 3)
 
