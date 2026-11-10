@@ -73,15 +73,23 @@ function Steps({ steps, at }) {
 }
 
 // --- Services: from the price list, or typed in (the list is still being filled in) ---
+const peso = (n) => `₱${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+
 export function ServicePicker({ items, setItems }) {
   const { data } = useApi('services/picker')
   const [other, setOther] = useState('')
   const [otherDetail, setOtherDetail] = useState('')
+  const [find, setFind] = useState('')
   const groups = useMemo(() => {
+    const words = find.toLowerCase().split(/\s+/).filter(Boolean)
+    const hit = (...texts) => words.every((w) => texts.some((t) => String(t || '').toLowerCase().includes(w)))
     const g = {}
-    for (const s of data?.services || []) (g[s.category] ||= []).push(s)
+    for (const s of data?.services || []) {
+      const options = [[s, null], ...s.variations.map((v) => [s, v])].filter(([, v]) => hit(s.category, s.name, v?.name))
+      if (options.length) (g[s.category] ||= []).push(...options)
+    }
     return Object.entries(g)
-  }, [data])
+  }, [data, find])
   const has = (s, v) => items.some((i) => i.serviceId === s.id && (i.variationId || null) === (v?.id || null))
   const toggle = (s, v) => setItems(has(s, v)
     ? items.filter((i) => !(i.serviceId === s.id && (i.variationId || null) === (v?.id || null)))
@@ -104,14 +112,22 @@ export function ServicePicker({ items, setItems }) {
           ))}
         </div>
       )}
-      {groups.map(([category, services]) => (
+      {(data?.services || []).length > 0 && (
+        <div className="search" style={{ maxWidth: 'none' }}>
+          <Search aria-hidden />
+          <label className="sr-only" htmlFor="svc-search">Search Services</label>
+          <input id="svc-search" type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Search services, e.g. rabies or dental" autoComplete="off" />
+        </div>
+      )}
+      {find && !groups.length && <p className="field-hint" style={{ margin: 0 }}>No service matches “{find}”. Type it under Other Service below.</p>}
+      {groups.map(([category, options]) => (
         <section key={category} className="form-section">
           <h3 className="label">{category}</h3>
           <div className="choice-grid">
-            {services.flatMap((s) => (s.variations.length ? s.variations.map((v) => [s, v]) : [[s, null]])).map(([s, v]) => (
+            {options.map(([s, v]) => (
               <button key={`${s.id}-${v?.id || 0}`} type="button" className="choice" aria-pressed={has(s, v)} onClick={() => toggle(s, v)}>
-                <strong>{s.name}</strong>
-                {v && <span className="cell-sub">{v.name}</span>}
+                <strong>{v ? v.name : s.name}</strong>
+                <span className="cell-sub">{v ? s.name : s.variations.length ? 'Base price' : null} {peso(v ? v.price : s.price)}</span>
               </button>
             ))}
           </div>
