@@ -60,18 +60,14 @@ const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
 // the run: Excel locks the file, we skip that update and say so, and the next page catches up.
 function readJsonl() {
   if (!existsSync(JSONL)) return []
-  const out = []
-  const seen = new Set()
+  const bySeq = new Map() // a number reused after a crash: the later row is the one counted
   for (const line of readFileSync(JSONL, 'utf8').split('\n')) {
     if (!line.trim()) continue
     let rec
     try { rec = JSON.parse(line) } catch { continue } // a line cut off by a crash
-    const id = rec.key || `seq:${rec.seq}`
-    if (seen.has(id)) continue
-    seen.add(id)
-    out.push(rec)
+    bySeq.set(rec.seq, rec)
   }
-  return out
+  return [...bySeq.values()].sort((a, b) => a.seq - b.seq)
 }
 // Rows written just before a crash are in the .jsonl but not yet in progress.json: count them as saved.
 for (const rec of readJsonl()) if (rec.key && !progress.keys[rec.key]) progress.keys[rec.key] = rec.seq
