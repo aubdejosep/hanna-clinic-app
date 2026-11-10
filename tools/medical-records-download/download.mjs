@@ -169,8 +169,16 @@ async function sortByPetName(page) {
 const listSignature = async (page) => (await readRows(page)).map((r) => r.pet + r.phone).join('|')
 
 async function pagerNumbers(page) {
-  return page.locator('button, a, [role="button"]').filter({ hasText: /^\s*\d{1,4}\s*$/ }).filter({ visible: true })
-    .evaluateAll((els) => els.filter((e) => !e.closest('table')).map((e) => Number(e.innerText.trim())))
+  // Page-number buttons only: leave out the "Rows per page" box (it shows 100) and any drop-down.
+  return page.evaluate(() => {
+    const label = [...document.querySelectorAll('body *')].find((e) => e.children.length === 0 && /rows per page/i.test(e.textContent))
+    const skip = label ? [label.parentElement, label.nextElementSibling].filter(Boolean) : []
+    return [...document.querySelectorAll('button, a, [role="button"]')]
+      .filter((e) => /^\s*\d{1,4}\s*$/.test(e.innerText) && e.offsetParent && !e.closest('table'))
+      .filter((e) => !e.closest('[role="combobox"], [aria-haspopup], select') && !e.matches('[aria-haspopup], [role="combobox"]'))
+      .filter((e) => !skip.some((s) => s !== e.closest('ul, ol, nav') && s.contains(e) && !s.querySelectorAll('button, a, [role="button"]')[1]))
+      .map((e) => Number(e.innerText.trim()))
+  })
 }
 async function lastPageNumber(page) {
   const nums = await pagerNumbers(page)

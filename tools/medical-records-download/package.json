@@ -2,10 +2,12 @@
   "name": "medical-records-download",
   "private": true,
   "type": "module",
-  "description": "Downloads every pet's medical record PDFs from the old VetAssist system, one zip per pet.",
+  "description": "Downloads the old VetAssist system's medical records (one zip per pet) and reads its appointments list.",
   "scripts": {
     "test-run": "node download.mjs --test",
-    "start": "node download.mjs"
+    "start": "node download.mjs",
+    "appointments-test": "node appointments.mjs --pages 1",
+    "appointments": "node appointments.mjs"
   },
   "dependencies": {
     "playwright-core": "1.63.0"

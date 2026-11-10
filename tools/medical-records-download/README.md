@@ -96,3 +96,38 @@ again to retry them.
 | `--browser-path "C:\Program Files\Google\Chrome\Application\chrome.exe"` | Use this if it says it can't find Chrome |
 
 Add options after `npm start --`, for example: `npm start -- --out D:\HannaRecords`
+
+---
+
+# Read the appointments list
+
+`appointments.mjs` reads the old system's **Appointments** list, every row on every page, **without opening any appointment**. That makes it quick: about 72 pages at 100 rows. For each appointment it saves pet, owner, booked by, date, time, status and services, including what's behind **+1 more**, plus any hint on the row (e.g. a reschedule note). The clinical details of past visits come from the medical record PDFs instead.
+
+It can run **while the medical records download is running**. It uses its own Chrome window and its own `output-appointments` folder. You log in once more in its window.
+
+## 1. Test run: first page only
+
+In this folder (`tools\medical-records-download`):
+
+```
+git pull
+npm run appointments-test
+```
+
+1. A Chrome window opens. **Log in** to VetAssist.
+2. Go to **Appointments** and make sure the **Table** view and the **All** tab are showing.
+3. Back in PowerShell, press **Enter**.
+
+It sets 100 rows per page, reads page 1 and stops. Open `output-appointments\appointments.csv` in Excel and check the rows look right.
+
+## 2. Everything
+
+```
+npm run appointments
+```
+
+It reads every page, then does a quick checking pass for anything that moved while it ran (e.g. a new booking). Running it again resumes where it stopped. It never saves the same appointment twice.
+
+## 3. When it's finished
+
+Send Claude `output-appointments\appointments.csv` and `appointments.jsonl` privately. They contain client details. Then delete `output-appointments\login-state.json`.
