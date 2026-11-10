@@ -128,6 +128,8 @@ npm run appointments
 
 It reads every page, then does a quick checking pass for anything that moved while it ran (e.g. a new booking). Running it again resumes where it stopped. It never saves the same appointment twice.
 
+You can open `appointments.csv` in Excel while it runs. Excel locks the file, so the script stops updating it until you close Excel, then catches up. Nothing is lost: every row is saved to `appointments.jsonl` first.
+
 ## 3. When it's finished
 
 Send Claude `output-appointments\appointments.csv` and `appointments.jsonl` privately. They contain client details. Then delete `output-appointments\login-state.json`.

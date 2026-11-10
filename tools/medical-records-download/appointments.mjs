@@ -53,8 +53,50 @@ const progress = existsSync(PROGRESS)
   : { keys: {}, pagesDone: [], lastPage: 1, totalShown: null, startedAt: new Date().toISOString() }
 const save = () => { writeFileSync(PROGRESS + '.tmp', JSON.stringify(progress)); renameSync(PROGRESS + '.tmp', PROGRESS) }
 const CSV_COLS = ['seq', 'page', 'pet', 'owner', 'booked_by', 'date', 'time', 'status', 'services', 'more_services', 'notes']
-if (!existsSync(CSV)) writeFileSync(CSV, '\uFEFF' + CSV_COLS.join(',') + '\n') // the mark makes Excel read ñ and é correctly
 const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+
+// appointments.jsonl is the real record (one line per appointment, written as each row is read).
+// The spreadsheet is rebuilt from it after every page, so having it open in Excel never stops
+// the run: Excel locks the file, we skip that update and say so, and the next page catches up.
+function readJsonl() {
+  if (!existsSync(JSONL)) return []
+  const out = []
+  const seen = new Set()
+  for (const line of readFileSync(JSONL, 'utf8').split('\n')) {
+    if (!line.trim()) continue
+    let rec
+    try { rec = JSON.parse(line) } catch { continue } // a line cut off by a crash
+    const id = rec.key || `seq:${rec.seq}`
+    if (seen.has(id)) continue
+    seen.add(id)
+    out.push(rec)
+  }
+  return out
+}
+// Rows written just before a crash are in the .jsonl but not yet in progress.json: count them as saved.
+for (const rec of readJsonl()) if (rec.key && !progress.keys[rec.key]) progress.keys[rec.key] = rec.seq
+let csvLockedSaid = false
+function writeCsv(final = false) {
+  const lines = readJsonl().map((r) => [r.seq, r.page, r.pet, r.owner, r.bookedBy, r.date, r.time, r.status, (r.services || []).join(' / '), r.moreText || r.more, [...(r.hints || []), ...(r.extra || [])].join(' | ')].map(csvCell).join(','))
+  const text = '\uFEFF' + [CSV_COLS.join(','), ...lines].join('\n') + '\n' // the mark makes Excel read ñ and é correctly
+  try {
+    writeFileSync(CSV, text)
+    if (csvLockedSaid) log('appointments.csv is up to date again.')
+    csvLockedSaid = false
+    return CSV
+  } catch (err) {
+    if (!['EBUSY', 'EPERM', 'EACCES'].includes(err.code)) throw err
+    if (final) {
+      const alt = join(OUT, `appointments-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.csv`)
+      writeFileSync(alt, text)
+      log(`appointments.csv is open in Excel, so the full list went to ${alt}`)
+      return alt
+    }
+    if (!csvLockedSaid) log('appointments.csv is open in Excel, so it isn\'t being updated. Nothing is lost: close Excel and it catches up on the next page.')
+    csvLockedSaid = true
+    return CSV
+  }
+}
 
 const log = (...m) => console.log(`[${new Date().toLocaleTimeString()}]`, ...m)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -253,15 +295,15 @@ async function pass(page, startPage) {
       if (progress.keys[key]) continue
       const moreText = await expandMore(page, r)
       const seq = Object.keys(progress.keys).length + 1
-      const rec = { seq, page: pageNo, ...r, moreText, savedAt: new Date().toISOString() }
+      const rec = { seq, page: pageNo, key, ...r, moreText, savedAt: new Date().toISOString() }
       appendFileSync(JSONL, JSON.stringify(rec) + '\n')
-      appendFileSync(CSV, [seq, pageNo, r.pet, r.owner, r.bookedBy, r.date, r.time, r.status, r.services.join(' / '), moreText || r.more, [...r.hints, ...r.extra].join(' | ')].map(csvCell).join(',') + '\n')
       progress.keys[key] = seq
       newHere++
     }
     if (!progress.pagesDone.includes(pageNo)) progress.pagesDone.push(pageNo)
     progress.totalShown = of || progress.totalShown
     save()
+    writeCsv()
     added += newHere
     pagesRead++
     log(`Page ${pageNo}${of ? ` of ${of}` : ''}: ${rows.length} rows, ${newHere} new (total ${Object.keys(progress.keys).length})`)
@@ -347,9 +389,10 @@ while (true) {
 }
 
 await rememberLogin()
+const sheet = writeCsv(true)
 console.log(`
 ------------------------------------------------------------------
  Appointments saved: ${Object.keys(progress.keys).length}
- Spreadsheet: ${CSV}
+ Spreadsheet: ${sheet}
 ------------------------------------------------------------------`)
 await browser.close()
