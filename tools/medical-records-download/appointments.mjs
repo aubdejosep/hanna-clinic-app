@@ -10,6 +10,7 @@
 // Output (default: ./output-appointments):
 //   appointments.csv     one line per appointment: pet, owner, booked by, date, time, status, services…
 //   appointments.jsonl   the same, plus every link and hint found on the row (for the importer)
+//   ("+1 more", "2 packages" and the ⓘ note are read by hovering: clicking a row opens the appointment)
 //   progress.json        pages done (resume uses this)
 //   debug/               a screenshot + page copy whenever something goes wrong
 //   login-state.json     your old-system login, so Chrome can reopen without asking. Delete it when done.
@@ -48,11 +49,18 @@ function parseArgs(list) {
 // ---------- Progress ----------
 // keys: one per appointment already saved (pet|owner|date|time|booked by|n), so a page that
 // shifted (someone booked mid-run) never saves a row twice.
+const VERSION = 2 // 2: owner read correctly, "+1 more" / packages / notes read by hovering (never clicking)
+if (existsSync(PROGRESS) && JSON.parse(readFileSync(PROGRESS, 'utf8')).version !== VERSION) {
+  const old = join(OUT, `old-run-${Date.now()}`)
+  mkdirSync(old, { recursive: true })
+  for (const f of [PROGRESS, JSONL, CSV]) if (existsSync(f)) renameSync(f, join(old, f.split(/[\\/]/).pop()))
+  console.log(`(An earlier version's files were moved to ${old}. Starting the list again; it only takes a while.)`)
+}
 const progress = existsSync(PROGRESS)
   ? JSON.parse(readFileSync(PROGRESS, 'utf8'))
-  : { keys: {}, pagesDone: [], lastPage: 1, totalShown: null, startedAt: new Date().toISOString() }
+  : { version: VERSION, keys: {}, pagesDone: [], lastPage: 1, totalShown: null, startedAt: new Date().toISOString() }
 const save = () => { writeFileSync(PROGRESS + '.tmp', JSON.stringify(progress)); renameSync(PROGRESS + '.tmp', PROGRESS) }
-const CSV_COLS = ['seq', 'page', 'pet', 'owner', 'booked_by', 'date', 'time', 'status', 'services', 'more_services', 'notes']
+const CSV_COLS = ['seq', 'page', 'pet', 'owner', 'booked_by', 'date', 'time', 'status', 'services', 'more_services', 'info', 'notes']
 const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
 
 // appointments.jsonl is the real record (one line per appointment, written as each row is read).
@@ -73,7 +81,7 @@ function readJsonl() {
 for (const rec of readJsonl()) if (rec.key && !progress.keys[rec.key]) progress.keys[rec.key] = rec.seq
 let csvLockedSaid = false
 function writeCsv(final = false) {
-  const lines = readJsonl().map((r) => [r.seq, r.page, r.pet, r.owner, r.bookedBy, r.date, r.time, r.status, (r.services || []).join(' / '), r.moreText || r.more, [...(r.hints || []), ...(r.extra || [])].join(' | ')].map(csvCell).join(','))
+  const lines = readJsonl().map((r) => [r.seq, r.page, r.pet, r.owner, r.bookedBy, r.date, r.time, r.status, (r.services || []).join(' / '), r.moreText || r.more, r.info || '', [...(r.hints || []), ...(r.extra || [])].join(' | ')].map(csvCell).join(','))
   const text = '\uFEFF' + [CSV_COLS.join(','), ...lines].join('\n') + '\n' // the mark makes Excel read ñ and é correctly
   try {
     writeFileSync(CSV, text)
@@ -121,60 +129,83 @@ async function waitForTable(page) {
 }
 
 // Every row as it is on screen, read by the column headers (Pet & Owner, Booked By, Date & Time,
-// Status, Services), plus any links, titles and hints on the row.
+// Status, Services), plus any links and hints on the row. The pet cell shows "paris" and
+// "Owner: Chris Aga-ab", where "Owner:" and the name are separate pieces (two lines here).
 async function readRows(page) {
   return page.locator('table').first().evaluate((table) => {
     const heads = [...table.querySelectorAll('thead th')].map((th) => th.innerText.trim().toLowerCase())
     const col = (re) => heads.findIndex((h) => re.test(h))
     const at = { pet: col(/pet|owner/), booked: col(/booked/), date: col(/date|time/), status: col(/status/), services: col(/service/) }
-    const lines = (td) => (td ? td.innerText.split('\n').map((s) => s.trim()).filter(Boolean) : [])
+    const tidy = (t) => t.replace(/[\s↗↑→⧉]+$/u, '').replace(/\s+/g, ' ').trim() // link icons next to names
+    const junk = (l) => /^(loading\.*|[↗↑→⧉]|…|\.\.\.)$/i.test(l)
+    const lines = (td) => (td ? td.innerText.split('\n').map(tidy).filter((l) => l && !junk(l)) : [])
     return [...table.querySelectorAll('tbody tr')].map((tr, index) => {
       const tds = [...tr.querySelectorAll('td')]
       const petLines = lines(tds[at.pet])
-      const ownerLine = petLines.find((l) => /^owner\s*:/i.test(l)) || ''
-      const tidy = (t) => t.replace(/[\s↗↑→⧉]+$/u, '').trim() // link icons next to names
-      const pet = tidy(petLines.find((l) => !/^owner\s*:/i.test(l)) || '')
-      const booked = (lines(tds[at.booked]).filter((l) => l.length > 1).pop() || '').replace(/^[A-Z]\s+(?=\S{2})/, '') // avatar initial
+      const oi = petLines.findIndex((l) => /^owner\s*:/i.test(l))
+      const sameLine = oi >= 0 ? petLines[oi].replace(/^owner\s*:\s*/i, '') : ''
+      const ownerAt = oi < 0 ? -1 : sameLine ? oi : oi + 1 // "Owner: Name" or "Owner:" then "Name"
+      const rest = petLines.filter((_, i) => i !== oi && i !== ownerAt)
+      const pet = rest[0] || ''
+      const owner = sameLine || petLines[ownerAt] || rest[1] || ''
+      const booked = (lines(tds[at.booked]).filter((l) => l.length > 1).pop() || '')
       const [date = '', time = ''] = lines(tds[at.date])
       const status = lines(tds[at.status]).join(' ')
       const svc = lines(tds[at.services])
       const more = svc.find((l) => /^\+\s*\d+\s*more$/i.test(l)) || ''
+      const packages = svc.find((l) => /^\d+\s+packages?$/i.test(l)) || ''
       const known = new Set([at.pet, at.booked, at.date, at.status, at.services])
-      const extra = tds.filter((_, i) => !known.has(i))
-      const hints = [...tr.querySelectorAll('[title], [aria-label], [data-tooltip], [data-tip]')]
-        .map((e) => e.getAttribute('title') || e.getAttribute('aria-label') || e.getAttribute('data-tooltip') || e.getAttribute('data-tip'))
-        .filter((t) => t && t.length < 300)
+      const extraTds = tds.map((td, i) => [td, i]).filter(([, i]) => !known.has(i))
+      const infoCol = extraTds.length ? extraTds[extraTds.length - 1][1] : -1
+      const hasInfo = infoCol >= 0 && !!tds[infoCol].querySelector('button, svg, [role="button"]')
+      const shown = new Set([pet, owner, booked, ...svc].map((t) => t.toLowerCase()))
+      const hints = [...new Set([...tr.querySelectorAll('[title], [aria-label], [data-tooltip], [data-tip]')]
+        .map((e) => tidy(e.getAttribute('title') || e.getAttribute('aria-label') || e.getAttribute('data-tooltip') || e.getAttribute('data-tip') || '')))]
+        .filter((t) => t && t.length < 300 && !junk(t) && !shown.has(t.toLowerCase()))
       const links = [...tr.querySelectorAll('a[href]')].map((a) => a.getAttribute('href'))
       const data = Object.fromEntries([...tr.attributes].filter((a) => a.name.startsWith('data-')).map((a) => [a.name, a.value]))
       return {
-        index, pet, owner: tidy(ownerLine.replace(/^owner\s*:\s*/i, '')), bookedBy: booked, date, time, status,
-        services: svc.filter((l) => l !== more), more, extra: extra.map((td) => td.innerText.trim()).filter(Boolean), hints, links, data,
+        index, pet, owner, bookedBy: booked, date, time, status,
+        services: svc.filter((l) => l !== more), more, packages, hasInfo, infoCol,
+        extra: extraTds.map(([td]) => td.innerText.trim()).filter(Boolean), hints, links, data,
       }
     })
   })
 }
 
-// "+1 more": click it and read what opens (a pop-up or the row itself), then close it.
-async function expandMore(page, row) {
-  if (!row.more) return null
+// Rows open the appointment when clicked, so "+1 more", "2 packages" and the ⓘ icon are only
+// ever hovered, never clicked. Whatever pop-up appears is read, then the mouse moves away.
+const POPUPS = '[role="tooltip"], [data-radix-popper-content-wrapper], [data-side], [role="dialog"], .popover, [class*="popover"], [class*="tooltip"], [class*="Tooltip"]'
+async function onList(page) {
+  return new URL(page.url()).pathname.replace(/\/+$/, '') === new URL(LIST_URL).pathname.replace(/\/+$/, '') && (await page.locator('table tbody tr').count()) > 0
+}
+async function backToList(page) {
+  if (await onList(page)) return
+  log('  (Left the list by accident. Going back…)')
+  await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {})
+  await waitForTable(page).catch(() => {})
+  if (!(await onList(page))) throw new Error('not on the Appointments list any more')
+}
+async function peek(page, row, target) {
   try {
     const tr = page.locator('table tbody tr').nth(row.index)
-    const before = await page.locator('body').innerText()
-    await tr.getByText(row.more, { exact: true }).first().click({ timeout: 3000 })
-    await sleep(500)
-    const pop = page.locator('[role="tooltip"], [role="dialog"], [role="menu"], [data-radix-popper-content-wrapper], .popover, [class*="popover"], [class*="tooltip"]').filter({ visible: true }).last()
-    let text = (await pop.count()) ? await pop.innerText() : ''
-    if (!text) {
-      const after = await page.locator('body').innerText()
-      text = after.length > before.length ? after.slice(after.indexOf(before.slice(-40)) + 40).slice(0, 400) : ''
-      const rowNow = await tr.innerText()
-      if (!text && !/\+\s*\d+\s*more/i.test(rowNow)) text = rowNow // it expanded inside the row
+    const el = target === 'info'
+      ? tr.locator('td').nth(row.infoCol).locator('button, [role="button"], svg').first()
+      : tr.getByText(target, { exact: true }).first()
+    const before = new Set(await page.locator(POPUPS).filter({ visible: true }).allInnerTexts())
+    await el.hover({ timeout: 3000 })
+    let text = ''
+    for (let i = 0; i < 8 && !text; i++) {
+      await sleep(150)
+      const now = await page.locator(POPUPS).filter({ visible: true }).allInnerTexts()
+      text = now.filter((t) => t.trim() && !before.has(t)).pop() || ''
     }
-    await page.keyboard.press('Escape').catch(() => {})
-    await sleep(200)
+    if (!text) text = (await el.getAttribute('title').catch(() => null)) || ''
+    await page.mouse.move(2, 2)
+    await sleep(150)
     return text.replace(/\s*\n\s*/g, ' | ').trim().slice(0, 500) || null
   } catch {
-    await page.keyboard.press('Escape').catch(() => {})
+    await page.mouse.move(2, 2).catch(() => {})
     return null
   }
 }
@@ -243,7 +274,8 @@ async function goToPage(page, target, current = target - 1) {
     let box = nums[0].parentElement
     while (box && !nums.every((n) => box.contains(n))) box = box.parentElement
     if (!box) return null
-    const btns = [...box.querySelectorAll('button, a, [role="button"]')].filter((e) => e.offsetParent)
+    if (box.querySelector('table')) return null // too wide: that would reach the rows
+    const btns = [...box.querySelectorAll('button, a, [role="button"]')].filter((e) => e.offsetParent && !e.closest('table'))
     const last = btns[btns.length - 1]
     return last && !nums.includes(last) && !last.disabled && last.getAttribute('aria-disabled') !== 'true' ? last : null
   })
@@ -280,6 +312,7 @@ async function pass(page, startPage) {
   let pagesRead = 0
   while (true) {
     progress.lastPage = pageNo
+    await backToList(page)
     const rows = await readRows(page)
     const of = await lastPageNumber(page)
     const seen = {}
@@ -289,9 +322,11 @@ async function pass(page, startPage) {
       seen[base] = (seen[base] || 0) + 1
       const key = keyOf(r, seen[base])
       if (progress.keys[key]) continue
-      const moreText = await expandMore(page, r)
+      const moreText = [r.more && await peek(page, r, r.more), r.packages && await peek(page, r, r.packages)].filter(Boolean).join(' | ') || null
+      const info = r.hasInfo ? await peek(page, r, 'info') : null
+      await backToList(page)
       const seq = Object.keys(progress.keys).length + 1
-      const rec = { seq, page: pageNo, key, ...r, moreText, savedAt: new Date().toISOString() }
+      const rec = { seq, page: pageNo, key, ...r, moreText, info, savedAt: new Date().toISOString() }
       appendFileSync(JSONL, JSON.stringify(rec) + '\n')
       progress.keys[key] = seq
       newHere++
@@ -304,6 +339,7 @@ async function pass(page, startPage) {
     pagesRead++
     log(`Page ${pageNo}${of ? ` of ${of}` : ''}: ${rows.length} rows, ${newHere} new (total ${Object.keys(progress.keys).length})`)
     if (pagesRead >= MAX_PAGES) return { added, stopped: true }
+    await backToList(page)
     if (!(await goToPage(page, pageNo + 1, pageNo))) {
       if (of && pageNo < of) {
         await snapshot(page, `stuck-on-page-${pageNo}`)
