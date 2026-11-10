@@ -133,3 +133,36 @@ You can open `appointments.csv` in Excel while it runs. Excel locks the file, so
 ## 3. When it's finished
 
 Send Claude `output-appointments\appointments.csv` and `appointments.jsonl` privately. They contain client details. Then delete `output-appointments\login-state.json`.
+
+---
+
+# Read the services list
+
+`services.mjs` opens each service's **Edit** panel on the old system's **Services** page, reads it and closes it with **Cancel**. It never clicks **Update Service** and never adds a variation, so nothing changes in the old system. About 49 services: a few minutes.
+
+## 1. Test run: 3 services
+
+In this folder (`tools\medical-records-download`):
+
+```
+git pull
+npm run services-test
+```
+
+1. A Chrome window opens. **Log in** to VetAssist.
+2. Go to **Services** and wait for the list.
+3. Back in PowerShell, press **Enter**.
+
+Open `output-services\services.csv` in Excel: one line per service (or per variation), with description, price, category, Active and Featured for online booking.
+
+## 2. Everything
+
+```
+npm run services
+```
+
+It carries on after the 3 test services. If a service's variations don't match the count on the list, it says so and saves a screenshot in `output-services\debug`.
+
+## 3. When it's finished
+
+Send Claude `output-services\services.json`. Then delete `output-services\login-state.json`.

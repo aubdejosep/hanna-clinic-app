@@ -12,6 +12,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply hanna-clinic --remote",
     "import:legacy": "node scripts/import-legacy.mjs",
     "import:appointments": "node scripts/import-appointments.mjs",
+    "import:services": "node scripts/import-services.mjs",
     "set-password": "node scripts/set-password.mjs"
   },
   "dependencies": {

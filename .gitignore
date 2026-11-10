@@ -7,4 +7,5 @@ data/
 *.csv
 # Medical records download: zips, progress and the saved old-system login stay on the PC.
 tools/medical-records-download/output/
+tools/medical-records-download/output-*/
 tools/medical-records-download/node_modules/

@@ -7,7 +7,9 @@
     "test-run": "node download.mjs --test",
     "start": "node download.mjs",
     "appointments-test": "node appointments.mjs --pages 1",
-    "appointments": "node appointments.mjs"
+    "appointments": "node appointments.mjs",
+    "services-test": "node services.mjs --limit 3",
+    "services": "node services.mjs"
   },
   "dependencies": {
     "playwright-core": "1.63.0"
