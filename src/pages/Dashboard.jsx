@@ -50,11 +50,12 @@ function Overview({ range, setRange }) {
           </>
         ) : Array.from({ length: 5 }, (_, i) => <div key={i} className="card stat"><span className="skeleton" style={{ width: '60%' }} /></div>)}
       </div>
-      <div className="grid grid-2">
-        <section className="card span-2">
+      <div className="overview-row">
+        <section className="card overview-main">
           <div className="card-head"><div><h2>Visits per Day</h2><p>A visit is a pet seen that day: a checked-out appointment or a medical record.</p></div></div>
           <div className="card-pad">{d && <CompareLine current={d.perDay.current} previous={d.perDay.previous} labelOf={shortDay} />}</div>
         </section>
+        <div className="overview-quad">
         <section className="card">
           <div className="card-head"><div><h2>Services by Category</h2><p>Services on checked-out visits</p></div></div>
           <div className="card-pad">{d && <BarList rows={d.categories} empty="No services on checked-out visits in this period." />}</div>
@@ -86,6 +87,9 @@ function Overview({ range, setRange }) {
           <div className="card-head"><div><h2>Busiest Days</h2><p>Visits by day of the week</p></div></div>
           <div className="card-pad">{d && <Columns rows={d.weekdays.map((w) => ({ label: DAY_NAMES[w.d], n: w.n }))} empty="No visits in this period." />}</div>
         </section>
+        </div>
+      </div>
+      <div className="grid grid-2">
         <section className="card span-2">
           <div className="card-head"><div><h2>Busiest Hours</h2><p>Arrival times from tag taps and Check In</p></div></div>
           <div className="card-pad">

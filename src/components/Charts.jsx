@@ -15,7 +15,7 @@ export function CompareLine({ current, previous, labelOf }) {
   const [hover, setHover] = useState(null)
   const id = useId()
   const W = 640
-  const H = 200
+  const H = 230
   const pad = { l: 34, r: 12, t: 12, b: 26 }
   const n = Math.max(current.length, previous.length, 2)
   const max = niceMax(Math.max(1, ...current.map((d) => d.n), ...previous.map((d) => d.n)))
