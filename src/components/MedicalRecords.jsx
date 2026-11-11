@@ -165,16 +165,104 @@ function RecordPanel({ r, onClose }) {
 
 // The pet's whole history, newest first, as cards (or a table) with search and pages, like the old
 // system. A card opens the record. On an appointment, the record from its day is marked This Visit.
+// ---- A visit at a glance, for watching progress from visit to visit ----
+const WEIGHT_RE = /(?:body\s*weight|weight|wt|bw)\s*[-:=.]?\s*(\d{1,3}(?:\.\d+)?)\s*kgs?\b/i
+const WEIGHT_LINE = /^\s*(\d{1,3}(?:\.\d+)?)\s*kgs?\.?\s*$/im
+const linesOf = (e) => String(e?.description || '').split('\n').map((l) => l.trim()).filter(Boolean)
+// Weight at the visit: weighed in the app, or as the vet typed it ("weight - 9.7 kg", "BW 21kg", "1.9 kg").
+export function weightOf(r) {
+  if (r.weightKg != null) return Number(r.weightKg)
+  for (const e of r.entries) if (e.details?.weightKg != null) return Number(e.details.weightKg)
+  for (const e of r.entries) {
+    const t = e.description || ''
+    const m = t.match(WEIGHT_RE) || t.match(WEIGHT_LINE)
+    if (m && Number(m[1]) > 0 && Number(m[1]) < 120) return Number(m[1])
+  }
+  return null
+}
+// The finding: a "Dx:" line, else the first line of the diagnosis (or note) that isn't a weight or Rx.
+function findingOf(r) {
+  for (const e of r.entries) for (const l of linesOf(e)) {
+    const m = l.match(/^(?:dx|diagnosis|impression|assessment)\s*[:.\-]\s*(.+)/i)
+    if (m) return m[1]
+  }
+  const e = r.entries.find((x) => x.type === 'diagnosis' && x.description) || r.entries.find((x) => x.type === 'note' && !x.auto && !x.details?.booked && x.description)
+  const l = linesOf(e).find((x) => !WEIGHT_LINE.test(x) && !/^rx\b/i.test(x) && !WEIGHT_RE.test(x))
+  return l ? l.replace(/^(?:pe|c\/?c|cc|hx|c\/s)\s*[:.;\-]\s*/i, '') : null
+}
+// What was prescribed, with doses: prescriptions written in the app, medicines on the visit, or an "Rx" line.
+function rxOf(r) {
+  const meds = []
+  const add = (i) => { if (!meds.some((m) => m.name === i.name)) meds.push({ name: i.name, dose: i.detail || null, qty: i.qty }) }
+  for (const e of r.entries) {
+    if (e.type === 'prescription') e.items.forEach(add)
+    else if (e.details?.visit) e.items.filter((i) => i.kind === 'product').forEach(add)
+  }
+  if (meds.length) return meds
+  for (const e of r.entries) for (const l of linesOf(e)) {
+    const m = l.match(/^rx\s*[:.\-]?\s*(.+)/i)
+    if (m && /[a-z]{3}/i.test(m[1])) return [{ name: m[1], dose: null }]
+  }
+  return []
+}
+const vaccinesOf = (r) => [...new Set(r.entries.filter((e) => e.type === 'vaccination').map((e) => e.title).filter(Boolean))]
+const servicesOf = (r) => [...new Set(r.entries.filter((e) => e.details?.booked || e.details?.visit).flatMap((e) => e.items.filter((i) => i.kind !== 'product' && !/VACCIN/i.test(i.name)).map((i) => (i.detail ? `${i.name} · ${i.detail}` : i.name))))]
+
+export function Snapshot({ r, prevWeight, hideServices }) {
+  const w = weightOf(r)
+  const finding = findingOf(r)
+  const rx = rxOf(r)
+  const vacc = vaccinesOf(r)
+  const svc = servicesOf(r)
+  const delta = w != null && prevWeight != null ? Math.round((w - prevWeight) * 100) / 100 : null
+  return (
+    <span className="snap">
+      {w != null && <span className="snap-weight" title={delta != null ? `${delta > 0 ? '+' : ''}${delta} kg since the visit before` : 'Weight at this visit'}>{w} kg{delta ? <span className={delta > 0 ? 'snap-up' : 'snap-down'}> {delta > 0 ? '▲' : '▼'} {Math.abs(delta)}</span> : null}</span>}
+      {finding && <span className="snap-line"><span className="snap-k">Finding</span><span className="snap-v">{finding}</span></span>}
+      {rx.length > 0 && <span className="snap-line"><span className="snap-k">Rx</span><span className="snap-v">{rx.map((m, i) => <span key={i} className="snap-rx">{m.name}{m.dose && <em> · {m.dose}</em>}{m.qty > 1 ? ` × ${m.qty}` : ''}</span>)}</span></span>}
+      {vacc.length > 0 && <span className="snap-line"><span className="snap-k">Vaccines</span><span className="snap-v">{vacc.join(', ')}</span></span>}
+      {svc.length > 0 && !hideServices && <span className="snap-line"><span className="snap-k">Services</span><span className="snap-v">{svc.slice(0, 4).join(', ')}{svc.length > 4 ? ` +${svc.length - 4}` : ''}</span></span>}
+    </span>
+  )
+}
+
+// Weight at the visit before each record (the next older record with a weight), by record id.
+// Visit numbers, oldest = 1, counting only visits that happened (not old bookings with nothing written).
+export function visitNumbers(records) {
+  const out = {}
+  let n = 0
+  for (let i = records.length - 1; i >= 0; i--) {
+    const r = records[i]
+    if (!r.bookingOnly || r.appointmentStatus === 'completed') out[r.id] = ++n
+  }
+  return out
+}
+
+export function previousWeights(records) {
+  const out = {}
+  let last = null
+  for (let i = records.length - 1; i >= 0; i--) { // oldest first
+    out[records[i].id] = last
+    const w = weightOf(records[i])
+    if (w != null) last = w
+  }
+  return out
+}
+
 // Appointment page: the latest few records in one row; View All opens the whole history in a panel.
 export function RecentHistory({ pet, data, error, currentDay, currentAppointmentId }) {
   const [all, setAll] = useState(false)
   const [open, setOpen] = useState(null)
   const records = data?.records || []
-  const shown = records.slice(0, 5)
+  const prev = useMemo(() => previousWeights(records), [records])
+  const nums = useMemo(() => visitNumbers(records), [records])
+  // The latest visits that happened (old bookings with nothing written are under View All).
+  const visits = records.filter((r) => nums[r.id])
+  const shown = (visits.length ? visits : records).slice(0, 4)
   return (
     <section className="card">
       <div className="card-head">
-        <div><h2>Medical History</h2><p>{data ? `${records.length} record${records.length === 1 ? '' : 's'} for ${pet.name}${records.length > shown.length ? ` · the latest ${shown.length}` : ''}` : '…'}</p></div>
+        <div><h2>Medical History</h2><p>{data ? `${visits.length} visit${visits.length === 1 ? '' : 's'}, ${records.length} record${records.length === 1 ? '' : 's'} for ${pet.name}${records.length > shown.length ? ` · the latest ${shown.length}${visits.length ? ' visits' : ''}` : ''}` : '…'}</p></div>
         {records.length > 0 && <button type="button" className="btn btn-sm btn-quiet" onClick={() => setAll(true)}><FileHeart aria-hidden /> View All{records.length > shown.length ? ` ${records.length}` : ''}</button>}
       </div>
       {error ? <div className="card-pad"><ErrorNote error={error} /></div> : !data ? <PawLoader small label="Loading the medical history…" /> : !records.length ? (
@@ -187,9 +275,15 @@ export function RecentHistory({ pet, data, error, currentDay, currentAppointment
             return (
               <li key={r.id}>
                 <button type="button" className={`rec-row ${current ? 'is-current' : ''}`} onClick={() => setOpen(r)}>
-                  <span className="rec-row-day">{prettyDay(r.day)}{current && <span className="badge">This Visit</span>}</span>
-                  <span className="rec-row-main"><strong>{cardTitle(h)}</strong><span className="cell-sub">{r.entries.length} {r.entries.length === 1 ? 'entry' : 'entries'}{images(r) ? ` · ${images(r)} image${images(r) > 1 ? 's' : ''}` : ''}{r.bookingOnly ? ' · booked services only' : ''}</span></span>
-                  <EntryBadge type={h?.details?.booked ? 'services' : h?.type} />
+                  <span className="rec-row-head">
+                    <span className="rec-row-visit">{nums[r.id] ? `Visit ${nums[r.id]}` : 'Booked'}</span>
+                    <span className="rec-row-day">{prettyDay(r.day)}</span>
+                    {current && <span className="badge">This Visit</span>}
+                    <span className="rec-row-badge"><EntryBadge type={h?.details?.booked ? 'services' : h?.type} /></span>
+                  </span>
+                  <strong className="rec-row-title">{cardTitle(h)}</strong>
+                  <Snapshot r={r} prevWeight={prev[r.id]} hideServices={!!h?.details?.booked} />
+                  {r.bookingOnly && <span className="cell-sub">Booked services only{r.appointmentStatus === 'unclosed' ? ' · never closed in the old system' : ''}</span>}
                 </button>
               </li>
             )
@@ -232,6 +326,7 @@ export function MedicalHistory({ pet, data, error, currentDay, currentAppointmen
   const q = find.trim().toLowerCase()
   const all = data?.records || []
   const shown = useMemo(() => (q ? all.filter((r) => q.split(/\s+/).every((w) => words(r).includes(w))) : all), [all, q])
+  const prevW = useMemo(() => previousWeights(all), [all])
   const pages = Math.max(1, Math.ceil(shown.length / size))
   const at = Math.min(page, pages)
   const slice = shown.slice((at - 1) * size, at * size)
@@ -280,6 +375,7 @@ export function MedicalHistory({ pet, data, error, currentDay, currentAppointmen
                         {img > 0 && <span className="chip"><Image aria-hidden /> {img}</span>}
                       </span>
                       <strong className="rec-card-title">{cardTitle(h)}</strong>
+                      <Snapshot r={r} prevWeight={prevW[r.id]} hideServices={!!h?.details?.booked} />
                       <span className="cell-sub">{r.appointmentNo ? `#${r.appointmentNo}` : 'Record'}{r.bookingOnly ? ` · booked services only${r.appointmentStatus ? ` · ${BOOKING_STATUS[r.appointmentStatus] || r.appointmentStatus}` : ''}` : ''}</span>
                     </button>
                   </li>

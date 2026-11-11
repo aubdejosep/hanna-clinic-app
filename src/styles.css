@@ -1187,3 +1187,21 @@ body:has(.omni-sheet) .fab-wrap { display: none; }
 .rec-row-main { display: grid; gap: 2px; min-width: 0; }
 .rec-row-main strong { color: var(--heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 900px) { .appt-grid { grid-template-areas: "head" "actions" "status" "bill" "side"; grid-template-rows: none; } }
+
+/* ---------- Visit snapshot (Medical History): finding, Rx with doses, vaccines, services, weight trend ---------- */
+.rec-row { grid-template-columns: minmax(0, 1fr); gap: 4px; align-items: start; padding: 10px 12px; border-bottom: 1px solid var(--border); border-radius: 0; }
+.rec-list li:last-child .rec-row { border-bottom: 0; }
+.rec-row.is-current { border-radius: var(--radius-sm); }
+.rec-row-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rec-row-visit { font-size: var(--fs-label); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--teal-deep); }
+.rec-row-day { font-size: var(--fs-small); font-weight: 700; color: var(--heading); }
+.rec-row-badge { margin-left: auto; }
+.rec-row-title { color: var(--heading); overflow-wrap: anywhere; }
+.snap { display: grid; gap: 3px; font-size: var(--fs-small); min-width: 0; }
+.snap-line { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.snap-k { font-size: var(--fs-label); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text); }
+.snap-v { color: var(--heading); overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.snap-rx em { font-style: normal; color: var(--text); }
+.snap-weight { justify-self: start; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: var(--surface-alt); color: var(--heading); font-weight: 700; font-variant-numeric: tabular-nums; }
+.snap-up { color: var(--teal-deep); font-weight: 700; }
+.snap-down { color: #B4610F; font-weight: 700; }
