@@ -28,7 +28,7 @@ export async function loadFull(env, id) {
   return {
     ...appt,
     pet: { ...appt.pet, ...petOut(pet.results[0]), tag: tag.results[0]?.uid || null },
-    items: items.results.map((i) => ({ id: i.id, serviceId: i.service_id, name: i.name, detail: i.detail, kind: i.kind, qty: i.qty, price: i.price_cents == null ? null : i.price_cents / 100 })),
+    items: items.results.map((i) => ({ id: i.id, serviceId: i.service_id, variationId: i.variation_id, productId: i.product_id, name: i.name, detail: i.detail, kind: i.kind, qty: i.qty, price: i.price_cents == null ? null : i.price_cents / 100 })),
     staff: staff.results.map((s) => ({ id: s.id, name: `${s.first_name} ${s.last_name}`.trim(), title: s.title, role: s.role })),
     notes: notes.results.map((n) => ({ id: n.id, author: n.author, staffId: n.staff_id, body: n.body, at: n.created_at })),
     history,

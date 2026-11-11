@@ -112,7 +112,7 @@ export async function onRequestPost({ request, env, data }) {
     if (open) return fail(409, `${pet.name} is already checked in today.`, { appointmentId: open.id })
   }
 
-  const items = await itemRows(env, body.items)
+  const items = await itemRows(env, body.items, { actor: me.name })
   const iso = new Date().toISOString()
   const admit = walkIn && body.admit === true
   const status = admit ? 'inpatient' : walkIn ? 'arrived' : 'accepted'

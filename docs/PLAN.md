@@ -28,6 +28,7 @@ The clinic app replaces the paid veterinary system with a lean app that has only
 | 3 | Medical records: import of the old history (Notes, Vaccinations, Diagnoses, Treatment Plans) shown on each pet, on the visit's appointment and in Records List; imported bookings left open in the old system settled (a record that day → Completed, otherwise No Show) | **Built** (read-only). Later: photos upload, writing new records, templates, PDF export and email to owner |
 | 4 | Dashboard: owners' Overview (counts, no money), the Clinic Board for everyone (stations, queue, Call Next, unfinished steps), the reminders bell, visit weight, follow-ups, medicines on visits | **Built** |
 | 5 | Online booking: website `/book` bookings become appointments (match owner by mobile, else create and flag); cancellations on the website follow; confirmation and reminder emails | **Built** (bookings and cancellations); reminder emails next |
+| 5b | Quick Add: one search for services and medicines (medicines list from the old inventory export), Same as Last Visit, suggestions learned from the clinic's visits per species, sizes picked from the weight, "Anything else given?" at Check Out and a Confirm Items reminder after a tag tap-out | **Built** |
 | 6 | SMS: confirmations and reminders (3 days before, day before, morning of) once the provider is approved | Waiting on provider |
 | 7 | Inbox: hello@ mail read and answered in the app | |
 | 8 | Cutover: run side by side, final data top-up, cancel the old subscription | |

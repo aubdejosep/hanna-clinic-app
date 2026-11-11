@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, BedDouble, CircleCheck, Hourglass, LogOut, Megaphone, Pill, Siren, Stethoscope, TriangleAlert } from 'lucide-react'
 import { ErrorNote, PetAvatar, useToast, PawLoader } from './ui.jsx'
 import { appointmentsChanged, useAppointmentsChanged } from './TagCheckIn.jsx'
+import { CheckOutPanel } from './QuickAdd.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { clockTime, since } from '../lib/appointments.js'
@@ -17,7 +18,7 @@ const STATIONS = [
 ]
 const NEXT = { with_vet: ['dispense', 'Send to Dispense'], inpatient: ['dispense', 'Send to Dispense'], dispense: ['completed', 'Check Out'] }
 
-function Card({ a, station, position, onMove, busy }) {
+function Card({ a, station, position, onMove, onCheckOut, busy }) {
   const next = NEXT[station]
   const at = station === 'waiting' ? a.checkedInAt : station === 'with_vet' ? a.startedAt : station === 'inpatient' ? (a.admittedAt || a.checkedInAt) : station === 'dispense' ? a.dispenseAt : a.checkedOutAt
   return (
@@ -38,12 +39,12 @@ function Card({ a, station, position, onMove, busy }) {
       {a.steps.length > 0 && (
         <ul className="steps" aria-label="Still to do">
           {a.steps.map((s, i) => (
-            <li key={i}><Link to={s.kind === 'pet_info' ? `/pets/${a.pet.id}` : s.kind === 'owner_info' ? `/clients/${a.owner.id}` : `/appointments/${a.id}`} className="step-chip"><TriangleAlert aria-hidden /> {s.text}</Link></li>
+            <li key={i}><Link to={s.kind === 'pet_info' ? `/pets/${a.pet.id}` : s.kind === 'owner_info' ? `/clients/${a.owner.id}` : `/appointments/${a.id}${s.kind === 'confirm_items' ? '?confirm=1' : ''}`} className="step-chip"><TriangleAlert aria-hidden /> {s.text}</Link></li>
           ))}
         </ul>
       )}
       {next && (
-        <button type="button" className="btn btn-quiet board-move" onClick={() => onMove(a, next[0])} disabled={busy}>
+        <button type="button" className="btn btn-quiet board-move" onClick={() => (next[0] === 'completed' ? onCheckOut(a) : onMove(a, next[0]))} disabled={busy}>
           {next[0] === 'completed' ? <LogOut aria-hidden /> : <ArrowRight aria-hidden />} {next[1]}
         </button>
       )}
@@ -54,6 +55,7 @@ function Card({ a, station, position, onMove, busy }) {
 export default function ClinicBoard() {
   const { data, error, reload } = useApi('board')
   const [busy, setBusy] = useState(null)
+  const [checkOut, setCheckOut] = useState(null)
   const toast = useToast()
   useAppointmentsChanged(reload)
   useEffect(() => {
@@ -103,13 +105,14 @@ export default function ClinicBoard() {
               <p className="station-hint">{st.hint}</p>
               {list.length ? (
                 <ol className="station-list">
-                  {list.map((a, i) => <Card key={a.id} a={a} station={st.key} position={i + 1} onMove={move} busy={busy === a.id} />)}
+                  {list.map((a, i) => <Card key={a.id} a={a} station={st.key} position={i + 1} onMove={move} onCheckOut={setCheckOut} busy={busy === a.id} />)}
                 </ol>
               ) : <p className="station-empty">{data ? 'No one here.' : '…'}</p>}
             </div>
           )
         })}
       </div>}
+      {checkOut && <CheckOutPanel appointmentId={checkOut.id} onClose={() => setCheckOut(null)} onDone={(n, msg) => { setCheckOut(null); toast(msg); appointmentsChanged() }} />}
     </section>
   )
 }

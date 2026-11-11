@@ -24,6 +24,8 @@ Built with React + Vite and hosted on Cloudflare Pages with a D1 database. Staff
 - **Reminders bell** (beside the logo; top bar on phones): follow-up ticked but not booked, Dispense with no medicines, a visit checked out with no services or no vet, and pets missing breed or weight or owners missing mobile or email (added in the app, or at the clinic today). Each clears itself once done, or with **Not Needed**. Vets see their own visits and unassigned ones.
 - **Website bookings:** every booking made on hannapetwellnesscenter.com/book lands in Appointments, one per pet, Accepted, Booked By "Website" (within a minute, while the app is open). Owners are matched by mobile, pets by name; new clients are created and flagged for a check (bell: "New online client"). Morning = opening time, Afternoon = 1 PM; the preference, the owner's note and travel plans are on the visit. Free consult codes become a FREE CONSULTATION item. Cancelling on the website (staff on /staff, or the client from their email) cancels it here; a client's change becomes a linked reschedule. Weight in kg and an estimated birthdate (from the age given) fill in the pet. The website reads the app's opening hours, Closed Dates and Online Booking Limits.
 - **On a visit:** **Weight Today** (also the pet's latest weight), **Needs a Follow-Up** (in N days, with a reason, and **Book Follow-Up**), and **Medicine or Product** under Add Items.
+- **Quick Add** (Add Items, Book Appointment, Walk In): one search for services and medicines (Enter adds the top match); **Same as Last Visit**; **Usually Goes With These**, learned from the clinic's own visits per species (e.g. Deworm → Anti Rabies, 6 in 1, Bravecto for dogs); sizes by weight picked automatically from the pet's weight (Deworm, Bravecto, Proheart, spay…). Medicines come from the old system's inventory list (names only, no stock), and a medicine typed in once is on the list next time.
+- **Check Out asks "Anything else given?"** (Status Control, Clinic Board, Not Checked Out): the list so far, what usually goes with it, and a search, then **Nothing Else, Check Out**. A tag tap-out skips it, so the visit gets a **Confirm Items** reminder (bell and board) until someone checks the list.
 - **Legacy import:** `scripts/import-legacy.mjs` loads the old system's owner and pet exports, cleaning up phone numbers, placeholder emails, microchips and breed spellings (536 spellings → 293 breeds). `scripts/import-appointments.mjs` loads the scraped appointments list (see step 7).
 
 ## Go live (one time, in Cloudflare)
@@ -99,6 +101,16 @@ Then print the QR code from **Clinic operations → Clinic profile → Kiosk QR 
    Read `data\import-appointments-report.md` for the few rows it couldn't match. Running it again replaces the earlier import and never touches appointments booked in the app.
 3. **Tag reader on the front-desk PC.** Install the gym's fob bridge there the same way as at the gym (its README: download, unzip to e.g. `C:\HannaClinic\bridge\`, run `install-startup.bat`). Next to `bridge.exe`, create `allowed_origins.txt` with this one line: `https://app.hannapetwellnesscenter.com`, then restart the bridge. In the app on that PC: **Appointments → Tag Reader Off** (turns it on; the button then says **Tag Reader Ready**).
 4. Give each pet its tag: pet's page → **NFC Tag → Assign Tag** → tap the tag.
+
+### 12. Quick Add and the medicines list
+
+1. `git pull`, then `npm run db:migrate:remote`.
+2. Load the medicines list from the old system's inventory export (the `…_products.csv` file; vaccines in it are left out, they're under Services):
+   ```
+   npm run import:products -- --csv path/to/inventory_..._products.csv
+   npx wrangler d1 execute hanna-clinic --remote --file data/import-products.sql
+   ```
+   Suggestions ("Usually Goes With These") are worked out from the visit history once a day; nothing to set up.
 
 ### 11. Closed dates and online booking limits
 

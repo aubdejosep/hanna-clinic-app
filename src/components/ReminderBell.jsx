@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, CalendarPlus, Globe, ClipboardCheck, PawPrint, Pill, Stethoscope, UserRound, X } from 'lucide-react'
+import { Bell, CalendarPlus, Globe, ClipboardCheck, ListChecks, PawPrint, Pill, Stethoscope, UserRound, X } from 'lucide-react'
 import { useToast } from './ui.jsx'
 import { useAppointmentsChanged } from './TagCheckIn.jsx'
 import { api } from '../lib/api.js'
@@ -10,13 +10,14 @@ import { prettyDay } from '../lib/format.js'
 const KIND = {
   follow_up: { icon: CalendarPlus, label: 'Follow-Ups' },
   dispense: { icon: Pill, label: 'Dispensed Items' },
+  confirm_items: { icon: ListChecks, label: 'Confirm Items' },
   no_services: { icon: ClipboardCheck, label: 'Services' },
   no_vet: { icon: Stethoscope, label: 'Staff' },
   pet_info: { icon: PawPrint, label: 'Pet Details' },
   owner_info: { icon: UserRound, label: 'Owner Details' },
   website_client: { icon: Globe, label: 'Online Clients' },
 }
-const linkOf = (r) => (r.kind === 'pet_info' ? `/pets/${r.pet.id}` : ['owner_info', 'website_client'].includes(r.kind) ? `/clients/${r.owner.id}` : `/appointments/${r.appointmentId}`)
+const linkOf = (r) => (r.kind === 'pet_info' ? `/pets/${r.pet.id}` : ['owner_info', 'website_client'].includes(r.kind) ? `/clients/${r.owner.id}` : `/appointments/${r.appointmentId}${r.kind === 'confirm_items' ? '?confirm=1' : ''}`)
 
 // The bell: workflow steps still to finish. Each one clears itself once the step is done.
 export default function ReminderBell({ align = 'right' }) {

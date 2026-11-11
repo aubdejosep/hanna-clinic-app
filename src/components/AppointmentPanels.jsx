@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Check, ChevronDown, Plus, Search, Siren, UserPlus, X } from 'lucide-react'
+import { ArrowRight, Check, Search, Siren, UserPlus } from 'lucide-react'
+import { ServicePicker, toSend } from './QuickAdd.jsx'
 import { ErrorNote, Field, Panel, PetAvatar } from './ui.jsx'
 import { api } from '../lib/api.js'
 import { useApi, useDebounced } from '../lib/useApi.js'
@@ -74,175 +75,7 @@ function Steps({ steps, at }) {
   )
 }
 
-// --- Services: from the price list, or typed in (the list is still being filled in) ---
-const peso = (n) => `₱${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
-
-export function ServicePicker({ items, setItems, products }) {
-  const { data } = useApi('services/picker')
-  const [other, setOther] = useState('')
-  const [otherDetail, setOtherDetail] = useState('')
-  const [find, setFind] = useState('')
-  // The 3 services used most on visits lately (from the server), shown above the full list.
-  const popular = useMemo(() => (data?.popular || []).map((p) => {
-    const s = (data.services || []).find((x) => x.id === p.serviceId)
-    const v = s && p.variationId ? s.variations.find((x) => x.id === p.variationId) : null
-    return s && (!p.variationId || v) ? [s, v] : null
-  }).filter(Boolean), [data])
-  const shown = useMemo(() => {
-    const words = find.toLowerCase().split(/\s+/).filter(Boolean)
-    const hit = (s) => words.every((w) => [s.name, s.category, s.description, ...s.variations.map((v) => v.name)].some((t) => String(t || '').toLowerCase().includes(w)))
-    return (data?.services || []).filter(hit)
-  }, [data, find])
-  const has = (s, v) => items.some((i) => i.serviceId === s.id && (i.variationId || null) === (v?.id || null))
-  // Updates from the latest list, so "All" can tick several variations in one go.
-  const toggle = (s, v) => setItems((prev) => {
-    const same = (i) => i.serviceId === s.id && (i.variationId || null) === (v?.id || null)
-    return prev.some(same) ? prev.filter((i) => !same(i)) : [...prev, { serviceId: s.id, variationId: v?.id || null, label: v ? `${s.name} · ${v.name}` : s.name }]
-  })
-  function addOther() {
-    const name = other.trim()
-    if (!name) return
-    setItems([...items, { name, detail: otherDetail.trim(), label: otherDetail.trim() ? `${name} · ${otherDetail.trim()}` : name }])
-    setOther('')
-    setOtherDetail('')
-  }
-  return (
-    <div className="stack" style={{ gap: 14 }}>
-      <div className="sticky-search">
-      {items.length > 0 && (
-        <div className="chips" aria-label="Chosen services">
-          {items.map((i, n) => (
-            <span key={n} className="chip">{i.label}
-              <button type="button" className="chip-x" onClick={() => setItems(items.filter((_, k) => k !== n))} aria-label={`Remove ${i.label}`}><X /></button>
-            </span>
-          ))}
-        </div>
-      )}
-      {(data?.services || []).length > 0 && (
-        <div className="search" style={{ maxWidth: 'none' }}>
-          <Search aria-hidden />
-          <label className="sr-only" htmlFor="svc-search">Search Services</label>
-          <input id="svc-search" type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Search services, e.g. rabies or dental" autoComplete="off" />
-        </div>
-      )}
-      </div>
-      {!find && popular.length > 0 && (
-        <section className="form-section popular">
-          <h3 className="label">Most Popular</h3>
-          <div className="choice-grid">
-            {popular.map(([s, v]) => (
-              <button key={`p-${s.id}-${v?.id || 0}`} type="button" className="choice" aria-pressed={has(s, v)} onClick={() => toggle(s, v)}>
-                <strong>{v ? v.name : s.name}</strong>
-                <span className="cell-sub">{v ? s.name : s.variations.length ? 'Base price' : null} {peso(v ? v.price : s.price)}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-      {find && !shown.length && <p className="field-hint" style={{ margin: 0 }}>No service matches “{find}”. Type it under Other Service below.</p>}
-      {shown.length > 0 && (
-        <div className="svc-grid">
-          {shown.map((s) => <ServiceCard key={s.id} s={s} has={has} toggle={toggle} />)}
-        </div>
-      )}
-      <section className="form-section">
-        <h3 className="label">Other Service</h3>
-        <p className="field-hint" style={{ margin: 0 }}>Not on the list yet? Type it, e.g. Vaccine · Anti Rabies.</p>
-        <div className="form-row">
-          <Field label="Service">{(a) => <input {...a} value={other} onChange={(e) => setOther(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addOther()} placeholder="e.g. VACCINE" />}</Field>
-          <Field label="Type or Package" optional>{(a) => <input {...a} value={otherDetail} onChange={(e) => setOtherDetail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addOther()} placeholder="e.g. ANTI RABIES" />}</Field>
-        </div>
-        <button type="button" className="btn btn-quiet" style={{ justifySelf: 'start' }} onClick={addOther} disabled={!other.trim()}><Plus aria-hidden /> Add Service</button>
-      </section>
-      {products && <MedicineFields onAdd={(it) => setItems([...items, it])} />}
-    </div>
-  )
-}
-
-// One service, like the old picker: the circle picks the service itself (base price); a service with
-// variations has "Choose variations", a list with search, All and a checkbox per variation.
-function ServiceCard({ s, has, toggle }) {
-  const [open, setOpen] = useState(false)
-  const [q, setQ] = useState('')
-  const box = useRef(null)
-  useEffect(() => {
-    if (!open) return undefined
-    const onDown = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false) }
-    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) } }
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey, true)
-    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey, true) }
-  }, [open])
-  const picked = s.variations.filter((v) => has(s, v))
-  const listed = s.variations.filter((v) => v.name.toLowerCase().includes(q.trim().toLowerCase()))
-  const allOn = listed.length > 0 && listed.every((v) => has(s, v))
-  const setAll = () => listed.forEach((v) => { if (has(s, v) === allOn) toggle(s, v) })
-  return (
-    <div className={`svc-card ${has(s, null) || picked.length ? 'is-picked' : ''}`}>
-      <div className="svc-card-head">
-        <div>
-          <strong>{s.name}</strong>
-          <span className="badge badge-soft svc-cat">{s.category}</span>
-        </div>
-        <button type="button" className="svc-radio" role="checkbox" aria-checked={has(s, null)} onClick={() => toggle(s, null)}
-          aria-label={`${s.name}${s.variations.length ? ' (base price)' : ''} ${peso(s.price)}`} title={`${s.variations.length ? 'Base price' : 'Pick'}: ${peso(s.price)}`}>
-          {has(s, null) && <Check aria-hidden />}
-        </button>
-      </div>
-      {s.description && <p className="svc-desc">{s.description}</p>}
-      <div className="svc-foot">
-        {s.variations.length ? (
-          <div className="svc-vars" ref={box}>
-            <span className="cell-sub">Select Variations (Multiple allowed)</span>
-            <button type="button" className="svc-select" onClick={() => setOpen(!open)} aria-expanded={open}>
-              <span>{picked.length ? picked.map((v) => v.name).join(', ') : 'Choose variations'}</span>
-              <ChevronDown aria-hidden />
-            </button>
-            {open && (
-              <div className="svc-pop card" role="listbox" aria-multiselectable="true" aria-label={`${s.name} variations`}>
-                {s.variations.length > 5 && (
-                  <div className="search svc-pop-search"><Search aria-hidden /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" aria-label="Search variations" autoFocus /></div>
-                )}
-                <label className="svc-opt svc-all"><input type="checkbox" checked={allOn} onChange={setAll} /> <span>All</span> <span className="cell-sub">({listed.length})</span></label>
-                {listed.map((v) => (
-                  <label key={v.id} className="svc-opt"><input type="checkbox" checked={has(s, v)} onChange={() => toggle(s, v)} /> <span>{v.name}</span> <span className="cell-sub">{peso(v.price)}</span></label>
-                ))}
-                <button type="button" className="svc-close" onClick={() => setOpen(false)}>Close</button>
-              </div>
-            )}
-          </div>
-        ) : <span className="cell-sub">Standard service · {peso(s.price)}</span>}
-      </div>
-    </div>
-  )
-}
-
-// Medicines and products given or dispensed (no stock list yet, so they're typed).
-function MedicineFields({ onAdd }) {
-  const [name, setName] = useState('')
-  const [how, setHow] = useState('')
-  const [qty, setQty] = useState('1')
-  function add() {
-    if (!name.trim()) return
-    const q = Math.max(1, Math.min(99, Number(qty) || 1))
-    onAdd({ kind: 'product', name: name.trim(), detail: how.trim(), qty: q, label: `${name.trim()}${how.trim() ? ` · ${how.trim()}` : ''}${q > 1 ? ` × ${q}` : ''}` })
-    setName(''); setHow(''); setQty('1')
-  }
-  return (
-    <section className="form-section">
-      <h3 className="label">Medicine or Product</h3>
-      <p className="field-hint" style={{ margin: 0 }}>What was given or dispensed, e.g. Prednisone 20mg · ½ tab twice a day for 3 days.</p>
-      <div className="form-row">
-        <Field label="Medicine or Product">{(a) => <input {...a} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="e.g. Prednisone 20mg" />}</Field>
-        <Field label="Dose or Instructions" optional>{(a) => <input {...a} value={how} onChange={(e) => setHow(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="e.g. ½ tab twice a day, 3 days" />}</Field>
-      </div>
-      <div className="inline-row" style={{ maxWidth: 320 }}>
-        <Field label="Quantity">{(a) => <input {...a} value={qty} onChange={(e) => setQty(e.target.value.replace(/[^\d]/g, ''))} inputMode="numeric" maxLength={2} style={{ width: 80 }} />}</Field>
-        <button type="button" className="btn btn-quiet" style={{ alignSelf: 'end' }} onClick={add} disabled={!name.trim()}><Plus aria-hidden /> Add Medicine</button>
-      </div>
-    </section>
-  )
-}
+export { ServicePicker } from './QuickAdd.jsx'
 
 export function StaffSelect({ value, onChange }) {
   const { data } = useApi('staff/directory')
@@ -305,7 +138,7 @@ export function BookPanel({ pet: givenPet, defaultDay, followUpOf, onClose, onDo
     setBusy(true)
     setError(null)
     try {
-      const res = await api('appointments', { method: 'POST', body: { petId: pet.id, day, time, items, reason, staffIds, emergency, followUpOf: followUpOf?.id } })
+      const res = await api('appointments', { method: 'POST', body: { petId: pet.id, day, time, items: toSend(items), reason, staffIds, emergency, followUpOf: followUpOf?.id } })
       onDone(res.appointment)
     } catch (err) {
       setError(err)
@@ -324,7 +157,7 @@ export function BookPanel({ pet: givenPet, defaultDay, followUpOf, onClose, onDo
       <Steps steps={['Pet', 'Services', 'Schedule']} at={step} />
       <ErrorNote error={error && !Object.keys(errors).length ? error : null} />
       {step === 0 && <PetPicker value={pet} onPick={(p) => { setPet(p); setStep(1) }} />}
-      {step === 1 && <ServicePicker items={items} setItems={setItems} />}
+      {step === 1 && <ServicePicker items={items} setItems={setItems} petId={pet?.id} />}
       {step === 2 && (
         <>
           <section className="form-section">
@@ -355,7 +188,7 @@ export function WalkInPanel({ pet: givenPet, admit, onClose, onDone }) {
     setBusy(true)
     setError(null)
     try {
-      const res = await api('appointments', { method: 'POST', body: { petId: pet.id, walkIn: true, admit: !!admit, items, reason } })
+      const res = await api('appointments', { method: 'POST', body: { petId: pet.id, walkIn: true, admit: !!admit, items: toSend(items), reason } })
       onDone(res.appointment)
     } catch (err) {
       setError(err)
@@ -378,7 +211,7 @@ export function WalkInPanel({ pet: givenPet, admit, onClose, onDone }) {
           </section>
           <details className="form-section">
             <summary><strong>Add Services Now</strong> <span className="cell-sub">Optional: the vet can add them later</span></summary>
-            <ServicePicker items={items} setItems={setItems} />
+            <ServicePicker items={items} setItems={setItems} petId={pet.id} />
           </details>
         </>
       )}

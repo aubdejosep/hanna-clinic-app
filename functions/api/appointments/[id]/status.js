@@ -22,7 +22,7 @@ export async function onRequestPost({ request, env, params, data }) {
     const now = new Date().toISOString()
     const stamp = STAMP[appt.status]
     await env.DB.batch([
-      env.DB.prepare(`UPDATE appointments SET status = ?, updated_at = ?${stamp ? `, ${stamp} = NULL` : ''}${appt.status === 'cancelled' ? ', cancel_reason = NULL' : ''} WHERE id = ?`)
+      env.DB.prepare(`UPDATE appointments SET status = ?, updated_at = ?${stamp ? `, ${stamp} = NULL` : ''}${appt.status === 'cancelled' ? ', cancel_reason = NULL' : ''}${appt.status === 'completed' ? ', items_confirmed_at = NULL, items_confirmed_by = NULL' : ''} WHERE id = ?`)
         .bind(last.from_status, now, id),
       env.DB.prepare('INSERT INTO appointment_events (appointment_id, at, from_status, to_status, via, actor) VALUES (?, ?, ?, ?, ?, ?)')
         .bind(id, now, appt.status, last.from_status, 'button', `${data.staff.name} (undo)`),

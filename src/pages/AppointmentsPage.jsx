@@ -3,8 +3,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowDownUp, CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Info, LayoutGrid, List, LogIn, RefreshCw, Rows3, Search, TriangleAlert } from 'lucide-react'
 import { Empty, ErrorNote, PageHead, PetAvatar, useToast, PawLoader } from '../components/ui.jsx'
 import { BookPanel, StatusBadge, WalkInPanel } from '../components/AppointmentPanels.jsx'
+import { CheckOutPanel } from '../components/QuickAdd.jsx'
 import { ReaderSwitch, appointmentsChanged, useAppointmentsChanged } from '../components/TagCheckIn.jsx'
-import { api, query } from '../lib/api.js'
+import { query } from '../lib/api.js'
 import { useApi, useDebounced } from '../lib/useApi.js'
 import { STATUS, TABS, addDays, clockTime, longDay, manilaToday, prettyTime, shortDay, since, weekday } from '../lib/appointments.js'
 import { prettyDay } from '../lib/format.js'
@@ -22,25 +23,13 @@ function useParamsState() {
 // ---------- In Clinic Now ----------
 function InClinic() {
   const { data, error, reload } = useApi('appointments/today')
-  const [busy, setBusy] = useState(null)
+  const [checkingOut, setCheckingOut] = useState(null)
   const toast = useToast()
   useAppointmentsChanged(reload)
   useEffect(() => {
     const t = setInterval(() => { if (!document.hidden) reload() }, 60000) // "how long" and taps on another PC; not while hidden
     return () => clearInterval(t)
   }, [reload])
-  async function checkOut(a) {
-    setBusy(a.id)
-    try {
-      await api(`appointments/${a.id}/status`, { method: 'POST', body: { to: 'completed' } })
-      toast(`${a.pet.name} checked out`)
-      appointmentsChanged()
-    } catch (err) {
-      toast(err.message)
-    } finally {
-      setBusy(null)
-    }
-  }
   if (error) return <ErrorNote error={error} />
   const c = data?.counts || {}
   const booked = (c.accepted || 0) + (c.pending || 0)
@@ -62,7 +51,7 @@ function InClinic() {
                 {data.notCheckedOut.map((a) => (
                   <li key={a.id}>
                     <Link to={`/appointments/${a.id}`}><strong>{a.pet.name}</strong></Link> · {a.owner.name} · {prettyDay(a.day)} · {STATUS[a.status].label}
-                    <button type="button" className="text-btn" onClick={() => checkOut(a)} disabled={busy === a.id}>{busy === a.id ? 'Checking Out…' : 'Check Out'}</button>
+                    <button type="button" className="text-btn" onClick={() => setCheckingOut(a)}>Check Out</button>
                   </li>
                 ))}
               </ul>
@@ -91,6 +80,7 @@ function InClinic() {
           ))}
         </ul>
       )}
+      {checkingOut && <CheckOutPanel appointmentId={checkingOut.id} onClose={() => setCheckingOut(null)} onDone={(n, msg) => { setCheckingOut(null); toast(msg); appointmentsChanged() }} />}
     </section>
   )
 }

@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowRight, CalendarClock, CalendarDays, CircleX, Clock, History, MessageSquare, Nfc, Plus, Siren, Stethoscope, Trash2, TriangleAlert, Undo2, User, UserRound } from 'lucide-react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { ArrowRight, CalendarClock, ListChecks, CalendarDays, CircleX, Clock, History, MessageSquare, Nfc, Plus, Siren, Stethoscope, Trash2, TriangleAlert, Undo2, User, UserRound } from 'lucide-react'
 import { ErrorNote, Field, PageHead, Panel, PetAvatar, useToast, PawLoader } from '../components/ui.jsx'
 import { BookPanel, CancelPanel, ReschedulePanel, ServicePicker, StaffSelect, StatusBadge } from '../components/AppointmentPanels.jsx'
+import { CheckOutPanel, toSend } from '../components/QuickAdd.jsx'
 import { appointmentsChanged, useAppointmentsChanged } from '../components/TagCheckIn.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
@@ -39,7 +40,7 @@ function Stepper({ a }) {
   )
 }
 
-function StatusControl({ a, onChange }) {
+function StatusControl({ a, onChange, setPanel }) {
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
   const actions = ACTIONS[a.status] || []
@@ -70,7 +71,7 @@ function StatusControl({ a, onChange }) {
         {actions.length > 0 && (
           <div className="status-actions">
             {actions.map(([to, label, hint], i) => (
-              <button key={to} type="button" className={`btn ${i === 0 ? '' : 'btn-quiet'}`} onClick={() => go({ to }, to)} disabled={!!busy} title={hint || undefined}>
+              <button key={to} type="button" className={`btn ${i === 0 ? '' : 'btn-quiet'}`} onClick={() => (to === 'completed' ? setPanel('checkout') : go({ to }, to))} disabled={!!busy} title={hint || undefined}>
                 {busy === to ? 'Saving…' : label} {i === 0 && <ArrowRight aria-hidden />}
               </button>
             ))}
@@ -297,9 +298,8 @@ function Items({ a, onChange }) {
     setBusy(true)
     setError(null)
     try {
-      let last = null
-      for (const it of picked) last = await api(`appointments/${a.id}/items`, { method: 'POST', body: it })
-      if (last) onChange(last.appointment, `${picked.length} added`)
+      const res = await api(`appointments/${a.id}/items`, { method: 'POST', body: { items: toSend(picked) } })
+      onChange(res.appointment, `${picked.length} added`)
       setAdding(false)
       setPicked([])
     } catch (err) {
@@ -337,7 +337,7 @@ function Items({ a, onChange }) {
           footer={<><button type="button" className="btn btn-quiet" onClick={() => setAdding(false)} disabled={busy}>Cancel</button>
             <button type="button" className="btn" onClick={save} disabled={busy || !picked.length}>{busy ? 'Adding…' : `Add ${picked.length || ''} Item${picked.length === 1 ? '' : 's'}`}</button></>}>
           <ErrorNote error={error} />
-          <ServicePicker items={picked} setItems={setPicked} products />
+          <ServicePicker items={picked} setItems={setPicked} products appointmentId={a.id} existing={a.items} onWeightSaved={(n) => onChange(n)} />
         </Panel>
       )}
     </section>
@@ -402,8 +402,10 @@ export default function AppointmentPage() {
   const { id } = useParams()
   const { data, error, setData, reload } = useApi(`appointments/${id}`)
   useAppointmentsChanged(reload)
-  const [panel, setPanel] = useState(null)
+  const [params, setParams] = useSearchParams()
+  const [panel, setPanel] = useState(params.get('confirm') ? 'confirm' : null)
   const toast = useToast()
+  const closePanel = () => { setPanel(null); if (params.get('confirm')) setParams({}, { replace: true }) }
   const navigate = useNavigate()
   const a = data?.appointment
   const crumbs = [{ label: 'Dashboard', to: '/' }, { label: 'Appointments', to: '/appointments' }, { label: 'Appointment Details' }]
@@ -418,6 +420,7 @@ export default function AppointmentPage() {
     a.to && { icon: CalendarDays, title: 'New Appointment', text: `Rescheduled to ${prettyDay(a.to.day)}, ${prettyTime(a.to.time)}`, link: `/appointments/${a.to.id}`, no: a.to.no },
     a.from && { icon: CalendarClock, title: 'View Original Appointment', text: `This appointment was rescheduled${a.rescheduleReason ? `: ${a.rescheduleReason}` : ''}`, link: `/appointments/${a.from.id}`, no: a.from.no },
     a.legacyInfo && { icon: TriangleAlert, title: 'Note from the Old System', text: a.legacyInfo },
+    a.status === 'completed' && !a.itemsConfirmedAt && { icon: ListChecks, title: 'Confirm Items', text: 'Checked out with a tag tap. Check the list and add anything else given.', onClick: () => setPanel('confirm') },
     a.reason && { icon: MessageSquare, title: a.kind === 'walk_in' ? 'Reason for the Visit' : 'Notes for the Visit', text: a.reason },
   ].filter(Boolean)
 
@@ -451,12 +454,14 @@ export default function AppointmentPage() {
             <section className="card banners">
               {banners.map((b) => {
                 const inner = <><b.icon aria-hidden /><span>{b.no && <span className="badge badge-soft">#{b.no}</span>} <strong>{b.title}</strong><span className="cell-sub">{b.text}</span></span>{b.link && <ArrowRight aria-hidden />}</>
-                return b.link ? <Link key={b.title} to={b.link} className="banner">{inner}</Link> : <div key={b.title} className="banner">{inner}</div>
+                return b.link ? <Link key={b.title} to={b.link} className="banner">{inner}</Link>
+                  : b.onClick ? <button key={b.title} type="button" className="banner banner-action" onClick={b.onClick}>{inner}<ArrowRight aria-hidden /></button>
+                  : <div key={b.title} className="banner">{inner}</div>
               })}
             </section>
           )}
           <div className="appt-top">
-            <StatusControl a={a} onChange={changed} />
+            <StatusControl a={a} onChange={changed} setPanel={setPanel} />
             <Actions a={a} onChange={changed} setPanel={setPanel} />
           </div>
           <div className="grid grid-2">
@@ -476,6 +481,9 @@ export default function AppointmentPage() {
       {panel === 'followup' && (
         <BookPanel pet={{ ...a.pet, owner: a.owner }} defaultDay={addDays(a.day, a.followUpDays || 7)} followUpOf={{ id: a.id, reason: a.followUpReason }} onClose={() => setPanel(null)}
           onDone={(n) => { setPanel(null); appointmentsChanged(); toast(`Follow-up booked for ${prettyDay(n.day)}, ${prettyTime(n.time)}`); reload() }} />
+      )}
+      {(panel === 'checkout' || (panel === 'confirm' && a.status === 'completed' && !a.itemsConfirmedAt)) && (
+        <CheckOutPanel appointmentId={a.id} checkOut={panel === 'checkout'} onClose={closePanel} onDone={(n, msg) => { closePanel(); changed(n, msg) }} />
       )}
       {panel === 'cancel' && (
         <CancelPanel appointment={a} onClose={() => setPanel(null)} onDone={(n) => { setPanel(null); changed(n, 'Appointment cancelled') }} />
