@@ -1146,3 +1146,44 @@ body:has(.omni-sheet) .fab-wrap { display: none; }
 @media (max-width: 900px) { .appt-bento { grid-template-columns: 1fr; } }
 .appt-bento .inline-row input { flex: 1; min-width: 0; }
 .appt-bento .inline-row .btn { flex: none; }
+
+/* ---------- Appointment page grid: rows whose cards share a height ---------- */
+.appt-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr); grid-template-areas: "head actions" "status record" "bill notes" "history history"; gap: 16px; align-items: stretch; }
+.ag-head { grid-area: head; }
+.ag-actions { grid-area: actions; }
+.ag-status { grid-area: status; }
+.ag-record { grid-area: record; }
+.ag-bill { grid-area: bill; }
+.ag-notes { grid-area: notes; }
+.ag-history { grid-area: history; }
+.appt-grid > div { display: flex; flex-direction: column; min-width: 0; }
+.appt-grid > div > .card { flex: 1; }
+.appt-grid > .ag-head > .card:first-child { flex: 1; }
+.appt-grid > .ag-head > .banners { flex: 0 0 auto; }
+.rec-cards-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pay-line { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px 12px; align-items: center; padding: 14px 22px; border-top: 1px solid var(--border); background: #FBFAF7; }
+.pay-line > svg { width: 18px; height: 18px; color: var(--teal-deep); }
+.pay-line-text { display: grid; gap: 2px; min-width: 0; }
+.pay-line-text strong { color: var(--heading); }
+.head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 1100px) { .rec-cards-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) {
+  .appt-grid { grid-template-columns: 1fr; grid-template-areas: "head" "actions" "status" "bill" "record" "notes" "history"; }
+  .pay-line { grid-template-columns: auto minmax(0, 1fr); }
+  .pay-line .btn { grid-column: 2; justify-self: start; }
+}
+@media (max-width: 520px) { .rec-cards-row { grid-template-columns: 1fr; } }
+.appt-grid { grid-template-areas: "head actions" "status side" "bill side"; grid-template-rows: auto auto 1fr; }
+.ag-side { grid-area: side; gap: 16px; }
+.ag-side > .card { flex: 0 0 auto; }
+.ag-side > .card:last-child { flex: 1 1 auto; }
+.status-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.rec-list { list-style: none; margin: 0; padding: 6px 10px 10px; display: grid; gap: 2px; }
+.rec-row { width: 100%; display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 12px; border: 0; border-radius: var(--radius-sm); background: none; text-align: left; font: inherit; color: var(--text); cursor: pointer; }
+.rec-row:hover { background: var(--surface-alt); }
+.rec-row.is-current { background: var(--teal-tint); }
+.rec-row-day { display: grid; gap: 3px; font-size: var(--fs-small); color: var(--heading); font-weight: 700; }
+.rec-row-day .badge { justify-self: start; }
+.rec-row-main { display: grid; gap: 2px; min-width: 0; }
+.rec-row-main strong { color: var(--heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 900px) { .appt-grid { grid-template-areas: "head" "actions" "status" "bill" "side"; grid-template-rows: none; } }

@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react'
 import { ClipboardList, FileHeart, NotebookPen, Pencil, Pill, Plus, Stethoscope, Syringe, Trash2 } from 'lucide-react'
 import { ErrorNote, Field, Panel, PawLoader } from './ui.jsx'
-import { Entry, MedicalHistory } from './MedicalRecords.jsx'
+import { Entry, RecentHistory } from './MedicalRecords.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { useStaff } from '../lib/staff.js'
@@ -212,7 +212,7 @@ export function useVisitMedical({ a, onVisitChanged, toast }) {
   return {
     card: !data && !error ? <section className="card"><PawLoader small label="Loading the medical record…" /></section>
       : <VisitRecordCard a={a} record={record} canWrite={canWrite} open={open} onWrite={(k, e) => write(k, e, false)} onOpen={() => setWindowTab(firstTab())} />,
-    history: <MedicalHistory pet={a.pet} data={data} error={error} currentDay={a.day} currentAppointmentId={a.id} />,
+    history: <RecentHistory pet={a.pet} data={data} error={error} currentDay={a.day} currentAppointmentId={a.id} />,
     overlays: (
       <>
         {windowTab && <RecordWindow a={a} record={record} canWrite={canWrite} open={open} tab={windowTab} setTab={setWindowTab} onWrite={(k, e) => write(k, e, true)} onClose={() => setWindowTab(null)} />}

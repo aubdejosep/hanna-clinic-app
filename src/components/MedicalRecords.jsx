@@ -165,6 +165,63 @@ function RecordPanel({ r, onClose }) {
 
 // The pet's whole history, newest first, as cards (or a table) with search and pages, like the old
 // system. A card opens the record. On an appointment, the record from its day is marked This Visit.
+// Appointment page: the latest few records in one row; View All opens the whole history in a panel.
+export function RecentHistory({ pet, data, error, currentDay, currentAppointmentId }) {
+  const [all, setAll] = useState(false)
+  const [open, setOpen] = useState(null)
+  const records = data?.records || []
+  const shown = records.slice(0, 5)
+  return (
+    <section className="card">
+      <div className="card-head">
+        <div><h2>Medical History</h2><p>{data ? `${records.length} record${records.length === 1 ? '' : 's'} for ${pet.name}${records.length > shown.length ? ` · the latest ${shown.length}` : ''}` : '…'}</p></div>
+        {records.length > 0 && <button type="button" className="btn btn-sm btn-quiet" onClick={() => setAll(true)}><FileHeart aria-hidden /> View All{records.length > shown.length ? ` ${records.length}` : ''}</button>}
+      </div>
+      {error ? <div className="card-pad"><ErrorNote error={error} /></div> : !data ? <PawLoader small label="Loading the medical history…" /> : !records.length ? (
+        <p className="card-pad muted" style={{ margin: 0 }}>No medical records for {pet.name} yet.</p>
+      ) : (
+        <ul className="rec-list">
+          {shown.map((r) => {
+            const h = headline(r)
+            const current = currentAppointmentId ? r.appointmentId === currentAppointmentId : currentDay && r.day === currentDay
+            return (
+              <li key={r.id}>
+                <button type="button" className={`rec-row ${current ? 'is-current' : ''}`} onClick={() => setOpen(r)}>
+                  <span className="rec-row-day">{prettyDay(r.day)}{current && <span className="badge">This Visit</span>}</span>
+                  <span className="rec-row-main"><strong>{cardTitle(h)}</strong><span className="cell-sub">{r.entries.length} {r.entries.length === 1 ? 'entry' : 'entries'}{images(r) ? ` · ${images(r)} image${images(r) > 1 ? 's' : ''}` : ''}{r.bookingOnly ? ' · booked services only' : ''}</span></span>
+                  <EntryBadge type={h?.details?.booked ? 'services' : h?.type} />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {open && <RecordPanel r={open} onClose={() => setOpen(null)} />}
+      {all && (
+        <Panel wide title="Medical History" intro={`${pet.name} · ${records.length} records`} onClose={() => setAll(false)}>
+          <MedicalHistory pet={pet} data={data} error={error} currentDay={currentDay} currentAppointmentId={currentAppointmentId} />
+        </Panel>
+      )}
+    </section>
+  )
+}
+
+function RecordCardButton({ r, current, onOpen }) {
+  const h = headline(r)
+  const img = images(r)
+  return (
+    <button type="button" className={`rec-card ${current ? 'is-current' : ''}`} onClick={onOpen}>
+      <span className="rec-card-top">
+        <span className="badge badge-soft">{prettyDay(r.day)}</span>
+        {current && <span className="badge">This Visit</span>}
+        <EntryBadge type={h?.details?.booked ? 'services' : h?.type} />
+      </span>
+      <strong className="rec-card-title">{cardTitle(h)}</strong>
+      <span className="cell-sub">{r.entries.length} {r.entries.length === 1 ? 'entry' : 'entries'}{img ? ` · ${img} image${img > 1 ? 's' : ''}` : ''}{r.bookingOnly ? ' · booked services only' : ''}</span>
+    </button>
+  )
+}
+
 export function MedicalHistory({ pet, data, error, currentDay, currentAppointmentId }) {
   const [find, setFind] = useState('')
   const [view, setView] = useState('cards')

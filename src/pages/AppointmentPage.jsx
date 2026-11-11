@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Ban, CalendarClock, ChevronDown, Wallet, CalendarDays, CircleX, Clock, History, MessageSquare, Nfc, Plus, Siren, Stethoscope, Trash2, TriangleAlert, Undo2, User, UserRound } from 'lucide-react'
 import { ErrorNote, Field, PageHead, Panel, PetAvatar, useToast, PawLoader } from '../components/ui.jsx'
 import { BookPanel, CancelPanel, ReschedulePanel, ServicePicker, StatusBadge } from '../components/AppointmentPanels.jsx'
-import { PaymentPanel, PaymentSummary, peso, toSend } from '../components/QuickAdd.jsx'
+import { METHOD_LABEL, PaymentPanel, peso, toSend } from '../components/QuickAdd.jsx'
 import { appointmentsChanged, useAppointmentsChanged } from '../components/TagCheckIn.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
@@ -59,7 +59,9 @@ function StatusControl({ a, onChange, setPanel }) {
   const closed = ['cancelled', 'no_show'].includes(a.status)
   return (
     <section className="card">
-      <div className="card-head"><div><h2>Status Control</h2><p>Appointment progress</p></div><StatusBadge status={a.status} emergency={a.emergency} /></div>
+      <div className="card-head"><div><h2>Status Control</h2><p>Appointment progress</p></div>
+        <div className="head-actions"><StatusBadge status={a.status} emergency={a.emergency} />
+          <button type="button" className="btn btn-sm btn-quiet" onClick={() => setPanel('timeline')} title="Every step, who and when"><History aria-hidden /> History</button></div></div>
       <div className="card-pad stack">
         {closed ? (
           <div className="alert" role="note">
@@ -68,21 +70,20 @@ function StatusControl({ a, onChange, setPanel }) {
           </div>
         ) : <Stepper a={a} />}
         <ErrorNote error={error} />
-        {actions.length > 0 && (
+        {(actions.length > 0 || a.canUndo || a.status === 'completed') && (
           <div className="status-actions">
             {actions.map(([to, label, hint], i) => (
               <button key={to} type="button" className={`btn ${i === 0 ? '' : 'btn-quiet'}`} onClick={() => (to === 'completed' && a.paymentStatus !== 'paid' && a.paymentStatus !== 'not_tracked' ? setPanel('pay') : go({ to }, to))} disabled={!!busy} title={hint || undefined}>
                 {busy === to ? 'Saving…' : label} {i === 0 && <ArrowRight aria-hidden />}
               </button>
             ))}
+            {a.status === 'completed' && <span className="cell-sub">Visit closed{a.checkedOutAt ? ` at ${clockTime(a.checkedOutAt)}` : ''}.</span>}
+            {a.canUndo && (
+              <button type="button" className="text-btn" onClick={() => go({ undo: true }, 'undo')} disabled={!!busy}>
+                <Undo2 size={14} aria-hidden /> {busy === 'undo' ? 'Undoing…' : 'Undo Last Step'}
+              </button>
+            )}
           </div>
-        )}
-        {actions.length > 0 && actions[0][2] && <p className="field-hint" style={{ margin: 0 }}>{actions.map(([, l, h]) => h && `${l}: ${h.toLowerCase()}`).filter(Boolean).join(' · ')}.</p>}
-        {a.status === 'completed' && <p style={{ margin: 0 }}>Visit closed{a.checkedOutAt ? ` at ${clockTime(a.checkedOutAt)}` : ''}.</p>}
-        {a.canUndo && (
-          <button type="button" className="text-btn" onClick={() => go({ undo: true }, 'undo')} disabled={!!busy}>
-            <Undo2 size={14} aria-hidden /> {busy === 'undo' ? 'Undoing…' : 'Undo Last Step'}
-          </button>
         )}
       </div>
     </section>
@@ -336,7 +337,7 @@ function Notes({ a, onChange }) {
   )
 }
 
-function Items({ a, onChange }) {
+function Items({ a, onChange, setPanel }) {
   const [adding, setAdding] = useState(false)
   const [picked, setPicked] = useState([])
   const [busy, setBusy] = useState(false)
@@ -362,7 +363,7 @@ function Items({ a, onChange }) {
   return (
     <section className="card">
       <div className="card-head">
-        <div><h2>Services &amp; Products</h2><p>{a.items.length} item{a.items.length === 1 ? '' : 's'} on this appointment</p></div>
+        <div><h2>Services &amp; Payment</h2><p>{a.items.length} item{a.items.length === 1 ? '' : 's'} · total {peso(a.due)}</p></div>
         {a.status !== 'cancelled' && <button type="button" className="btn btn-quiet" onClick={() => setAdding(true)}><Plus aria-hidden /> Add Items</button>}
       </div>
       {a.items.length ? (
@@ -381,6 +382,7 @@ function Items({ a, onChange }) {
           <tfoot><tr className="no-hover"><td><strong>Total</strong></td><td className="num" data-label="Total"><strong>{peso(a.due)}</strong></td><td /></tr></tfoot>
         </table>
       ) : <p className="card-pad muted" style={{ margin: 0 }}>No services yet. Add what was done during the visit.</p>}
+      <PaymentLine a={a} setPanel={setPanel} />
       {adding && (
         <Panel dirty={picked.length > 0} discardTitle="Discard the items you picked?" title="Add Services & Products" intro={`${a.pet.name} · ${prettyDay(a.day)}`} onClose={() => setAdding(false)} busy={busy}
           footer={<><button type="button" className="btn btn-quiet" onClick={() => setAdding(false)} disabled={busy}>Cancel</button>
@@ -393,20 +395,27 @@ function Items({ a, onChange }) {
   )
 }
 
-// Payment: the total from the price list and how it was paid. Owners can void a payment (with a reason).
-function Payment({ a, setPanel }) {
+// Payment, as the footer of Services & Products: paid (how, by whom) or Take Payment; owners can void.
+function PaymentLine({ a, setPanel }) {
   const staff = useStaff()
   if (['cancelled', 'no_show', 'accepted', 'pending'].includes(a.status) && !a.payments.length) return null
   const live = a.payments.find((p) => !p.voidedAt)
+  const voided = a.payments.filter((p) => p.voidedAt)
   return (
-    <section className="card">
-      <div className="card-head">
-        <div><h2>Payment</h2><p>{a.paymentStatus === 'paid' ? `Paid${a.stockDeductedAt ? ' · taken off stock' : ' · stock comes off at check-out'}` : a.paymentStatus === 'not_tracked' ? 'From before payments were recorded in the app' : `Not paid yet · total ${peso(a.due)}`}</p></div>
-        {a.paymentStatus === 'unpaid' && <button type="button" className="btn" onClick={() => setPanel('pay')}><Wallet aria-hidden /> Take Payment</button>}
-        {live && canManage(staff) && <button type="button" className="btn btn-quiet" onClick={() => setPanel('void')}><Ban aria-hidden /> Void Payment</button>}
+    <div className="pay-line">
+      <Wallet aria-hidden />
+      <div className="pay-line-text">
+        {live ? (
+          <>
+            <strong>Paid {peso(live.amount)} · {METHOD_LABEL[live.method]}{live.reference ? ` · Ref ${live.reference}` : ''}</strong>
+            <span className="cell-sub">{live.by} · {prettyDay(live.at.slice(0, 10))}{live.amount !== live.due ? ` · total was ${peso(live.due)}` : ''}{live.note ? ` · ${live.note}` : ''} · {a.stockDeductedAt ? 'taken off stock' : 'stock comes off at check-out'}</span>
+          </>
+        ) : a.paymentStatus === 'not_tracked' ? <strong>From before payments were recorded in the app</strong> : <strong>Not paid yet</strong>}
+        {voided.length > 0 && <span className="cell-sub">{voided.length} voided: {voided.map((p) => `${peso(p.amount)} by ${p.voidedBy} (${p.voidReason})`).join('; ')}</span>}
       </div>
-      {a.payments.length > 0 && <div className="card-pad"><PaymentSummary a={a} /></div>}
-    </section>
+      {a.paymentStatus === 'unpaid' && <button type="button" className="btn btn-sm" onClick={() => setPanel('pay')}><Wallet aria-hidden /> Take Payment</button>}
+      {live && canManage(staff) && <button type="button" className="btn btn-sm btn-quiet" onClick={() => setPanel('void')}><Ban aria-hidden /> Void</button>}
+    </div>
   )
 }
 
@@ -437,12 +446,11 @@ function VoidPanel({ a, onClose, onDone }) {
   )
 }
 
-function Timeline({ a }) {
-  const times = [['Booked', a.createdAt], ['Checked In', a.checkedInAt], ['Started', a.startedAt], ['Admitted', a.admittedAt], ['Dispense', a.dispenseAt], ['Checked Out', a.checkedOutAt], ['Cancelled', a.cancelledAt]].filter(([, t]) => t)
+// Every step of the visit, who and when (opened from Status Control's History button).
+function TimelinePanel({ a, onClose }) {
   return (
-    <section className="card">
-      <div className="card-head"><div><h2>Visit History</h2><p>Every step, who and when</p></div><History className="card-head-icon" aria-hidden /></div>
-      <div className="card-pad">
+    <Panel title="Visit History" intro={`${a.pet.name} · ${prettyDay(a.day)} · #${a.no}`} onClose={onClose}>
+      <section className="form-section">
         {a.source === 'legacy' ? (
           <p style={{ margin: 0 }}>Imported from the old system{a.legacyStatus ? `, where it showed as ${a.legacyStatus}` : ''}.{a.legacyUnclosed ? ' It was never closed there; the medical records import will settle whether the visit happened.' : ''}</p>
         ) : (
@@ -455,47 +463,43 @@ function Timeline({ a }) {
             ))}
           </ul>
         )}
-        {times.length > 1 && a.checkedInAt && a.checkedOutAt && (
-          <p className="field-hint" style={{ margin: '10px 0 0' }}>In clinic for {Math.round((Date.parse(a.checkedOutAt) - Date.parse(a.checkedInAt)) / 60000)} minutes.</p>
+        {a.checkedInAt && a.checkedOutAt && (
+          <p className="field-hint" style={{ margin: 0 }}>In clinic for {Math.round((Date.parse(a.checkedOutAt) - Date.parse(a.checkedInAt)) / 60000)} minutes.</p>
         )}
-      </div>
-    </section>
+      </section>
+    </Panel>
   )
 }
 
-// The page in two columns that stack on their own (no gaps between rows). Left: the header, notes for
-// the visit, progress, the bill and payment side by side, the pet's Medical History. Right: Appointment
-// Actions, the visit's record, staff notes and the visit history.
+// The page as a grid of rows; the cards in a row share its height, so there are no holes:
+//   1  header (wide)              | Appointment Actions
+//   2  Status Control             | Medical Record, Staff Notes, the latest Medical History
+//   3  Services & Payment         |   (one stack beside rows 2 and 3; View All opens the whole history)
+// The visit timeline and the full history open in panels. On narrow screens it's one column.
 function AppointmentBody({ a, changed, reload, toast, setPanel, banners }) {
   const med = useVisitMedical({ a, onVisitChanged: reload, toast })
   return (
-    <div className="stack">
-      <div className="appt-bento">
-        <div className="stack">
-          <VisitBar a={a} onChange={changed} />
-          {banners.length > 0 && (
-            <section className="card banners">
-              {banners.map((b) => {
-                const inner = <><b.icon aria-hidden /><span>{b.no && <span className="badge badge-soft">#{b.no}</span>} <strong>{b.title}</strong><span className="cell-sub">{b.text}</span></span>{b.link && <ArrowRight aria-hidden />}</>
-                return b.link ? <Link key={b.title} to={b.link} className="banner">{inner}</Link>
-                  : b.onClick ? <button key={b.title} type="button" className="banner banner-action" onClick={b.onClick}>{inner}<ArrowRight aria-hidden /></button>
-                  : <div key={b.title} className="banner">{inner}</div>
-              })}
-            </section>
-          )}
-          <StatusControl a={a} onChange={changed} setPanel={setPanel} />
-          <div className="bill-row">
-            <Items a={a} onChange={changed} />
-            <Payment a={a} setPanel={setPanel} />
-          </div>
-          {med.history}
-        </div>
-        <div className="stack">
-          <Actions a={a} onChange={changed} setPanel={setPanel} />
-          {med.card}
-          <Notes a={a} onChange={changed} />
-          <Timeline a={a} />
-        </div>
+    <div className="appt-grid">
+      <div className="ag-head stack">
+        <VisitBar a={a} onChange={changed} />
+        {banners.length > 0 && (
+          <section className="card banners">
+            {banners.map((b) => {
+              const inner = <><b.icon aria-hidden /><span>{b.no && <span className="badge badge-soft">#{b.no}</span>} <strong>{b.title}</strong><span className="cell-sub">{b.text}</span></span>{b.link && <ArrowRight aria-hidden />}</>
+              return b.link ? <Link key={b.title} to={b.link} className="banner">{inner}</Link>
+                : b.onClick ? <button key={b.title} type="button" className="banner banner-action" onClick={b.onClick}>{inner}<ArrowRight aria-hidden /></button>
+                : <div key={b.title} className="banner">{inner}</div>
+            })}
+          </section>
+        )}
+      </div>
+      <div className="ag-actions"><Actions a={a} onChange={changed} setPanel={setPanel} /></div>
+      <div className="ag-status"><StatusControl a={a} onChange={changed} setPanel={setPanel} /></div>
+      <div className="ag-bill"><Items a={a} onChange={changed} setPanel={setPanel} /></div>
+      <div className="ag-side">
+        {med.card}
+        <Notes a={a} onChange={changed} />
+        {med.history}
       </div>
       {med.overlays}
     </div>
@@ -541,6 +545,7 @@ export default function AppointmentPage() {
         <BookPanel pet={{ ...a.pet, owner: a.owner }} defaultDay={addDays(a.day, a.followUpDays || 7)} followUpOf={{ id: a.id, reason: a.followUpReason, time: a.time, staffIds: a.staff.map((x) => x.id) }} onClose={closePanel}
           onDone={(n) => { closePanel(); appointmentsChanged(); toast(`Follow-up booked for ${prettyDay(n.day)}, ${prettyTime(n.time)}`); reload() }} />
       )}
+      {panel === 'timeline' && <TimelinePanel a={a} onClose={closePanel} />}
       {panel === 'pay' && (
         <PaymentPanel appointmentId={a.id} onClose={closePanel} onDone={(n, msg) => { closePanel(); changed(n, msg) }} />
       )}
