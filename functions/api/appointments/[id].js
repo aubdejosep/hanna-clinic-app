@@ -1,15 +1,16 @@
 // GET   /api/appointments/:id  -> the appointment with its pet, items, staff, notes, history and
 //                                  the appointments it was rescheduled from / to
-// PATCH /api/appointments/:id  {emergency, reason, staffIds}  -> saves only the fields sent
+// PATCH /api/appointments/:id  {emergency, reason, staffIds, weightKg, followUpDays, followUpReason}  -> saves only the fields sent
+//      weightKg also becomes the pet's latest weight. followUpDays null clears Needs a Follow-Up.
 
-import { json, fail, readJson, cleanMultiline, audit } from '../../../lib/http.js'
+import { json, fail, readJson, clean, cleanMultiline, audit } from '../../../lib/http.js'
 import { petOut } from '../../../lib/clients.js'
 import { loadAppointment, apptNo, NEXT } from '../../../lib/appointments.js'
 
 export async function loadFull(env, id) {
   const appt = await loadAppointment(env, id)
   if (!appt) return null
-  const [pet, items, staff, notes, events, from, to, tag] = await env.DB.batch([
+  const [pet, items, staff, notes, events, from, to, tag, later] = await env.DB.batch([
     env.DB.prepare('SELECT * FROM pets WHERE id = ?').bind(appt.pet.id),
     env.DB.prepare('SELECT * FROM appointment_items WHERE appointment_id = ? AND deleted_at IS NULL ORDER BY id').bind(id),
     env.DB.prepare(`SELECT s.id, s.first_name, s.last_name, s.title, s.role FROM appointment_staff x JOIN staff s ON s.id = x.staff_id
@@ -19,6 +20,8 @@ export async function loadFull(env, id) {
     env.DB.prepare('SELECT id, day, time, status FROM appointments WHERE id = (SELECT rescheduled_from FROM appointments WHERE id = ?)').bind(id),
     env.DB.prepare('SELECT id, day, time, status FROM appointments WHERE rescheduled_from = ? AND deleted_at IS NULL').bind(id),
     env.DB.prepare('SELECT uid FROM pet_tags WHERE pet_id = ? AND retired_at IS NULL LIMIT 1').bind(appt.pet.id),
+    env.DB.prepare(`SELECT id, day, time, status FROM appointments WHERE pet_id = ? AND id <> ? AND day > ? AND deleted_at IS NULL
+      AND status NOT IN ('cancelled', 'no_show') ORDER BY day, time LIMIT 1`).bind(appt.pet.id, id, appt.day),
   ])
   const link = (r) => r ? { id: r.id, no: apptNo(r), day: r.day, time: r.time, status: r.status } : null
   const history = events.results.map((e) => ({ at: e.at, from: e.from_status, to: e.to_status, via: e.via, actor: e.actor }))
@@ -33,6 +36,7 @@ export async function loadFull(env, id) {
     next: NEXT[appt.status] || [],
     from: link(from.results[0]),
     to: link(to.results[0]),
+    laterBooking: link(later.results[0]),
   }
 }
 
@@ -45,7 +49,7 @@ export async function onRequestPatch({ request, env, params, data }) {
   const id = Number(params.id)
   const body = await readJson(request)
   if (!body) return fail(400, 'Send the changes as JSON.')
-  const row = await env.DB.prepare('SELECT id FROM appointments WHERE id = ? AND deleted_at IS NULL').bind(id).first()
+  const row = await env.DB.prepare('SELECT id, pet_id, day FROM appointments WHERE id = ? AND deleted_at IS NULL').bind(id).first()
   if (!row) return fail(404, 'This appointment was not found.')
   const now = new Date().toISOString()
   const stmts = []
@@ -57,6 +61,22 @@ export async function onRequestPatch({ request, env, params, data }) {
     stmts.push(env.DB.prepare('DELETE FROM appointment_staff WHERE appointment_id = ?').bind(id))
     ids.forEach((s) => stmts.push(env.DB.prepare('INSERT OR IGNORE INTO appointment_staff (appointment_id, staff_id) SELECT ?, id FROM staff WHERE id = ?').bind(id, s)))
     fields.push('staff')
+  }
+  if ('weightKg' in body) {
+    const raw = String(body.weightKg ?? '').replace(/kg$/i, '').trim()
+    const kg = raw === '' ? null : Number(raw)
+    if (kg !== null && !(kg > 0 && kg < 150)) return fail(400, 'Enter the weight in kg, e.g. 4.5.', { errors: { weightKg: 'Enter the weight in kg, e.g. 4.5.' } })
+    const w = kg === null ? null : Math.round(kg * 100) / 100
+    stmts.push(env.DB.prepare('UPDATE appointments SET weight_kg = ?, updated_at = ? WHERE id = ?').bind(w, now, id))
+    if (w !== null) stmts.push(env.DB.prepare('UPDATE pets SET weight_kg = ?, weight_on = ?, updated_at = ? WHERE id = ? AND (weight_on IS NULL OR weight_on <= ?)').bind(w, row.day, now, row.pet_id, row.day))
+    fields.push('weight')
+  }
+  if ('followUpDays' in body) {
+    const days = body.followUpDays === null || body.followUpDays === '' ? null : Math.round(Number(body.followUpDays))
+    if (days !== null && !(days >= 1 && days <= 365)) return fail(400, 'Choose in how many days, from 1 to 365.', { errors: { followUpDays: 'Choose 1 to 365 days.' } })
+    stmts.push(env.DB.prepare('UPDATE appointments SET follow_up_days = ?, follow_up_reason = ?, follow_up_by = ?, updated_at = ? WHERE id = ?')
+      .bind(days, days === null ? null : clean(body.followUpReason, 200) || null, days === null ? null : data.staff.name, now, id))
+    fields.push('follow_up')
   }
   if (!stmts.length) return fail(400, 'Nothing to change.')
   await env.DB.batch(stmts)

@@ -104,7 +104,7 @@ export async function onRequestPost({ request, env, data }) {
   const appt = await env.DB.prepare(`INSERT INTO appointments
     (pet_id, owner_id, day, time, starts_at, status, kind, source, emergency, reason, checked_in_at, booked_by_staff_id, booked_by_name)
     VALUES (?, ?, ?, ?, ?, ?, ?, 'staff', ?, ?, ?, ?, ?) RETURNING id`)
-    .bind(pet.id, pet.owner_id, day, time, startsAt(day, time), status, walkIn ? 'walk_in' : 'booking', body.emergency ? 1 : 0,
+    .bind(pet.id, pet.owner_id, day, time, startsAt(day, time), status, walkIn ? 'walk_in' : Number(body.followUpOf) ? 'follow_up' : 'booking', body.emergency ? 1 : 0,
       cleanMultiline(body.reason, 500) || null, walkIn ? iso : null, me.id, me.name)
     .first()
   const staffIds = [...new Set((Array.isArray(body.staffIds) ? body.staffIds : []).map(Number).filter(Boolean))].slice(0, 6)

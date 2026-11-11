@@ -4,7 +4,7 @@ The staff app for Hanna Pet Wellness Center at **app.hannapetwellnesscenter.com*
 
 Built with React + Vite and hosted on Cloudflare Pages with a D1 database. Staff log in on the app's own page with email and password; **Remember me** keeps a device logged in for 30 days.
 
-## What's built (phases 0–3)
+## What's built (phases 0–4)
 
 - **Masterlist:** search owners by name, mobile, customer number or pet; search pets by name, breed, microchip or owner; register an owner with their pets (warns when the mobile is already on file); edit owners and pets; allergies highlighted.
 - **Records to check:** the 115 imported owners with a missing, odd or shared mobile, or a duplicate name, each with **Mark as checked**.
@@ -19,7 +19,10 @@ Built with React + Vite and hosted on Cloudflare Pages with a D1 database. Staff
 - **The visit loop:** Accepted → tap in (Arrived) → Start Consultation (Started) → Admit as Inpatient or Send to Dispense if needed → tap out (Completed). Bookings nobody tapped in for become **No Show** after their day; visits never tapped out are listed under **Not Checked Out** the next day. **Undo Last Step** for mistakes.
 - **NFC tags:** one tag per pet (**Assign Tag** on the pet's page). The front-desk PC runs the gym's tag bridge; turn on **Tag Reader** on the Appointments page of that PC once. A tap checks the pet in or out, offers **Walk In** when there's no booking today, and **Assign Tag** for a new tag. A second tap within 5 minutes is ignored.
 - **Medical records (read-only):** the history from the old system on each pet's page (**Medical History** with a filter by Notes, Vaccinations, Diagnoses and Treatment Plans; **Vaccinations**), the visit's record on its appointment page, and **Medical Records → Records List** with search. Staff don't write new records in the app yet. Photos come with a later upload.
-- **Dashboard:** owner and pet totals and new this month, and today's appointments; the other cards are placeholders.
+- **Dashboard:** owners open on **Overview** (counts only, no money): Visits, Services Rendered, Vaccinations, New Pet Owners and New Pets against the period before, Visits per Day, Services by Category, Appointment Outcomes, Returning vs New Clients, Busiest Days and Busiest Hours, for Month to Date, Last 7 or 30 Days, Last Month or Year to Date. Everyone else opens on the **Clinic Board** (owners have it as a tab).
+- **Clinic Board:** today's visits station by station: Waiting (the queue, in arrival order, emergencies first) → With Vet → Inpatient → Dispense → Done Today. **Call Next** takes the first pet in the queue and assigns the vet who pressed it. Each card shows its unfinished steps until they're done.
+- **Reminders bell** (beside the logo; top bar on phones): follow-up ticked but not booked, Dispense with no medicines, a visit checked out with no services or no vet, and pets missing breed or weight or owners missing mobile or email (added in the app, or at the clinic today). Each clears itself once done, or with **Not Needed**. Vets see their own visits and unassigned ones.
+- **On a visit:** **Weight Today** (also the pet's latest weight), **Needs a Follow-Up** (in N days, with a reason, and **Book Follow-Up**), and **Medicine or Product** under Add Items.
 - **Legacy import:** `scripts/import-legacy.mjs` loads the old system's owner and pet exports, cleaning up phone numbers, placeholder emails, microchips and breed spellings (536 spellings → 293 breeds). `scripts/import-appointments.mjs` loads the scraped appointments list (see step 7).
 
 ## Go live (one time, in Cloudflare)
@@ -95,6 +98,10 @@ Then print the QR code from **Clinic operations → Clinic profile → Kiosk QR 
    Read `data\import-appointments-report.md` for the few rows it couldn't match. Running it again replaces the earlier import and never touches appointments booked in the app.
 3. **Tag reader on the front-desk PC.** Install the gym's fob bridge there the same way as at the gym (its README: download, unzip to e.g. `C:\HannaClinic\bridge\`, run `install-startup.bat`). Next to `bridge.exe`, create `allowed_origins.txt` with this one line: `https://app.hannapetwellnesscenter.com`, then restart the bridge. In the app on that PC: **Appointments → Tag Reader Off** (turns it on; the button then says **Tag Reader Ready**).
 4. Give each pet its tag: pet's page → **NFC Tag → Assign Tag** → tap the tag.
+
+### 9. Dashboard and reminders (phase 4)
+
+`git pull`, then `npm run db:migrate:remote` (adds weights, follow-ups and reminder settings). Nothing to import.
 
 ### 8. Medical records (phase 3)
 

@@ -1,4 +1,5 @@
-// POST /api/appointments/:id/status {to}    -> the next step (Arrived, Started, Inpatient, Dispense, Completed…)
+// POST /api/appointments/:id/status {to, assignMe} -> the next step (Arrived, Started, Inpatient, Dispense, Completed…);
+//                                         assignMe adds the caller to Staff Assignment (Call Next)
 // POST /api/appointments/:id/status {undo}  -> back to the step before the latest change
 
 import { json, fail, readJson, audit } from '../../../../lib/http.js'
@@ -34,6 +35,7 @@ export async function onRequestPost({ request, env, params, data }) {
   if (to === 'cancelled') return fail(400, 'Use Cancel, so the reason is saved.')
   const res = await moveTo(env, appt, to, { actor: data.staff.name })
   if (res.error) return fail(400, res.error)
+  if (body.assignMe) await env.DB.prepare('INSERT OR IGNORE INTO appointment_staff (appointment_id, staff_id) VALUES (?, ?)').bind(id, data.staff.id).run()
   await audit(env, data.staff.email, 'status', 'appointment', id, { from: appt.status, to })
   return json({ appointment: await loadFull(env, id) })
 }

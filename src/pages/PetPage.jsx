@@ -79,6 +79,7 @@ export default function PetPage() {
     ['Sex', SEX_LABEL[p.sex]],
     ['Age', age(p.birthdate) || 'Unknown', p.birthdate ? `Born ${prettyDay(p.birthdate)}` : null],
     ['Colour and Markings', p.colorMarkings || '—'],
+    ['Weight', p.weightKg ? `${p.weightKg} kg` : '—', p.weightOn ? `Weighed ${prettyDay(p.weightOn)}` : null],
     ['Microchip', p.microchip || '—'],
   ]
 

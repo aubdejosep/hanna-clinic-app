@@ -75,7 +75,7 @@ function Steps({ steps, at }) {
 // --- Services: from the price list, or typed in (the list is still being filled in) ---
 const peso = (n) => `₱${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 
-export function ServicePicker({ items, setItems }) {
+export function ServicePicker({ items, setItems, products }) {
   const { data } = useApi('services/picker')
   const [other, setOther] = useState('')
   const [otherDetail, setOtherDetail] = useState('')
@@ -142,7 +142,35 @@ export function ServicePicker({ items, setItems }) {
         </div>
         <button type="button" className="btn btn-quiet" style={{ justifySelf: 'start' }} onClick={addOther} disabled={!other.trim()}><Plus aria-hidden /> Add Service</button>
       </section>
+      {products && <MedicineFields onAdd={(it) => setItems([...items, it])} />}
     </div>
+  )
+}
+
+// Medicines and products given or dispensed (no stock list yet, so they're typed).
+function MedicineFields({ onAdd }) {
+  const [name, setName] = useState('')
+  const [how, setHow] = useState('')
+  const [qty, setQty] = useState('1')
+  function add() {
+    if (!name.trim()) return
+    const q = Math.max(1, Math.min(99, Number(qty) || 1))
+    onAdd({ kind: 'product', name: name.trim(), detail: how.trim(), qty: q, label: `${name.trim()}${how.trim() ? ` · ${how.trim()}` : ''}${q > 1 ? ` × ${q}` : ''}` })
+    setName(''); setHow(''); setQty('1')
+  }
+  return (
+    <section className="form-section">
+      <h3 className="label">Medicine or Product</h3>
+      <p className="field-hint" style={{ margin: 0 }}>What was given or dispensed, e.g. Prednisone 20mg · ½ tab twice a day for 3 days.</p>
+      <div className="form-row">
+        <Field label="Medicine or Product">{(a) => <input {...a} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="e.g. Prednisone 20mg" />}</Field>
+        <Field label="Dose or Instructions" optional>{(a) => <input {...a} value={how} onChange={(e) => setHow(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} placeholder="e.g. ½ tab twice a day, 3 days" />}</Field>
+      </div>
+      <div className="inline-row" style={{ maxWidth: 320 }}>
+        <Field label="Quantity">{(a) => <input {...a} value={qty} onChange={(e) => setQty(e.target.value.replace(/[^\d]/g, ''))} inputMode="numeric" maxLength={2} style={{ width: 80 }} />}</Field>
+        <button type="button" className="btn btn-quiet" style={{ alignSelf: 'end' }} onClick={add} disabled={!name.trim()}><Plus aria-hidden /> Add Medicine</button>
+      </div>
+    </section>
   )
 }
 
@@ -187,13 +215,13 @@ function ScheduleFields({ day, time, setDay, setTime, errors }) {
 }
 
 // --- Book Appointment: Pet → Services → Schedule (the old 3-step panel) ---
-export function BookPanel({ pet: givenPet, onClose, onDone }) {
+export function BookPanel({ pet: givenPet, defaultDay, followUpOf, onClose, onDone }) {
   const [step, setStep] = useState(givenPet ? 1 : 0)
   const [pet, setPet] = useState(givenPet || null)
   const [items, setItems] = useState([])
-  const [day, setDay] = useState(manilaToday())
+  const [day, setDay] = useState(defaultDay && defaultDay > manilaToday() ? defaultDay : manilaToday())
   const [time, setTime] = useState('')
-  const [reason, setReason] = useState('')
+  const [reason, setReason] = useState(followUpOf?.reason ? `Follow-up: ${followUpOf.reason}` : followUpOf ? 'Follow-up' : '')
   const [staffIds, setStaffIds] = useState([])
   const [emergency, setEmergency] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -204,7 +232,7 @@ export function BookPanel({ pet: givenPet, onClose, onDone }) {
     setBusy(true)
     setError(null)
     try {
-      const res = await api('appointments', { method: 'POST', body: { petId: pet.id, day, time, items, reason, staffIds, emergency } })
+      const res = await api('appointments', { method: 'POST', body: { petId: pet.id, day, time, items, reason, staffIds, emergency, followUpOf: followUpOf?.id } })
       onDone(res.appointment)
     } catch (err) {
       setError(err)

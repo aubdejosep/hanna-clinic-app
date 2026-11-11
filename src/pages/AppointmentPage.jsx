@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowRight, CalendarClock, CalendarDays, CircleX, Clock, History, MessageSquare, Nfc, Plus, Siren, Stethoscope, Trash2, TriangleAlert, Undo2, User, UserRound } from 'lucide-react'
 import { ErrorNote, Field, PageHead, Panel, PetAvatar, useToast } from '../components/ui.jsx'
-import { CancelPanel, ReschedulePanel, ServicePicker, StaffSelect, StatusBadge } from '../components/AppointmentPanels.jsx'
+import { BookPanel, CancelPanel, ReschedulePanel, ServicePicker, StaffSelect, StatusBadge } from '../components/AppointmentPanels.jsx'
 import { appointmentsChanged, useAppointmentsChanged } from '../components/TagCheckIn.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { age, prettyDay, SEX_LABEL, SPECIES_LABEL } from '../lib/format.js'
-import { ACTIONS, STATUS, clockTime, longDay, prettyTime } from '../lib/appointments.js'
+import { ACTIONS, STATUS, addDays, clockTime, longDay, prettyTime } from '../lib/appointments.js'
 import { canManage, useStaff } from '../lib/staff.js'
 import { VisitRecord } from '../components/MedicalRecords.jsx'
 
@@ -88,6 +88,89 @@ function StatusControl({ a, onChange }) {
   )
 }
 
+// Weight taken at this visit; also becomes the pet's latest weight.
+function WeightToday({ a, onChange }) {
+  const [kg, setKg] = useState(a.weightKg ?? '')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  async function save() {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await api(`appointments/${a.id}`, { method: 'PATCH', body: { weightKg: kg } })
+      onChange(res.appointment, kg === '' ? 'Weight cleared' : `Weight saved: ${kg} kg`)
+    } catch (err) {
+      setError(err)
+    } finally {
+      setBusy(false)
+    }
+  }
+  const changed = String(kg) !== String(a.weightKg ?? '')
+  return (
+    <div>
+      <label className="field-label" htmlFor="weight-today">Weight Today (kg)</label>
+      <div className="inline-row" style={{ marginTop: 6 }}>
+        <input id="weight-today" value={kg} onChange={(e) => setKg(e.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" maxLength={6}
+          placeholder={a.pet.weightKg ? `Last: ${a.pet.weightKg} kg` : 'e.g. 4.5'} aria-invalid={!!error} />
+        <button type="button" className="btn btn-quiet" onClick={save} disabled={busy || !changed}>{busy ? 'Saving…' : 'Save'}</button>
+      </div>
+      {error && <span className="field-error">{error.message}</span>}
+    </div>
+  )
+}
+
+// Needs a Follow-Up: the vet ticks it; the bell reminds until a later booking exists.
+function FollowUp({ a, onChange, setPanel }) {
+  const [editing, setEditing] = useState(false)
+  const [days, setDays] = useState(a.followUpDays || 7)
+  const [reason, setReason] = useState(a.followUpReason || '')
+  const [busy, setBusy] = useState(false)
+  async function save(value) {
+    setBusy(true)
+    try {
+      const res = await api(`appointments/${a.id}`, { method: 'PATCH', body: { followUpDays: value, followUpReason: reason } })
+      onChange(res.appointment, value ? `Follow-up needed in ${value} days` : 'Follow-up removed')
+      setEditing(false)
+    } finally {
+      setBusy(false)
+    }
+  }
+  const due = a.followUpDays && addDays(a.day, a.followUpDays)
+  return (
+    <>
+      <span className="label" style={{ marginTop: 6 }}>Follow-Up</span>
+      {editing ? (
+        <div className="stack" style={{ gap: 8 }}>
+          <div className="inline-row">
+            <label className="sr-only" htmlFor="fu-days">In how many days</label>
+            <select id="fu-days" className="select" value={days} onChange={(e) => setDays(Number(e.target.value))}>
+              {[3, 5, 7, 10, 14, 21, 30, 60, 90, 180, 365].map((d) => <option key={d} value={d}>In {d} days</option>)}
+            </select>
+          </div>
+          <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} placeholder="Reason, e.g. recheck wound, 2nd vaccine dose" aria-label="Reason for the follow-up" />
+          <div className="inline-row">
+            <button type="button" className="btn" onClick={() => save(days)} disabled={busy}>{busy ? 'Saving…' : 'Save Follow-Up'}</button>
+            <button type="button" className="btn btn-quiet" onClick={() => setEditing(false)} disabled={busy}>Cancel</button>
+          </div>
+        </div>
+      ) : a.followUpDays ? (
+        <div className="stack" style={{ gap: 8 }}>
+          <p style={{ margin: 0 }}>Needed by <strong>{prettyDay(due)}</strong> (in {a.followUpDays} days){a.followUpReason ? `: ${a.followUpReason}` : ''}.</p>
+          {a.laterBooking
+            ? <Link className="chip" to={`/appointments/${a.laterBooking.id}`}><CalendarDays aria-hidden /> Booked for {prettyDay(a.laterBooking.day)}</Link>
+            : <button type="button" className="btn" onClick={() => setPanel('followup')}><CalendarClock aria-hidden /> Book Follow-Up</button>}
+          <div className="inline-row">
+            <button type="button" className="text-btn" onClick={() => setEditing(true)}>Change</button>
+            <button type="button" className="text-btn" onClick={() => save(null)} disabled={busy}>Not Needed</button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="btn btn-quiet" onClick={() => setEditing(true)}><CalendarClock aria-hidden /> Needs a Follow-Up</button>
+      )}
+    </>
+  )
+}
+
 function Actions({ a, onChange, setPanel }) {
   const [busy, setBusy] = useState(false)
   const canSchedule = ['pending', 'accepted', 'no_show'].includes(a.status)
@@ -103,7 +186,7 @@ function Actions({ a, onChange, setPanel }) {
   }
   return (
     <section className="card">
-      <div className="card-head"><div><h2>Appointment Actions</h2><p>Schedule and emergency</p></div></div>
+      <div className="card-head"><div><h2>Appointment Actions</h2><p>Schedule, emergency and follow-up</p></div></div>
       <div className="card-pad stack" style={{ gap: 10 }}>
         <span className="label">Emergency Control</span>
         <button type="button" className={`btn ${a.emergency ? 'btn-dark' : 'btn-quiet'}`} onClick={emergency} disabled={busy || a.status === 'cancelled'}>
@@ -113,6 +196,7 @@ function Actions({ a, onChange, setPanel }) {
         <button type="button" className="btn btn-quiet" onClick={() => setPanel('reschedule')} disabled={!canSchedule}><CalendarClock aria-hidden /> Reschedule</button>
         <button type="button" className="btn btn-quiet" onClick={() => setPanel('cancel')} disabled={!canCancel}><CircleX aria-hidden /> Cancel</button>
         {!canSchedule && !canCancel && <p className="field-hint" style={{ margin: 0 }}>{a.status === 'completed' ? 'This visit is closed.' : a.status === 'cancelled' ? 'This appointment is cancelled.' : 'The visit has started, so it can’t be moved now.'}</p>}
+        {!['cancelled', 'no_show', 'pending', 'accepted'].includes(a.status) && <FollowUp a={a} onChange={onChange} setPanel={setPanel} />}
       </div>
     </section>
   )
@@ -253,7 +337,7 @@ function Items({ a, onChange }) {
           footer={<><button type="button" className="btn btn-quiet" onClick={() => setAdding(false)} disabled={busy}>Cancel</button>
             <button type="button" className="btn" onClick={save} disabled={busy || !picked.length}>{busy ? 'Adding…' : `Add ${picked.length || ''} Item${picked.length === 1 ? '' : 's'}`}</button></>}>
           <ErrorNote error={error} />
-          <ServicePicker items={picked} setItems={setPicked} />
+          <ServicePicker items={picked} setItems={setPicked} products />
         </Panel>
       )}
     </section>
@@ -356,6 +440,7 @@ export default function AppointmentPage() {
                 {a.bookedBy && <span className="chip">Booked by {a.bookedBy}</span>}
               </div>
               {a.checkedInAt && <p style={{ margin: 0 }}>In {clockTime(a.checkedInAt)}{a.checkedOutAt ? ` · Out ${clockTime(a.checkedOutAt)}` : ''}</p>}
+              {!['cancelled', 'no_show'].includes(a.status) && <WeightToday a={a} onChange={changed} />}
             </div>
           </section>
           <PetProfile a={a} />
@@ -387,6 +472,10 @@ export default function AppointmentPage() {
       {panel === 'reschedule' && (
         <ReschedulePanel appointment={a} onClose={() => setPanel(null)}
           onDone={(n) => { setPanel(null); appointmentsChanged(); toast(`Rescheduled to ${prettyDay(n.day)}, ${prettyTime(n.time)}`); navigate(`/appointments/${n.id}`) }} />
+      )}
+      {panel === 'followup' && (
+        <BookPanel pet={{ ...a.pet, owner: a.owner }} defaultDay={addDays(a.day, a.followUpDays || 7)} followUpOf={{ id: a.id, reason: a.followUpReason }} onClose={() => setPanel(null)}
+          onDone={(n) => { setPanel(null); appointmentsChanged(); toast(`Follow-up booked for ${prettyDay(n.day)}, ${prettyTime(n.time)}`); reload() }} />
       )}
       {panel === 'cancel' && (
         <CancelPanel appointment={a} onClose={() => setPanel(null)} onDone={(n) => { setPanel(null); changed(n, 'Appointment cancelled') }} />

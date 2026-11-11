@@ -6,7 +6,7 @@ import { api, ApiError } from '../lib/api.js'
 import { BREED_NAMES } from '../lib/breeds.js'
 import { ErrorNote, Field, Panel } from './ui.jsx'
 
-const blankPet = () => ({ name: '', species: 'dog', sex: 'unknown', breed: '', birthdate: '' })
+const blankPet = () => ({ name: '', species: 'dog', sex: 'unknown', breed: '', birthdate: '', weightKg: '' })
 
 function Seg({ name, value, options, onChange }) {
   return (
@@ -61,7 +61,7 @@ function PetFields({ value, set, errors = {}, idx = 0, full }) {
         <Field label="Pet's Name" error={errors.name}>
           {(a) => <input {...a} value={value.name} onChange={(e) => set({ name: e.target.value })} maxLength={50} autoComplete="off" />}
         </Field>
-        <Field label="Breed" optional hint="Pick from the list or type it.">
+        <Field label="Breed" hint="Pick from the list or type it." error={errors.breed}>
           {(a) => <input {...a} value={value.breed} onChange={(e) => set({ breed: e.target.value })} list="breed-names" maxLength={60} autoComplete="off" />}
         </Field>
       </div>
@@ -75,9 +75,14 @@ function PetFields({ value, set, errors = {}, idx = 0, full }) {
           <Seg name={`sex-${idx}`} value={value.sex} onChange={(sex) => set({ sex })} options={[['male', 'Male'], ['female', 'Female'], ['unknown', 'Not Sure']]} />
         </div>
       </div>
-      <Field label="Birthdate" optional hint="An estimate is fine." error={errors.birthdate}>
-        {(a) => <input {...a} type="date" value={value.birthdate} onChange={(e) => set({ birthdate: e.target.value })} max={new Date().toISOString().slice(0, 10)} />}
-      </Field>
+      <div className="form-row">
+        <Field label="Birthdate" optional hint="An estimate is fine." error={errors.birthdate}>
+          {(a) => <input {...a} type="date" value={value.birthdate} onChange={(e) => set({ birthdate: e.target.value })} max={new Date().toISOString().slice(0, 10)} />}
+        </Field>
+        <Field label="Weight (kg)" hint="Doses go by weight." error={errors.weightKg}>
+          {(a) => <input {...a} value={value.weightKg ?? ''} onChange={(e) => set({ weightKg: e.target.value })} inputMode="decimal" maxLength={6} placeholder="e.g. 4.5" />}
+        </Field>
+      </div>
       {full && (
         <>
           <div className="form-row">
@@ -242,7 +247,7 @@ export function EditOwnerPanel({ owner, onClose, onDone }) {
 export function PetPanel({ ownerId, ownerName, pet, onClose, onDone }) {
   const [value, setValue] = useState({
     name: pet?.name || '', species: pet?.species || 'dog', sex: pet?.sex || 'unknown', breed: pet?.breed || '',
-    birthdate: pet?.birthdate || '', colorMarkings: pet?.colorMarkings || '', microchip: pet?.microchip || '',
+    birthdate: pet?.birthdate || '', weightKg: pet?.weightKg ?? '', colorMarkings: pet?.colorMarkings || '', microchip: pet?.microchip || '',
     allergies: pet?.allergies || '', notes: pet?.notes || '',
     ...(pet?.deceasedOn ? { deceasedOn: pet.deceasedOn } : {}),
   })

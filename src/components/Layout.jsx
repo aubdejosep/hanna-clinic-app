@@ -6,6 +6,7 @@ import { initials } from '../lib/format.js'
 import { canManage, ROLE_LABEL } from '../lib/staff.js'
 import AccountPanel from './AccountPanel.jsx'
 import TagCheckIn from './TagCheckIn.jsx'
+import ReminderBell from './ReminderBell.jsx'
 
 // The menu follows the old system's order and names, with its expandable groups.
 // "soon" items open a placeholder page until their phase lands.
@@ -66,6 +67,19 @@ function Brand() {
   )
 }
 
+// One bell at a time: in the sidebar on wide screens, in the top bar on phones (same breakpoint as the CSS).
+function useMobile() {
+  const query = '(max-width: 860px)'
+  const [m, setM] = useState(() => window.matchMedia(query).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const on = () => setM(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return m
+}
+
 async function logOut() {
   try {
     await api('auth/logout', { method: 'POST' })
@@ -78,6 +92,7 @@ export default function Layout({ staff }) {
   const [open, setOpen] = useState(false)
   const [account, setAccount] = useState(false)
   const { pathname } = useLocation()
+  const mobile = useMobile()
   useEffect(() => setOpen(false), [pathname])
 
   return (
@@ -87,16 +102,17 @@ export default function Layout({ staff }) {
           <Menu />
         </button>
         <Brand />
+        {mobile && <div className="topbar-bell"><ReminderBell align="right" /></div>}
       </div>
 
       <nav className="sidebar" aria-label="Main">
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Brand />
-          {open && (
+          {open ? (
             <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label="Close Menu">
               <X />
             </button>
-          )}
+          ) : !mobile && <ReminderBell align="left" />}
         </div>
         {NAV.map((item) => item.children ? (
           <NavGroup key={item.label} group={item} pathname={pathname} staff={staff} />

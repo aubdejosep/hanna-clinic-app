@@ -1,110 +1,134 @@
-import { Link } from 'react-router-dom'
-import { CalendarDays, Coins, PawPrint, Stethoscope, TriangleAlert, UserPlus, Users } from 'lucide-react'
-import { Empty, ErrorNote, PageHead } from '../components/ui.jsx'
+import { useSearchParams, Link } from 'react-router-dom'
+import { CalendarCheck, PawPrint, Stethoscope, Syringe, TriangleAlert, UserPlus, Users } from 'lucide-react'
+import { ErrorNote, PageHead } from '../components/ui.jsx'
+import ClinicBoard from '../components/ClinicBoard.jsx'
+import { BarList, Columns, CompareLine, Split } from '../components/Charts.jsx'
+import { ReaderSwitch } from '../components/TagCheckIn.jsx'
 import { useApi } from '../lib/useApi.js'
+import { canManage, useStaff } from '../lib/staff.js'
 import { percentChange, prettyDay } from '../lib/format.js'
-import { StatusBadge } from '../components/AppointmentPanels.jsx'
-import { useAppointmentsChanged } from '../components/TagCheckIn.jsx'
-import { prettyTime } from '../lib/appointments.js'
+import { shortDay } from '../lib/appointments.js'
 
-function TodayCard() {
-  const { data, error, reload } = useApi('appointments/today')
-  useAppointmentsChanged(reload)
-  const c = data?.counts || {}
-  const list = data ? [...data.inClinic, ...data.upcoming].slice(0, 6) : []
+const RANGES = [['mtd', 'Month to Date'], ['7d', 'Last 7 Days'], ['30d', 'Last 30 Days'], ['last_month', 'Last Month'], ['ytd', 'Year to Date']]
+const DAY_NAMES = { 0: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat' }
+
+function Stat({ icon: Icon, label, value }) {
+  const pct = percentChange(value.cur, value.prev)
   return (
-    <section className="card">
-      <div className="card-head">
-        <div><h2>Today&rsquo;s Appointments</h2><p>{data ? `${data.inClinic.length} in clinic · ${data.upcoming.length} still to come · ${c.completed || 0} done` : '…'}</p></div>
-        <Link className="btn btn-quiet" to="/appointments">Open Appointments</Link>
-      </div>
-      {error ? <div className="card-pad"><ErrorNote error={error} /></div> : data && !list.length ? (
-        <Empty icon={CalendarDays} title="Nothing else today" text="No pets in clinic and no more bookings today." />
-      ) : (
-        <ul className="appt-mini">
-          {list.map((a) => (
-            <li key={a.id}>
-              <Link to={`/appointments/${a.id}`}>
-                <span><strong>{a.pet.name}</strong> <span className="cell-sub">{prettyTime(a.time)} · {a.owner.name}</span></span>
-                <StatusBadge status={a.status} emergency={a.emergency} />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+    <div className="card stat">
+      <div className="stat-top"><span className="label">{label}</span><Icon aria-hidden /></div>
+      <div className="stat-value">{value.cur.toLocaleString()}</div>
+      <span className="stat-note">
+        {pct === null ? `${value.prev.toLocaleString()} the period before` : <><span className={pct >= 0 ? 'trend-up' : 'trend-down'}>{pct >= 0 ? '+' : ''}{pct}%</span> vs {value.prev.toLocaleString()} the period before</>}
+      </span>
+    </div>
   )
 }
 
-function Trend({ now, before }) {
-  const pct = percentChange(now, before)
-  if (pct === null) return <span className="stat-note">{now} new this month</span>
+function Overview({ range, setRange }) {
+  const { data: d, error } = useApi(`dashboard?range=${range}`)
+  const review = useApi('stats').data
+  const o = d?.outcomes
+  const past = o ? o.completed + o.noShow : 0
   return (
-    <span className="stat-note">
-      {now} new this month · <span className={pct >= 0 ? 'trend-up' : 'trend-down'}>{pct >= 0 ? '+' : ''}{pct}%</span> vs same days last month
-    </span>
-  )
-}
-
-function Stat({ icon: Icon, label, value, children, placeholder }) {
-  return (
-    <div className={`card stat ${placeholder ? 'placeholder' : ''}`}>
-      <div className="stat-top">
-        <span className="label">{label}</span>
-        <Icon aria-hidden />
+    <div className="stack">
+      <div className="toolbar overview-bar">
+        <div className="tabs" role="group" aria-label="Period">
+          {RANGES.map(([k, l]) => <button key={k} type="button" className="tab" aria-pressed={range === k} onClick={() => setRange(k)}>{l}</button>)}
+        </div>
+        {d && <span className="cell-sub">{prettyDay(d.range.from)} – {prettyDay(d.range.to)}, compared with {prettyDay(d.range.prevFrom)} – {prettyDay(d.range.prevTo)}</span>}
       </div>
-      <div className="stat-value">{value}</div>
-      {children}
+      <ErrorNote error={error} />
+      <div className="stat-grid">
+        {d ? (
+          <>
+            <Stat icon={CalendarCheck} label="Visits" value={d.totals.visits} />
+            <Stat icon={Stethoscope} label="Services Rendered" value={d.totals.services} />
+            <Stat icon={Syringe} label="Vaccinations" value={d.totals.vaccinations} />
+            <Stat icon={Users} label="New Pet Owners" value={d.totals.owners} />
+            <Stat icon={PawPrint} label="New Pets" value={d.totals.pets} />
+          </>
+        ) : Array.from({ length: 5 }, (_, i) => <div key={i} className="card stat"><span className="skeleton" style={{ width: '60%' }} /></div>)}
+      </div>
+      <div className="grid grid-2">
+        <section className="card span-2">
+          <div className="card-head"><div><h2>Visits per Day</h2><p>A visit is a pet seen that day: a checked-out appointment or a medical record.</p></div></div>
+          <div className="card-pad">{d && <CompareLine current={d.perDay.current} previous={d.perDay.previous} labelOf={shortDay} />}</div>
+        </section>
+        <section className="card">
+          <div className="card-head"><div><h2>Services by Category</h2><p>Services on checked-out visits</p></div></div>
+          <div className="card-pad">{d && <BarList rows={d.categories} empty="No services on checked-out visits in this period." />}</div>
+        </section>
+        <section className="card">
+          <div className="card-head"><div><h2>Appointment Outcomes</h2><p>Bookings whose day has passed</p></div></div>
+          <div className="card-pad">
+            {o && (
+              <>
+                <div className="outcomes">
+                  <div><span className="label">Completed</span><strong>{o.completed.toLocaleString()}</strong></div>
+                  <div><span className="label">No Show</span><strong>{o.noShow.toLocaleString()}</strong></div>
+                  <div><span className="label">Cancelled</span><strong>{o.cancelled.toLocaleString()}</strong></div>
+                  <div><span className="label">Rescheduled</span><strong>{o.rescheduled.toLocaleString()}</strong></div>
+                </div>
+                <p className="field-hint" style={{ margin: '12px 0 0' }}>
+                  {past ? `No-show rate: ${Math.round((o.noShow / past) * 100)}% of bookings that weren't cancelled.` : 'No past bookings in this period.'}
+                  {' '}Old-system months count its automatic vaccine reminders as bookings, so their no-shows run high.
+                </p>
+              </>
+            )}
+          </div>
+        </section>
+        <section className="card">
+          <div className="card-head"><div><h2>Returning vs New Clients</h2><p>Owners seen in this period: first visit ever, or back again</p></div></div>
+          <div className="card-pad">{d && <Split a={{ label: 'Returning', n: d.clients.returning }} b={{ label: 'New', n: d.clients.new }} />}</div>
+        </section>
+        <section className="card">
+          <div className="card-head"><div><h2>Busiest Days</h2><p>Visits by day of the week</p></div></div>
+          <div className="card-pad">{d && <Columns rows={d.weekdays.map((w) => ({ label: DAY_NAMES[w.d], n: w.n }))} empty="No visits in this period." />}</div>
+        </section>
+        <section className="card span-2">
+          <div className="card-head"><div><h2>Busiest Hours</h2><p>Arrival times from tag taps and Check In</p></div></div>
+          <div className="card-pad">
+            {d && <Columns rows={Array.from({ length: 13 }, (_, i) => i + 8).map((h) => ({ label: `${((h + 11) % 12) + 1}${h < 12 ? 'a' : 'p'}`, n: d.hours.find((x) => x.h === h)?.n || 0 }))}
+              empty="Fills in as visits are checked in at the front desk. The old system had no arrival times." />}
+          </div>
+        </section>
+        {review && review.ownersToReview > 0 && (
+          <section className="card span-2">
+            <div className="card-head"><div><h2>Records to Check</h2><p>Found while importing from the old system</p></div></div>
+            <div className="card-pad">
+              <p style={{ marginTop: 0 }}><strong>{review.ownersToReview} owners</strong> have a missing or shared mobile number, or a duplicate name.</p>
+              <Link className="btn btn-quiet" to="/clients?review=1"><TriangleAlert aria-hidden /> Review Owners</Link>
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   )
 }
 
 export default function Dashboard() {
-  const { data, error } = useApi('stats')
-  const s = data
+  const staff = useStaff()
+  const owner = canManage(staff)
+  const [params, setParams] = useSearchParams()
+  const view = owner ? (params.get('view') === 'board' ? 'board' : 'overview') : 'board'
+  const range = RANGES.some(([k]) => k === params.get('range')) ? params.get('range') : 'mtd'
+  const set = (patch) => setParams((p) => { const n = new URLSearchParams(p); Object.entries(patch).forEach(([k, v]) => (v ? n.set(k, v) : n.delete(k))); return n }, { replace: true })
   return (
     <>
-      <PageHead title={<>Clinic Dashboard</>} intro={s ? prettyDay(s.today) : ' '}>
-        <Link className="btn" to="/clients?new=1"><UserPlus aria-hidden /> Register Owner</Link>
+      <PageHead title="Clinic Dashboard" intro={owner && view === 'overview' ? 'How the clinic is doing. Counts only; billing isn’t in the app yet.' : 'Today in the clinic, station by station.'}>
+        <div className="head-actions">
+          {view === 'board' && <ReaderSwitch />}
+          <Link className="btn btn-quiet" to="/clients?new=1"><UserPlus aria-hidden /> Register Owner</Link>
+        </div>
       </PageHead>
-      <ErrorNote error={error} />
-
-      <div className="grid grid-4" style={{ marginBottom: 16 }}>
-        <Stat icon={Users} label="Pet Owners" value={s ? s.owners.total.toLocaleString() : '…'}>
-          {s && <Trend now={s.owners.monthToDate} before={s.owners.previous} />}
-        </Stat>
-        <Stat icon={PawPrint} label="Pets Registered" value={s ? s.pets.total.toLocaleString() : '…'}>
-          {s && <Trend now={s.pets.monthToDate} before={s.pets.previous} />}
-        </Stat>
-        <Stat icon={Stethoscope} label="Services Rendered" value="—" placeholder>
-          <span className="stat-note">Counts once the dashboard is built (phase 4)</span>
-        </Stat>
-        <Stat icon={Coins} label="Revenue" value="—" placeholder>
-          <span className="stat-note">Placeholder until billing is planned</span>
-        </Stat>
-      </div>
-
-      <div className="grid grid-2">
-        <TodayCard />
-        <section className="card">
-          <div className="card-head">
-            <div><h2>Records to Check</h2><p>Found while importing from the old system</p></div>
-          </div>
-          <div className="card-pad">
-            {s && s.ownersToReview > 0 ? (
-              <>
-                <p style={{ marginTop: 0 }}>
-                  <strong>{s.ownersToReview} owners</strong> have a missing or shared mobile number, or a duplicate name.
-                  Fixing them means reminders reach the right person.
-                </p>
-                <Link className="btn btn-quiet" to="/clients?review=1"><TriangleAlert aria-hidden /> Review Owners</Link>
-              </>
-            ) : (
-              <p className="muted" style={{ margin: 0 }}>{s ? 'Nothing to check. Every owner has a usable mobile number.' : '…'}</p>
-            )}
-          </div>
-        </section>
-      </div>
+      {owner && (
+        <div className="tabs" role="group" aria-label="View" style={{ marginBottom: 16 }}>
+          <button type="button" className="tab" aria-pressed={view === 'overview'} onClick={() => set({ view: '' })}>Overview</button>
+          <button type="button" className="tab" aria-pressed={view === 'board'} onClick={() => set({ view: 'board' })}>Clinic Board</button>
+        </div>
+      )}
+      {view === 'board' ? <ClinicBoard /> : <Overview range={range} setRange={(r) => set({ range: r === 'mtd' ? '' : r })} />}
     </>
   )
 }
