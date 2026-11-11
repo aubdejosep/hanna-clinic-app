@@ -3,9 +3,11 @@
 // Invoice Settings, Notification Settings, Kiosk QR Code. Business Availability: opening hours.
 // Each card shows its fields greyed out until "Edit Info" is clicked.
 import { useEffect, useState } from 'react'
-import { Bell, Building2, Clock, Download, ExternalLink, FileText, Info, Mail, MapPin, Pencil, Phone, Plus, QrCode, Receipt, Store, Trash2, Type } from 'lucide-react'
+import { Bell, Building2, CalendarOff, Clock, Gauge, Download, ExternalLink, FileText, Info, Mail, MapPin, Pencil, Phone, Plus, QrCode, Receipt, Store, Trash2, Type } from 'lucide-react'
 import QRCode from 'qrcode'
-import { ErrorNote, PageHead, useToast } from '../components/ui.jsx'
+import { ErrorNote, Field, PageHead, useToast } from '../components/ui.jsx'
+import { prettyDay } from '../lib/format.js'
+import { prettyTime } from '../lib/appointments.js'
 import { FacebookIcon, InstagramIcon, TikTokIcon, ViberIcon, WhatsAppIcon, XIcon } from '../components/BrandIcons.jsx'
 import { api, ApiError } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
@@ -205,6 +207,117 @@ function HoursCard({ c, canEdit, save }) {
   )
 }
 
+// Holidays, closures and half days. The website's /book greys out closed days and uses special hours.
+function ClosedDatesCard({ c, canEdit, setData, toast }) {
+  const [adding, setAdding] = useState(false)
+  const [v, setV] = useState({ day: '', kind: 'closed', open: '09:00', close: '12:00', reason: '' })
+  const [busy, setBusy] = useState(null)
+  const [error, setError] = useState(null)
+  const errors = error instanceof ApiError ? error.body.errors || {} : {}
+  async function add() {
+    setBusy('add')
+    setError(null)
+    try {
+      const res = await api('clinic/closed-dates', { method: 'POST', body: { day: v.day, reason: v.reason, ...(v.kind === 'special' ? { open: v.open, close: v.close } : {}) } })
+      setData(res)
+      toast(`${prettyDay(v.day)} added`)
+      setAdding(false)
+      setV({ day: '', kind: 'closed', open: '09:00', close: '12:00', reason: '' })
+    } catch (err) {
+      setError(err)
+    } finally {
+      setBusy(null)
+    }
+  }
+  async function remove(d) {
+    if (!window.confirm(`Remove ${prettyDay(d.day)} (${d.reason})? Clients will be able to book that day again.`)) return
+    setBusy(d.id)
+    try {
+      setData(await api(`clinic/closed-dates/${d.id}`, { method: 'DELETE' }))
+      toast(`${prettyDay(d.day)} removed`)
+    } catch (err) {
+      toast(err.message)
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <section className="card settings-card">
+      <div className="settings-head">
+        <CalendarOff aria-hidden />
+        <div className="settings-title"><h2>Closed Dates</h2><p>Holidays, closures and special hours. Clients can’t book closed days online.</p></div>
+        {canEdit && !adding && <button type="button" className="btn btn-dark" onClick={() => setAdding(true)}><Plus aria-hidden /> Add Date</button>}
+      </div>
+      <div className="settings-body stack" style={{ gap: 12 }}>
+        {adding && (
+          <div className="form-section">
+            {error && !Object.keys(errors).length && <ErrorNote error={error} />}
+            <div className="form-row">
+              <Field label="Date" error={errors.day}>{(a) => <input {...a} type="date" value={v.day} min={new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10)} onChange={(e) => setV({ ...v, day: e.target.value })} />}</Field>
+              <Field label="Reason" error={errors.reason} hint="Clients see this, e.g. Christmas Day.">{(a) => <input {...a} value={v.reason} onChange={(e) => setV({ ...v, reason: e.target.value })} maxLength={80} />}</Field>
+            </div>
+            <div className="seg" role="radiogroup" aria-label="That day">
+              {[['closed', 'Closed All Day'], ['special', 'Special Hours']].map(([k, l]) => (
+                <label key={k}><input type="radio" name="cd-kind" checked={v.kind === k} onChange={() => setV({ ...v, kind: k })} /><span>{l}</span></label>
+              ))}
+            </div>
+            {v.kind === 'special' && (
+              <div className="time-pair">
+                <span className="field-hint">From</span>
+                <input type="time" value={v.open} onChange={(e) => setV({ ...v, open: e.target.value })} aria-label="Opens" />
+                <span className="field-hint">to</span>
+                <input type="time" value={v.close} onChange={(e) => setV({ ...v, close: e.target.value })} aria-label="Closes" />
+              </div>
+            )}
+            {errors.hours && <span className="field-error">{errors.hours}</span>}
+            <div className="panel-actions">
+              <button type="button" className="btn btn-quiet" onClick={() => { setAdding(false); setError(null) }} disabled={busy === 'add'}>Cancel</button>
+              <button type="button" className="btn" onClick={add} disabled={busy === 'add'}>{busy === 'add' ? 'Saving…' : 'Add Date'}</button>
+            </div>
+          </div>
+        )}
+        {c.closedDates.length ? (
+          <ul className="closed-list">
+            {c.closedDates.map((d) => (
+              <li key={d.id}>
+                <span><strong>{prettyDay(d.day)}</strong> <span className="cell-sub">{d.reason}</span></span>
+                <span className={`badge ${d.open ? '' : 'badge-soft'}`}>{d.open ? `Open ${prettyTime(d.open)} – ${prettyTime(d.close)}` : 'Closed All Day'}</span>
+                {canEdit && <button type="button" className="icon-btn" onClick={() => remove(d)} disabled={busy === d.id} aria-label={`Remove ${prettyDay(d.day)}`} title="Remove"><Trash2 /></button>}
+              </li>
+            ))}
+          </ul>
+        ) : !adding && <p className="muted" style={{ margin: 0 }}>No upcoming closed dates. Add holidays here so clients can’t book them online.</p>}
+      </div>
+    </section>
+  )
+}
+
+// The most pets clients can book online (the website counts its own bookings against these).
+function LimitsCard({ c, canEdit, save }) {
+  const l = c.onlineLimits || {}
+  return (
+    <SettingsCard icon={Gauge} title="Online Booking Limits" sub="The most pets clients can book on the website. Leave blank for no limit." canEdit={canEdit}
+      initial={{ onlineLimits: { day: l.day ?? '', morning: l.morning ?? '', afternoon: l.afternoon ?? '' } }} onSave={save('Online Booking Limits')}>
+      {(v, set, disabled, errors) => {
+        const setK = (k, val) => set({ onlineLimits: { ...v.onlineLimits, [k]: val.replace(/[^\d]/g, '') } })
+        return (
+          <div className="stack" style={{ gap: 10 }}>
+            {errors.onlineLimits && <span className="field-error">{errors.onlineLimits}</span>}
+            <div className="form-row limits-row">
+              {[['day', 'Pets per Day'], ['morning', 'Morning'], ['afternoon', 'Afternoon']].map(([k, label]) => (
+                <Field key={k} label={label} hint={k === 'day' ? 'Counts every online booking that day.' : k === 'morning' ? 'Opening to 12 NN.' : '1 PM to closing.'}>
+                  {(a) => <input {...a} value={v.onlineLimits[k]} onChange={(e) => setK(k, e.target.value)} disabled={disabled} inputMode="numeric" maxLength={3} placeholder="No limit" />}
+                </Field>
+              ))}
+            </div>
+            <p className="field-hint" style={{ margin: 0 }}>Bookings made by staff in the app don’t count. A full day or window shows as fully booked on the website.</p>
+          </div>
+        )
+      }}
+    </SettingsCard>
+  )
+}
+
 export default function ClinicProfilePage() {
   const me = useStaff()
   const toast = useToast()
@@ -235,7 +348,13 @@ export default function ClinicProfilePage() {
         <button type="button" role="tab" aria-selected={tab === 'hours'} onClick={() => setTab('hours')}><Clock aria-hidden /> Business Availability</button>
       </div>
 
-      {tab === 'hours' ? <HoursCard c={c} canEdit={canEdit} save={save} /> : (
+      {tab === 'hours' ? (
+        <div className="stack">
+          <HoursCard c={c} canEdit={canEdit} save={save} />
+          <ClosedDatesCard c={c} canEdit={canEdit} setData={setData} toast={toast} />
+          <LimitsCard c={c} canEdit={canEdit} save={save} />
+        </div>
+      ) : (
         <div className="stack">
           <SettingsCard icon={Info} title="Business Information" sub="Manage your business’s information" canEdit={canEdit}
             initial={{ name: c.name, tagline: c.tagline || '', phone1: c.phones[0] || '', phone2: c.phones[1] || '', email: c.email || '', address: c.address || '', about: c.about || '', emailBrandColor: c.emailBrandColor }}

@@ -20,6 +20,10 @@ export async function onRequestPost({ request, env, params, data }) {
   else if (day < manilaNow().day) errors.day = 'Choose today or a later day.'
   if (!isTime(time)) errors.time = 'Choose the new time.'
   if (day === appt.day && time === appt.time) errors.time = 'Choose a different day or time.'
+  if (day && !errors.day) {
+    const closed = await env.DB.prepare('SELECT reason FROM closed_dates WHERE branch_id = 1 AND day = ? AND deleted_at IS NULL AND open IS NULL').bind(day).first()
+    if (closed) errors.day = `The clinic is closed that day${closed.reason ? ` (${closed.reason})` : ''}. Choose another day.`
+  }
   if (Object.keys(errors).length) return fail(400, 'Some details need fixing.', { errors })
   const reason = clean(body.reason, 200) || null
 

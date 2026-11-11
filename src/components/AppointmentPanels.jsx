@@ -5,7 +5,7 @@ import { ErrorNote, Field, Panel, PetAvatar } from './ui.jsx'
 import { api } from '../lib/api.js'
 import { useApi, useDebounced } from '../lib/useApi.js'
 import { age } from '../lib/format.js'
-import { CANCEL_REASONS, STATUS, longDay, manilaToday, prettyTime, timeSlots } from '../lib/appointments.js'
+import { CANCEL_REASONS, STATUS, closedOn, longDay, manilaToday, prettyTime, timeSlots } from '../lib/appointments.js'
 
 export function StatusBadge({ status, emergency }) {
   const s = STATUS[status] || STATUS.accepted
@@ -264,7 +264,8 @@ export function StaffSelect({ value, onChange }) {
 function ScheduleFields({ day, time, setDay, setTime, errors }) {
   const clinic = useApi('clinic').data?.clinic
   const busy = useApi(day ? `appointments?from=${day}&to=${day}&size=1` : null)
-  const slots = day ? timeSlots(day, clinic?.hours) : []
+  const slots = day ? timeSlots(day, clinic?.hours, clinic?.closedDates) : []
+  const closure = day ? closedOn(day, clinic?.closedDates) : null
   useEffect(() => { if (time && slots.length && !slots.includes(time)) setTime('') }, [day]) // eslint-disable-line react-hooks/exhaustive-deps
   const booked = busy.data ? busy.data.tabs.all - busy.data.tabs.cancelled : null
   return (
@@ -272,7 +273,7 @@ function ScheduleFields({ day, time, setDay, setTime, errors }) {
       <Field label="Day" error={errors.day} hint={day ? `${longDay(day)}${booked != null ? ` · ${booked} booked` : ''}` : undefined}>
         {(a) => <input {...a} type="date" min={manilaToday()} value={day} onChange={(e) => setDay(e.target.value)} />}
       </Field>
-      <Field label="Time" error={errors.time} hint={day && !slots.length ? 'The clinic is closed that day. Pick another day.' : undefined}>
+      <Field label="Time" error={errors.time} hint={day && !slots.length ? `The clinic is closed that day${closure?.reason ? ` (${closure.reason})` : ''}. Pick another day.` : closure?.open ? `Special hours: ${closure.reason}` : undefined}>
         {(a) => (
           <select {...a} value={time} onChange={(e) => setTime(e.target.value)} disabled={!slots.length}>
             <option value="">Choose a time</option>

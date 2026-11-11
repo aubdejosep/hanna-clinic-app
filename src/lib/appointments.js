@@ -71,9 +71,15 @@ export function weekday(day) { // 0 = Monday
 
 // 10-minute slots between opening and closing. hours: the clinic's {mon: {open, close, closed}} or null.
 const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
-export function timeSlots(day, hours) {
-  const h = hours?.[DAY_KEYS[weekday(day)]]
-  if (hours && Object.keys(hours).length && !h) return [] // closed that day
+// closedDates (Clinic Profile → Closed Dates) win over the weekly hours: closed all day, or special hours.
+export function closedOn(day, closedDates) {
+  return (closedDates || []).find((d) => d.day === day) || null
+}
+export function timeSlots(day, hours, closedDates) {
+  const special = closedOn(day, closedDates)
+  if (special && !special.open) return [] // closed that day (holiday)
+  const h = special ? { open: special.open, close: special.close, breaks: [] } : hours?.[DAY_KEYS[weekday(day)]]
+  if (!special && hours && Object.keys(hours).length && !h) return [] // closed that day
   const open = h && !h.closed && h.open ? h.open : '08:00'
   const close = h && !h.closed && h.close ? h.close : '20:00'
   const toMin = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))
