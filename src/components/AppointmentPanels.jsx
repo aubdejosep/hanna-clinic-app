@@ -272,7 +272,7 @@ export function BookPanel({ pet: givenPet, defaultDay, followUpOf, onClose, onDo
 }
 
 // --- Walk-In Check In: the pet is here now, with no booking ---
-export function WalkInPanel({ pet: givenPet, onClose, onDone }) {
+export function WalkInPanel({ pet: givenPet, admit, onClose, onDone }) {
   const [pet, setPet] = useState(givenPet || null)
   const [items, setItems] = useState([])
   const [reason, setReason] = useState('')
@@ -282,7 +282,7 @@ export function WalkInPanel({ pet: givenPet, onClose, onDone }) {
     setBusy(true)
     setError(null)
     try {
-      const res = await api('appointments', { method: 'POST', body: { petId: pet.id, walkIn: true, items, reason } })
+      const res = await api('appointments', { method: 'POST', body: { petId: pet.id, walkIn: true, admit: !!admit, items, reason } })
       onDone(res.appointment)
     } catch (err) {
       setError(err)
@@ -290,10 +290,10 @@ export function WalkInPanel({ pet: givenPet, onClose, onDone }) {
     }
   }
   return (
-    <Panel title="Walk-In Check In" intro="Creates the visit now, already Arrived. Tap the pet's tag on the way out to close it."
+    <Panel title={admit ? 'Admit Inpatient' : 'Walk-In Check In'} intro={admit ? 'Checks the pet in and admits them now, for confinement or recovery. Tap the tag when they go home.' : "Creates the visit now, already Arrived. Tap the pet's tag on the way out to close it."}
       onClose={onClose} busy={busy}
       footer={<><button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Cancel</button>
-        <button type="button" className="btn" onClick={save} disabled={busy || !pet}>{busy ? 'Checking In…' : pet ? `Check In ${pet.name}` : 'Check In Now'}</button></>}>
+        <button type="button" className="btn" onClick={save} disabled={busy || !pet}>{busy ? 'Saving…' : admit ? (pet ? `Admit ${pet.name}` : 'Admit Now') : pet ? `Check In ${pet.name}` : 'Check In Now'}</button></>}>
       <ErrorNote error={error} />
       {pet && givenPet ? (
         <div className="setting-line"><PetAvatar species={pet.species} /><div><strong>{pet.name}</strong><span className="cell-sub">{pet.owner?.name || pet.ownerName}</span></div></div>

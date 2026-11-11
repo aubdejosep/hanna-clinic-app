@@ -7,6 +7,7 @@ import { canManage, ROLE_LABEL } from '../lib/staff.js'
 import AccountPanel from './AccountPanel.jsx'
 import TagCheckIn from './TagCheckIn.jsx'
 import ReminderBell from './ReminderBell.jsx'
+import QuickActions from './QuickActions.jsx'
 
 // The menu follows the old system's order and names, with its expandable groups.
 // "soon" items open a placeholder page until their phase lands.
@@ -108,11 +109,11 @@ export default function Layout({ staff }) {
       <nav className="sidebar" aria-label="Main">
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Brand />
-          {open ? (
+          {open && (
             <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label="Close Menu">
               <X />
             </button>
-          ) : !mobile && <ReminderBell align="left" />}
+          )}
         </div>
         {NAV.map((item) => item.children ? (
           <NavGroup key={item.label} group={item} pathname={pathname} staff={staff} />
@@ -136,10 +137,19 @@ export default function Layout({ staff }) {
         </div>
       </nav>
 
-      <main className="main" id="main">
-        <Outlet />
-      </main>
+      <div className="content">
+        {!mobile && (
+          <header className="deskbar">
+            {/* Device Management will sit here, beside the bell, when it's built. */}
+            <ReminderBell align="right" />
+          </header>
+        )}
+        <main className="main" id="main">
+          <Outlet />
+        </main>
+      </div>
       <TagCheckIn />
+      <QuickActions />
       {account && <AccountPanel staff={staff} onClose={() => setAccount(false)} onLogOut={logOut} />}
     </div>
   )
