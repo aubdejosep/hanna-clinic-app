@@ -89,7 +89,7 @@ export function AssignTagPanel({ uid: givenUid, pet: givenPet, onClose, onDone }
     }
   }
   return (
-    <Panel title="Assign Tag" intro={pet && givenPet ? `For ${pet.name}` : `Tag ${uid}`} onClose={onClose} busy={busy}
+    <Panel dirty={(!givenUid && !!uid) || (!givenPet && !!pet)} discardTitle="Close without assigning the tag?" title="Assign Tag" intro={pet && givenPet ? `For ${pet.name}` : `Tag ${uid}`} onClose={onClose} busy={busy}
       footer={<><button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Cancel</button>
         {conflict
           ? <button type="button" className="btn" onClick={() => save(true)} disabled={busy}>Move Tag to {pet.name}</button>

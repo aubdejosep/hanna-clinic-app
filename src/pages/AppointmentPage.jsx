@@ -333,7 +333,7 @@ function Items({ a, onChange }) {
         </table>
       ) : <p className="card-pad muted" style={{ margin: 0 }}>No services yet. Add what was done during the visit.</p>}
       {adding && (
-        <Panel title="Add Services & Products" intro={`${a.pet.name} · ${prettyDay(a.day)}`} onClose={() => setAdding(false)} busy={busy}
+        <Panel dirty={picked.length > 0} discardTitle="Discard the items you picked?" title="Add Services & Products" intro={`${a.pet.name} · ${prettyDay(a.day)}`} onClose={() => setAdding(false)} busy={busy}
           footer={<><button type="button" className="btn btn-quiet" onClick={() => setAdding(false)} disabled={busy}>Cancel</button>
             <button type="button" className="btn" onClick={save} disabled={busy || !picked.length}>{busy ? 'Adding…' : `Add ${picked.length || ''} Item${picked.length === 1 ? '' : 's'}`}</button></>}>
           <ErrorNote error={error} />

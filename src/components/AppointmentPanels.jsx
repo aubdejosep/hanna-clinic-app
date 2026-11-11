@@ -291,12 +291,14 @@ export function BookPanel({ pet: givenPet, defaultDay, followUpOf, onClose, onDo
   const [items, setItems] = useState([])
   const [day, setDay] = useState(defaultDay && defaultDay > manilaToday() ? defaultDay : manilaToday())
   const [time, setTime] = useState('')
-  const [reason, setReason] = useState(followUpOf?.reason ? `Follow-up: ${followUpOf.reason}` : followUpOf ? 'Follow-up' : '')
+  const [startReason] = useState(followUpOf?.reason ? `Follow-up: ${followUpOf.reason}` : followUpOf ? 'Follow-up' : '')
+  const [reason, setReason] = useState(startReason)
   const [staffIds, setStaffIds] = useState([])
   const [emergency, setEmergency] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const errors = fieldErrors(error)
+  const bookDirty = (!givenPet && !!pet) || items.length > 0 || !!time || reason !== startReason || emergency || staffIds.length > 0
 
   async function save() {
     setBusy(true)
@@ -315,7 +317,7 @@ export function BookPanel({ pet: givenPet, defaultDay, followUpOf, onClose, onDo
     <button key="n" type="button" className="btn" disabled={busy || !day || !time} onClick={save}>{busy ? 'Booking…' : 'Book Appointment'}</button>,
   ][step]
   return (
-    <Panel title="Book Appointment" intro={['Select the pet', pet ? `Services for ${pet.name}` : 'Services', pet ? `When ${pet.name} is coming in` : 'Schedule'][step]}
+    <Panel dirty={bookDirty} discardTitle="Discard this booking?" title="Book Appointment" intro={['Select the pet', pet ? `Services for ${pet.name}` : 'Services', pet ? `When ${pet.name} is coming in` : 'Schedule'][step]}
       onClose={onClose} busy={busy}
       footer={<>{step > 0 && !(givenPet && step === 1) && <button type="button" className="btn btn-quiet" onClick={() => setStep(step - 1)} disabled={busy}>Back</button>}{next}</>}>
       <Steps steps={['Pet', 'Services', 'Schedule']} at={step} />
@@ -360,7 +362,7 @@ export function WalkInPanel({ pet: givenPet, admit, onClose, onDone }) {
     }
   }
   return (
-    <Panel title={admit ? 'Admit Inpatient' : 'Walk-In Check In'} intro={admit ? 'Checks the pet in and admits them now, for confinement or recovery. Tap the tag when they go home.' : "Creates the visit now, already Arrived. Tap the pet's tag on the way out to close it."}
+    <Panel dirty={(!givenPet && !!pet) || items.length > 0 || !!reason.trim()} discardTitle={admit ? 'Discard this admission?' : 'Discard this walk-in?'} title={admit ? 'Admit Inpatient' : 'Walk-In Check In'} intro={admit ? 'Checks the pet in and admits them now, for confinement or recovery. Tap the tag when they go home.' : "Creates the visit now, already Arrived. Tap the pet's tag on the way out to close it."}
       onClose={onClose} busy={busy}
       footer={<><button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Cancel</button>
         <button type="button" className="btn" onClick={save} disabled={busy || !pet}>{busy ? 'Saving…' : admit ? (pet ? `Admit ${pet.name}` : 'Admit Now') : pet ? `Check In ${pet.name}` : 'Check In Now'}</button></>}>
@@ -402,7 +404,7 @@ export function ReschedulePanel({ appointment: a, onClose, onDone }) {
     }
   }
   return (
-    <Panel title={`Reschedule ${a.pet.name}`} intro={`Now: ${longDay(a.day)}, ${prettyTime(a.time)}. This one is cancelled and a new appointment is booked, linked to it.`}
+    <Panel dirty={!!time || !!reason.trim()} discardTitle="Discard the new date and time?" title={`Reschedule ${a.pet.name}`} intro={`Now: ${longDay(a.day)}, ${prettyTime(a.time)}. This one is cancelled and a new appointment is booked, linked to it.`}
       onClose={onClose} busy={busy}
       footer={<><button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Keep It</button>
         <button type="button" className="btn" onClick={save} disabled={busy || !day || !time}>{busy ? 'Rescheduling…' : 'Reschedule'}</button></>}>
@@ -433,7 +435,7 @@ export function CancelPanel({ appointment: a, onClose, onDone }) {
     }
   }
   return (
-    <Panel title={`Cancel ${a.pet.name}’s Appointment`} intro={`${longDay(a.day)}, ${prettyTime(a.time)}`} onClose={onClose} busy={busy}
+    <Panel dirty={!!reason} discardTitle="Close without cancelling the appointment?" title={`Cancel ${a.pet.name}’s Appointment`} intro={`${longDay(a.day)}, ${prettyTime(a.time)}`} onClose={onClose} busy={busy}
       footer={<><button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Keep It</button>
         <button type="button" className="btn btn-dark" onClick={save} disabled={busy || !text}>{busy ? 'Cancelling…' : 'Cancel Appointment'}</button></>}>
       <ErrorNote error={error} />

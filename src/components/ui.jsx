@@ -98,14 +98,36 @@ export function Field({ label, optional, hint, error, children }) {
 }
 
 // Slide-over panel: Escape closes it, focus moves in on open and back out on close.
-export function Panel({ title, intro, onClose, footer, children, busy }) {
+// Unsaved input is never lost by accident: closing with X, Escape or a click outside asks first when
+// something was typed in a field (searches don't count) or the panel says it's `dirty` (picks made).
+export function Panel({ title, intro, onClose, footer, children, busy, dirty, discardTitle }) {
   const ref = useRef(null)
+  const [typed, setTyped] = useState(false)
+  const [asking, setAsking] = useState(false)
+  const unsaved = !!dirty || typed
+  const state = useRef({ unsaved, asking, busy, onClose })
+  state.current = { unsaved, asking, busy, onClose }
+  useEffect(() => { // closing or reloading the tab warns too
+    if (!unsaved) return undefined
+    const warn = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [unsaved])
+  const request = useCallback(() => {
+    const st = state.current
+    if (st.busy) return
+    if (st.unsaved) setAsking(true)
+    else st.onClose()
+  }, [])
   useEffect(() => {
     const before = document.activeElement
     const first = ref.current?.querySelector('input, select, textarea, button:not(.panel-close)')
     first?.focus()
     const onKey = (e) => {
-      if (e.key === 'Escape' && !busy) onClose()
+      if (e.key === 'Escape') {
+        if (state.current.asking) setAsking(false)
+        else request()
+      }
       if (e.key === 'Tab' && ref.current) {
         const items = [...ref.current.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select, textarea')]
         if (!items.length) return
@@ -114,31 +136,54 @@ export function Panel({ title, intro, onClose, footer, children, busy }) {
         else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus() }
       }
     }
+    const onInput = (e) => { if (e.target.type !== 'search' && !e.target.closest('[data-no-dirty]')) setTyped(true) }
+    const el = ref.current
     document.addEventListener('keydown', onKey)
+    el?.addEventListener('input', onInput)
     document.body.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', onKey)
+      el?.removeEventListener('input', onInput)
       document.body.style.overflow = ''
       before?.focus?.()
     }
-  }, [onClose, busy])
+  }, [request])
   return (
     <>
-      <div className="scrim" onClick={() => !busy && onClose()} />
+      <div className="scrim" onClick={request} />
       <aside className="panel" role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : undefined} ref={ref}>
         <div className="panel-head">
           <div>
             <h2>{title}</h2>
             {intro && <p>{intro}</p>}
           </div>
-          <button type="button" className="icon-btn panel-close" onClick={onClose} disabled={busy} aria-label="Close" title="Close (Esc)">
+          <button type="button" className="icon-btn panel-close" onClick={request} disabled={busy} aria-label="Close" title="Close (Esc)">
             <X />
           </button>
         </div>
         <div className="panel-body">{children}</div>
         {footer && <div className="panel-foot">{footer}</div>}
+        {asking && <DiscardBox title={discardTitle || 'Discard your changes?'} onKeep={() => setAsking(false)} onDiscard={() => { setAsking(false); onClose() }} />}
       </aside>
     </>
+  )
+}
+
+function DiscardBox({ title, onKeep, onDiscard }) {
+  const keep = useRef(null)
+  useEffect(() => { keep.current?.focus() }, [])
+  return (
+    <div className="discard-scrim" role="alertdialog" aria-modal="true" aria-labelledby="discard-title" aria-describedby="discard-text">
+      <div className="discard-box card">
+        <TriangleAlert aria-hidden />
+        <h3 id="discard-title">{title}</h3>
+        <p id="discard-text">What you’ve entered here hasn’t been saved and will be lost.</p>
+        <div className="discard-actions">
+          <button type="button" className="btn btn-quiet" onClick={onDiscard}>Discard</button>
+          <button type="button" className="btn" onClick={onKeep} ref={keep}>Keep Editing</button>
+        </div>
+      </div>
+    </div>
   )
 }
 

@@ -847,3 +847,11 @@ body:has(.panel) .fab-wrap { display: none; }
 @media (max-width: 520px) { .svc-grid { grid-template-columns: 1fr; } }
 .svc-card, .svc-vars, .svc-foot { min-width: 0; }
 .svc-select { width: 100%; min-width: 0; }
+
+/* "Discard your changes?" inside a slide-out panel */
+.discard-scrim { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; padding: 24px; background: rgba(19, 42, 110, .28); }
+.discard-box { width: min(380px, 100%); display: grid; justify-items: start; gap: 8px; padding: 22px; box-shadow: var(--shadow-lg); }
+.discard-box > svg { width: 24px; height: 24px; color: #B4610F; }
+.discard-box h3 { font-size: var(--fs-h2); }
+.discard-box p { margin: 0 0 8px; }
+.discard-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-self: end; }
