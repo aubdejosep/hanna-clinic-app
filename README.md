@@ -105,6 +105,36 @@ Then print the QR code from **Clinic operations → Clinic profile → Kiosk QR 
 3. **Tag reader on the front-desk PC.** Install the gym's fob bridge there the same way as at the gym (its README: download, unzip to e.g. `C:\HannaClinic\bridge\`, run `install-startup.bat`). Next to `bridge.exe`, create `allowed_origins.txt` with this one line: `https://app.hannapetwellnesscenter.com`, then restart the bridge. In the app on that PC: **Appointments → Tag Reader Off** (turns it on; the button then says **Tag Reader Ready**).
 4. Give each pet its tag: pet's page → **NFC Tag → Assign Tag** → tap the tag.
 
+### 16. Photos on the medical records
+
+The 8,520 photos (paper records, prescriptions, vaccine cards) are inside the downloaded PDFs. They go to a private Cloudflare R2 bucket and show on each record; only logged-in staff can see them.
+
+1. Create the photo storage (once), then update the app:
+   ```
+   npx wrangler r2 bucket create hanna-clinic-photos
+   git pull
+   npm run db:migrate:remote
+   ```
+2. Take the photos out of the PDFs (on the PC with `output\zips`; about 10–20 minutes, no internet needed):
+   ```
+   cd tools\medical-records-download
+   npm install
+   npm run photos-test
+   npm run photos
+   ```
+   They land in `tools\medical-records-download\output-photos` (about 2 GB). Running it again carries on.
+3. Upload them (from the app folder; uses your wrangler login; about an hour; safe to stop and start):
+   ```
+   cd ..\..
+   npm run upload:photos -- --dir tools\medical-records-download\output-photos
+   ```
+4. Link them to the records:
+   ```
+   npm run import:photos -- --dir tools\medical-records-download\output-photos
+   npx wrangler d1 execute hanna-clinic --remote --file data/import-photos.sql
+   ```
+If the medical records import is ever run again, run step 4 again after it.
+
 ### 15. Medical records: keep the services lists
 
 The first records import left out the old system's "Auto-generated note record", which holds each visit's **Services and Products**. Re-run it (same files as step 8; it replaces the earlier import):

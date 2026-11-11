@@ -11,11 +11,14 @@
     "services-test": "node services.mjs --limit 3",
     "services": "node services.mjs",
     "records-test": "node records.mjs --limit 20",
-    "records": "node records.mjs"
+    "records": "node records.mjs",
+    "photos-test": "node photos.mjs --limit 20",
+    "photos": "node photos.mjs"
   },
   "dependencies": {
     "playwright-core": "1.63.0",
     "pdfjs-dist": "4.10.38",
-    "adm-zip": "0.5.16"
+    "adm-zip": "0.5.16",
+    "pdf-lib": "1.17.1"
   }
 }

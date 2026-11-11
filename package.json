@@ -16,6 +16,8 @@
     "import:records": "node scripts/import-records.mjs",
     "import:products": "node scripts/import-products.mjs",
     "import:deceased": "node scripts/import-deceased.mjs",
+    "upload:photos": "node scripts/upload-photos.mjs",
+    "import:photos": "node scripts/import-photos.mjs",
     "set-password": "node scripts/set-password.mjs"
   },
   "dependencies": {

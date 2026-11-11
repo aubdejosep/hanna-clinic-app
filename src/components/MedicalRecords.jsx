@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ClipboardList, FileHeart, Image, LayoutGrid, List, NotebookPen, Package, Pill, Search, Stethoscope, Syringe } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ClipboardList, FileHeart, Image, LayoutGrid, List, NotebookPen, Package, Pill, Search, Stethoscope, Syringe, X } from 'lucide-react'
 import { Empty, ErrorNote, Pager, Panel, PawLoader } from './ui.jsx'
 import { useApi } from '../lib/useApi.js'
 import { prettyDay } from '../lib/format.js'
@@ -22,6 +22,56 @@ export function EntryBadge({ type }) {
   return <span className={`badge entry-badge entry-${type}`}><t.icon aria-hidden /> {t.label}</span>
 }
 
+const kb = (n) => (n ? `${Math.round(n / 1024).toLocaleString()} KB` : '')
+
+// Photos on an entry: thumbnails like the old system; one opens full screen with arrows.
+function Photos({ images }) {
+  const [open, setOpen] = useState(null)
+  return (
+    <>
+      <ul className="photo-grid">
+        {images.map((im, i) => (
+          <li key={im.id}>
+            <button type="button" className="photo-thumb" onClick={() => setOpen(i)} aria-label={`Open image ${i + 1} of ${images.length}`}>
+              <img src={`/api/photos/${im.id}`} alt="" loading="lazy" width={im.width || undefined} height={im.height || undefined} />
+              <span className="photo-tag">Image {i + 1}{im.bytes ? <span className="cell-sub">{kb(im.bytes)}</span> : null}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {open !== null && <Lightbox images={images} at={open} setAt={setOpen} />}
+    </>
+  )
+}
+
+function Lightbox({ images, at, setAt }) {
+  const im = images[at]
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!['Escape', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return
+      e.stopPropagation()
+      e.preventDefault()
+      if (e.key === 'Escape') setAt(null)
+      if (e.key === 'ArrowLeft') setAt((n) => (n - 1 + images.length) % images.length)
+      if (e.key === 'ArrowRight') setAt((n) => (n + 1) % images.length)
+    }
+    document.addEventListener('keydown', onKey, true) // before the panel's own Escape
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [images.length, setAt])
+  return (
+    <div className="lightbox" role="dialog" aria-modal="true" aria-label={`Image ${at + 1} of ${images.length}`} onClick={() => setAt(null)}>
+      <img src={`/api/photos/${im.id}`} alt={`Image ${at + 1} of ${images.length}`} onClick={(e) => e.stopPropagation()} />
+      <div className="lightbox-bar" onClick={(e) => e.stopPropagation()}>
+        {images.length > 1 && <button type="button" className="icon-btn" onClick={() => setAt((at - 1 + images.length) % images.length)} aria-label="Previous Image"><ChevronLeft /></button>}
+        <span>Image {at + 1} of {images.length}</span>
+        {images.length > 1 && <button type="button" className="icon-btn" onClick={() => setAt((at + 1) % images.length)} aria-label="Next Image"><ChevronRight /></button>}
+        <a className="btn btn-quiet" href={`/api/photos/${im.id}`} target="_blank" rel="noreferrer">Open Full Size</a>
+        <button type="button" className="icon-btn" onClick={() => setAt(null)} aria-label="Close Image"><X /></button>
+      </div>
+    </div>
+  )
+}
+
 function Entry({ e }) {
   const d = e.details || {}
   const plan = [['Status', d.status && `${d.status[0].toUpperCase()}${d.status.slice(1)}${d.priority ? ` · ${d.priority} priority` : ''}`],
@@ -40,11 +90,12 @@ function Entry({ e }) {
         </dl>
       )}
       {e.items.length > 0 && <div className="chips">{e.items.map((i, n) => <span key={n} className="chip" title={i.notes || undefined}>{itemText(i)}</span>)}</div>}
-      {(d.assigned || e.imageCount > 0) && (
+      {e.images?.length > 0 && <Photos images={e.images} />}
+      {(d.assigned || e.imageCount > (e.images?.length || 0)) && (
         <p className="cell-sub entry-foot">
           {d.assigned && <>Assigned: {d.assigned}</>}
-          {d.assigned && e.imageCount > 0 && ' · '}
-          {e.imageCount > 0 && <><Image size={13} aria-hidden /> {e.imageCount} image{e.imageCount > 1 ? 's' : ''} (arriving with the photo upload)</>}
+          {d.assigned && e.imageCount > (e.images?.length || 0) && ' · '}
+          {e.imageCount > (e.images?.length || 0) && <><Image size={13} aria-hidden /> {e.imageCount - (e.images?.length || 0)} image{e.imageCount - (e.images?.length || 0) > 1 ? 's' : ''} not uploaded yet</>}
         </p>
       )}
     </li>
