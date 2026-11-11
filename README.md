@@ -122,7 +122,7 @@ The 8,520 photos (paper records, prescriptions, vaccine cards) are inside the do
    npm run photos-test
    npm run photos
    ```
-   They land in `tools\medical-records-download\output-photos` (about 2 GB). Running it again carries on.
+   They land in `tools\medical-records-download\output-photos` (about 2 GB). Running it again carries on; `npm run photos -- --redo` reads every record again (after an update to the tool). Most photos are JPEGs, copied unchanged; a few are stored as raw pixels and are saved as PNG, with the same pixels.
 3. Upload them (from the app folder; uses your wrangler login; about an hour; safe to stop and start):
    ```
    cd ..\..

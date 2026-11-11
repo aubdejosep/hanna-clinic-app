@@ -26,12 +26,23 @@ console.log(`${photos.length} photos; ${done.size} already uploaded; ${todo.leng
 
 function put(p) {
   return new Promise((ok) => {
-    const child = spawn('npx', ['wrangler', 'r2', 'object', 'put', `${BUCKET}/${p.key}`, '--file', join(DIR, p.path), '--content-type', 'image/jpeg', where],
+    const child = spawn('npx', ['wrangler', 'r2', 'object', 'put', `${BUCKET}/${p.key}`, '--file', join(DIR, p.path), '--content-type', p.type || 'image/jpeg', where],
       { shell: process.platform === 'win32', stdio: ['ignore', 'ignore', 'pipe'] })
     let err = ''
     child.stderr.on('data', (d) => { err += d })
     child.on('close', (code) => ok(code === 0 ? null : err.trim().split('\n').slice(-2).join(' ') || `exit ${code}`))
   })
+}
+
+// A failed upload (a dropped connection, a busy moment) is tried up to 3 times before it's reported.
+async function putWithRetry(p) {
+  let error = null
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    error = await put(p)
+    if (!error) return null
+    await new Promise((r) => setTimeout(r, attempt * 2000))
+  }
+  return error
 }
 
 let next = 0
@@ -41,7 +52,7 @@ const started = Date.now()
 async function worker() {
   while (next < todo.length) {
     const p = todo[next++]
-    const error = await put(p)
+    const error = await putWithRetry(p)
     if (error) { failed++; console.log(`  Not uploaded: ${p.key}: ${error.slice(0, 200)}`); continue }
     appendFileSync(DONE, `${p.key}\n`)
     ok++
