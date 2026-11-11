@@ -7,6 +7,7 @@ import { canManage, ROLE_LABEL } from '../lib/staff.js'
 import AccountPanel from './AccountPanel.jsx'
 import TagCheckIn from './TagCheckIn.jsx'
 import ReminderBell from './ReminderBell.jsx'
+import OmniSearch from './OmniSearch.jsx'
 import QuickActions from './QuickActions.jsx'
 
 // The menu follows the old system's order and names, with its expandable groups.
@@ -21,6 +22,7 @@ const NAV = [
   { to: '/appointments', label: 'Appointments', icon: CalendarDays },
   { label: 'Client Portal', icon: UserRound, children: [
     { to: '/clients', label: 'Masterlist' },
+    { to: '/analytics/customers', label: 'Customer Analytics', owners: true },
   ] },
   { label: 'Medical Records', icon: FolderOpen, children: [
     { to: '/records', label: 'Records List' },
@@ -104,7 +106,7 @@ export default function Layout({ staff }) {
           <Menu />
         </button>
         <Brand />
-        {mobile && <div className="topbar-bell"><ReminderBell align="right" /></div>}
+        {mobile && <div className="topbar-bell"><OmniSearch mobile /><ReminderBell align="right" /></div>}
       </div>
 
       <nav className="sidebar" aria-label="Main">
@@ -141,7 +143,7 @@ export default function Layout({ staff }) {
       <div className="content">
         {!mobile && (
           <header className="deskbar">
-            {/* Device Management will sit here, beside the bell, when it's built. */}
+            <OmniSearch />
             <ReminderBell align="right" />
           </header>
         )}

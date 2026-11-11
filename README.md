@@ -27,6 +27,8 @@ Built with React + Vite and hosted on Cloudflare Pages with a D1 database. Staff
 - **Quick Add** (Add Items, Book Appointment, Walk In): one search for services and medicines (Enter adds the top match); **Same as Last Visit**; **Usually Goes With These**, learned from the clinic's own visits per species (e.g. Deworm → Anti Rabies, 6 in 1, Bravecto for dogs); sizes by weight picked automatically from the pet's weight (Deworm, Bravecto, Proheart, spay…). Medicines come from the old system's inventory list (names only, no stock), and a medicine typed in once is on the list next time.
 - **Take Payment** (Clinic Board at Dispense, Status Control, Not Checked Out): "Anything else given?", the total from the price list, and Paid With (Cash, GCash, Maya, Card, Bank Transfer, No Charge), with change for cash. A different amount needs a reason. **Mark as Paid**, then the pet taps out; or **Paid & Check Out**. A visit tapped out unpaid gets a **Take Payment** reminder that can't be dismissed. Owners can **Void Payment** with a reason.
 - **Inventory** (Inventory ▸ Product List, Stock Movements, Stock Count): stock in the smallest unit given. A visit's medicines and the stock its services use (**Uses from Stock** in Services) come off only when the visit is both paid and checked out; undo, a voided payment or a removed item puts them back. **Sell Items** for over-the-counter sales, **Receive Stock** (by the box, with expiry), **Adjust** (expired, damaged, used in clinic, lost…, with a reason). Every change is in **Stock Movements** with who, when and why, and can't be edited. **Stock Count**: the first is the baseline; later counts are blind (the app's number is hidden) and show what's missing at cost. Bell: low stock and expiring within 60 days.
+- **Search everything** (beside the bell; press `/`): owners (name, customer number, mobile, email), pets (name, breed, microchip), medicines and products (price per unit, stock) and services (every variation with its price). Arrows and Enter open a result; on phones it's the magnifier in the top bar.
+- **Customer Analytics** (Client Portal, owners only): New Clients and Clients Seen against the period before, Returning Clients, Repeat Rate, Spend per Client (from payments in the app), Active Clients; Client Retention Cohorts (share of each month's new clients seen again 1–12 months later, from the medical records and visits); Client Acquisition; Where New Clients Came From; Top Clients; Clients to Win Back (regulars not seen in 6–18 months, with their mobile).
 - **Legacy import:** `scripts/import-legacy.mjs` loads the old system's owner and pet exports, cleaning up phone numbers, placeholder emails, microchips and breed spellings (536 spellings → 293 breeds). `scripts/import-appointments.mjs` loads the scraped appointments list (see step 7).
 
 ## Go live (one time, in Cloudflare)
@@ -102,6 +104,15 @@ Then print the QR code from **Clinic operations → Clinic profile → Kiosk QR 
    Read `data\import-appointments-report.md` for the few rows it couldn't match. Running it again replaces the earlier import and never touches appointments booked in the app.
 3. **Tag reader on the front-desk PC.** Install the gym's fob bridge there the same way as at the gym (its README: download, unzip to e.g. `C:\HannaClinic\bridge\`, run `install-startup.bat`). Next to `bridge.exe`, create `allowed_origins.txt` with this one line: `https://app.hannapetwellnesscenter.com`, then restart the bridge. In the app on that PC: **Appointments → Tag Reader Off** (turns it on; the button then says **Tag Reader Ready**).
 4. Give each pet its tag: pet's page → **NFC Tag → Assign Tag** → tap the tag.
+
+### 14. Deceased pets from the old system
+
+`git pull`, then (the CSV is in `data/`, which git ignores):
+```
+npm run import:deceased -- --csv data/deceased_2026-11-11.csv
+npx wrangler d1 execute hanna-clinic --remote --file data/import-deceased.sql
+```
+Marks the 55 pets as passed away (matched by customer number and pet name) and cancels their upcoming bookings. The old export has no date of death, so the date is the export date (Nov 11, 2026); correct it on the pet's page if you know it.
 
 ### 13. Inventory and payments
 

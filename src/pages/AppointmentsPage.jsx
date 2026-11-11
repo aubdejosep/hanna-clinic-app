@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowDownUp, CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Info, LayoutGrid, List, LogIn, RefreshCw, Rows3, Search, TriangleAlert } from 'lucide-react'
-import { Empty, ErrorNote, PageHead, PetAvatar, useToast, PawLoader } from '../components/ui.jsx'
+import { Empty, ErrorNote, PageHead, Pager, PetAvatar, useToast, PawLoader } from '../components/ui.jsx'
 import { BookPanel, StatusBadge, WalkInPanel } from '../components/AppointmentPanels.jsx'
 import { PaymentPanel } from '../components/QuickAdd.jsx'
 import { ReaderSwitch, appointmentsChanged, useAppointmentsChanged } from '../components/TagCheckIn.jsx'
@@ -194,18 +194,12 @@ function TableView({ params, update }) {
             </tbody>
           </table>
           {data && (
-            <div className="pager">
-              <label className="inline-row" style={{ gap: 8 }}>Rows per page
+            <Pager page={page} pageSize={size} total={data.total} onPage={(n) => update({ page: n > 1 ? n : '' })} noun="appointments"
+              right={<label className="inline-row" style={{ gap: 8 }}>Rows per page
                 <select className="select" value={size} onChange={(e) => update({ size: e.target.value === '25' ? '' : e.target.value, page: '' })}>
                   {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
-              </label>
-              <span>Page {page} of {pages}</span>
-              <div className="pager-btns">
-                <button type="button" className="icon-btn" onClick={() => update({ page: page - 1 > 1 ? page - 1 : '' })} disabled={page <= 1} aria-label="Previous Page" title="Previous Page"><ChevronLeft /></button>
-                <button type="button" className="icon-btn" onClick={() => update({ page: page + 1 })} disabled={page >= pages} aria-label="Next Page" title="Next Page"><ChevronRight /></button>
-              </div>
-            </div>
+              </label>} />
           )}
         </>
       )}

@@ -68,22 +68,38 @@ export function Empty({ icon: Icon = PawPrint, title, text, children }) {
   )
 }
 
-export function Pager({ page, pageSize, total, onPage, noun }) {
+// Pages as numbers in the middle with arrows either side; the count of rows bottom left.
+// e.g. 1 … 4 5 [6] 7 8 … 146
+export function pageList(page, pages) {
+  const want = new Set([1, pages, page - 2, page - 1, page, page + 1, page + 2].filter((n) => n >= 1 && n <= pages))
+  const out = []
+  let last = 0
+  for (const n of [...want].sort((x, y) => x - y)) {
+    if (n - last > 1) out.push(n - last === 2 ? n - 1 : `gap-${n}`)
+    out.push(n)
+    last = n
+  }
+  return out
+}
+
+export function Pager({ page, pageSize, total, onPage, noun, right }) {
   const pages = Math.max(1, Math.ceil(total / pageSize))
   const from = total ? (page - 1) * pageSize + 1 : 0
   const to = Math.min(total, page * pageSize)
   return (
-    <div className="pager">
-      <span>{from.toLocaleString()}–{to.toLocaleString()} of {total.toLocaleString()} {noun}</span>
-      <div className="pager-btns">
-        <button type="button" className="icon-btn" onClick={() => onPage(page - 1)} disabled={page <= 1} aria-label="Previous Page" title="Previous Page">
-          <ChevronLeft />
-        </button>
-        <button type="button" className="icon-btn" onClick={() => onPage(page + 1)} disabled={page >= pages} aria-label="Next Page" title="Next Page">
-          <ChevronRight />
-        </button>
-      </div>
-    </div>
+    <nav className="pager" aria-label="Pages">
+      <span className="pager-count">{from.toLocaleString()}–{to.toLocaleString()} of {total.toLocaleString()} {noun}</span>
+      {pages > 1 && (
+        <div className="pager-pages">
+          <button type="button" className="icon-btn" onClick={() => onPage(page - 1)} disabled={page <= 1} aria-label="Previous Page" title="Previous Page"><ChevronLeft /></button>
+          {pageList(page, pages).map((n) => (typeof n === 'string'
+            ? <span key={n} className="pager-gap" aria-hidden>…</span>
+            : <button key={n} type="button" className="pager-num" aria-current={n === page ? 'page' : undefined} onClick={() => onPage(n)} aria-label={`Page ${n}`}>{n.toLocaleString()}</button>))}
+          <button type="button" className="icon-btn" onClick={() => onPage(page + 1)} disabled={page >= pages} aria-label="Next Page" title="Next Page"><ChevronRight /></button>
+        </div>
+      )}
+      {right ? <div className="pager-right">{right}</div> : <span aria-hidden />}
+    </nav>
   )
 }
 

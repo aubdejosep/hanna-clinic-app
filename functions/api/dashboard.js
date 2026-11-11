@@ -7,13 +7,13 @@
 import { json, fail, canManage, manilaToday } from '../../lib/http.js'
 import { cached } from '../../lib/cache.js'
 
-function addDays(day, n) {
+export function addDays(day, n) {
   const d = new Date(`${day}T00:00:00Z`)
   d.setUTCDate(d.getUTCDate() + n)
   return d.toISOString().slice(0, 10)
 }
 const span = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5)
-function ranges(range, today) {
+export function ranges(range, today) {
   const y = today.slice(0, 4)
   const monthStart = `${today.slice(0, 7)}-01`
   if (range === '7d') return { from: addDays(today, -6), to: today, prevFrom: addDays(today, -13), prevTo: addDays(today, -7), label: 'Last 7 days' }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, FileHeart, Search } from 'lucide-react'
-import { Empty, ErrorNote, PageHead, PetAvatar, PawLoader } from '../components/ui.jsx'
+import { Empty, ErrorNote, PageHead, Pager, PetAvatar, PawLoader } from '../components/ui.jsx'
 import { EntryBadge } from '../components/MedicalRecords.jsx'
 import { query } from '../lib/api.js'
 import { useApi, useDebounced } from '../lib/useApi.js'
@@ -70,15 +70,7 @@ export default function RecordsPage() {
                 ))}
               </tbody>
             </table>
-            {data && (
-              <div className="pager">
-                <span>{data.total.toLocaleString()} records · page {page} of {pages}</span>
-                <div className="pager-btns">
-                  <button type="button" className="icon-btn" onClick={() => update({ page: page - 1 > 1 ? page - 1 : '' })} disabled={page <= 1} aria-label="Previous Page" title="Previous Page"><ChevronLeft /></button>
-                  <button type="button" className="icon-btn" onClick={() => update({ page: page + 1 })} disabled={page >= pages} aria-label="Next Page" title="Next Page"><ChevronRight /></button>
-                </div>
-              </div>
-            )}
+            {data && <Pager page={page} pageSize={data.pageSize} total={data.total} onPage={(n) => update({ page: n > 1 ? n : '' })} noun="records" />}
           </>
         )}
       </section>

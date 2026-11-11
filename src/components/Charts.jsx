@@ -109,3 +109,54 @@ export function Split({ a, b }) {
     </div>
   )
 }
+
+// Retention cohorts: one row per joining month, one cell per month after. Sequential teal, light to
+// dark; 0% is the plain surface. Hover (or focus) a cell for the exact count.
+export const COHORT_BINS = [
+  { min: 0, max: 0, label: '0%', step: 0 },
+  { min: 0.01, max: 4.99, label: 'Under 5%', step: 1 },
+  { min: 5, max: 9.99, label: '5–9%', step: 2 },
+  { min: 10, max: 19.99, label: '10–19%', step: 3 },
+  { min: 20, max: 34.99, label: '20–34%', step: 4 },
+  { min: 35, max: 100, label: '35% and up', step: 5 },
+]
+const binOf = (pct) => COHORT_BINS.find((b) => pct >= b.min && pct <= b.max) || COHORT_BINS[0]
+const monthName = (ym) => new Date(`${ym}-01T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+
+export function CohortGrid({ cohorts }) {
+  const [hover, setHover] = useState(null)
+  return (
+    <div className="cohort-wrap">
+      <table className="cohort">
+        <caption className="sr-only">Share of each month's new clients seen again in each month after</caption>
+        <thead><tr><th scope="col">Joined</th>{Array.from({ length: 12 }, (_, i) => <th key={i} scope="col">M{i + 1}</th>)}</tr></thead>
+        <tbody>
+          {cohorts.map((c) => (
+            <tr key={c.month}>
+              <th scope="row"><strong>{monthName(c.month)}</strong> <span className="cell-sub">{c.size}</span></th>
+              {Array.from({ length: 12 }, (_, i) => {
+                const m = c.months[i]
+                if (!m || !c.size) return <td key={i} className="cohort-none">—</td>
+                const b = binOf(m.pct)
+                const tip = `Joined ${monthName(c.month)}: ${m.n} of ${c.size} seen again in month ${m.m} (${m.pct}%)${m.partial ? ', month not over yet' : ''}`
+                return (
+                  <td key={i} className={`cohort-cell cohort-s${b.step} ${m.partial ? 'is-partial' : ''}`} tabIndex={0} aria-label={tip} title={tip}
+                    onMouseEnter={() => setHover(tip)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(tip)} onBlur={() => setHover(null)}>
+                    {m.pct ? `${Math.round(m.pct)}%` : '0'}
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="cohort-foot">
+        <ul className="cohort-legend" aria-label="Legend">
+          {COHORT_BINS.map((b) => <li key={b.step}><span className={`cohort-key cohort-s${b.step}`} aria-hidden />{b.label}</li>)}
+          <li><span className="cohort-key cohort-s2 is-partial" aria-hidden />This month, not over yet</li>
+        </ul>
+        <span className="cell-sub" aria-live="polite">{hover || 'Hover a cell for the count.'}</span>
+      </div>
+    </div>
+  )
+}

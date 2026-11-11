@@ -17,36 +17,28 @@ function LoadingRows({ cols }) {
 }
 
 function OwnersTable({ q, page, review, setPage, navigate }) {
-  const { data, error, loading } = useApi(`owners${query({ q, page, review: review ? 1 : '' })}`)
+  const { data, error, loading } = useApi(`owners${query({ q, page, review: review ? 1 : '', size: 10 })}`)
   if (error) return <div className="card-pad"><ErrorNote error={error} /></div>
   if (data && !data.total) {
     return <Empty icon={Users} title={q ? `No owners match "${q}"` : 'No owners yet'} text={q ? 'Try part of the name, the mobile number or a pet\'s name.' : 'Register the first owner to get started.'} />
   }
   return (
     <>
-      <table className="table">
-        <thead><tr><th>Owner</th><th>Mobile</th><th>Pets</th><th className="hide-sm">Client Since</th></tr></thead>
+      <table className="table table-sheet">
+        <thead><tr><th>Customer No.</th><th>Owner</th><th>Mobile</th><th>Email</th><th>Pets</th><th className="hide-sm">Client Since</th></tr></thead>
         <tbody aria-busy={loading}>
-          {!data ? <LoadingRows cols={4} /> : data.owners.map((o) => (
+          {!data ? <LoadingRows cols={6} /> : data.owners.map((o) => (
             <tr key={o.id} onClick={() => navigate(`/clients/${o.id}`)}>
+              <td data-label="Customer No." className="nowrap">{o.customerNo || '—'}</td>
               <td>
-                <div className="cell-main">
-                  <span className="avatar" aria-hidden>{initials(o.name)}</span>
-                  <span>
-                    <Link className="row-link" to={`/clients/${o.id}`} onClick={(e) => e.stopPropagation()}><strong>{o.name}</strong></Link>
-                    <span className="cell-sub">{o.customerNo} {o.vip && <Crown size={12} aria-label="VIP" />}</span>
-                  </span>
-                  <ReviewBadge flags={o.reviewFlags} />
-                </div>
+                <Link className="row-link" to={`/clients/${o.id}`} onClick={(e) => e.stopPropagation()}><strong>{o.name}</strong></Link>
+                {o.vip && <Crown size={12} aria-label="VIP" style={{ marginLeft: 4 }} />}
+                <ReviewBadge flags={o.reviewFlags} />
               </td>
-              <td data-label="Mobile">{o.mobileLocal || <span className="muted">{o.mobileRaw || 'None'}</span>}</td>
-              <td>
-                <div className="chips">
-                  {o.pets.slice(0, 3).map((p) => <span key={p.id} className="chip">{p.name}</span>)}
-                  {o.pets.length > 3 && <span className="chip">+{o.pets.length - 3} more</span>}
-                </div>
-              </td>
-              <td className="hide-sm">{prettyDay(o.since)}</td>
+              <td data-label="Mobile" className="nowrap">{o.mobileLocal || <span className="muted">{o.mobileRaw || '—'}</span>}</td>
+              <td data-label="Email" className="cell-email">{o.email || <span className="muted">—</span>}</td>
+              <td data-label="Pets">{o.pets.length ? o.pets.slice(0, 3).map((p) => p.name).join(', ') + (o.pets.length > 3 ? ` +${o.pets.length - 3}` : '') : <span className="muted">—</span>}</td>
+              <td className="hide-sm nowrap">{prettyDay(o.since)}</td>
             </tr>
           ))}
         </tbody>
@@ -198,7 +190,7 @@ export default function Clients() {
 
       <section className="card">
         <div className="toolbar">
-          <div className="tabs" role="group" aria-label="Show">
+          <div className="tabs tabs-x" role="group" aria-label="Show">
             {[['owners', 'Pet Owners', counts?.owners.total], ['pets', 'Active Pets', counts?.petsActive], ['deceased', 'Deceased Pets', counts?.petsDeceased]].map(([key, label, n]) => (
               <button key={key} type="button" className="tab" aria-pressed={tab === key}
                 onClick={() => update({ tab: key === 'owners' ? '' : key, page: '', review: '', species: '' })}>

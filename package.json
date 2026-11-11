@@ -15,6 +15,7 @@
     "import:services": "node scripts/import-services.mjs",
     "import:records": "node scripts/import-records.mjs",
     "import:products": "node scripts/import-products.mjs",
+    "import:deceased": "node scripts/import-deceased.mjs",
     "set-password": "node scripts/set-password.mjs"
   },
   "dependencies": {

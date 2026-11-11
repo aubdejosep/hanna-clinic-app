@@ -172,7 +172,7 @@ function StockUse({ service }) {
 export default function ServicesPage() {
   const me = useStaff()
   const toast = useToast()
-  const [text, setText] = useState('')
+  const [text, setText] = useState(() => new URLSearchParams(window.location.search).get('q') || '')
   const q = useDebounced(text.trim())
   const [category, setCategory] = useState('')
   const [status, setStatus] = useState('all')
