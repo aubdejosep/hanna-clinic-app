@@ -105,6 +105,13 @@ Then print the QR code from **Clinic operations → Clinic profile → Kiosk QR 
 3. **Tag reader on the front-desk PC.** Install the gym's fob bridge there the same way as at the gym (its README: download, unzip to e.g. `C:\HannaClinic\bridge\`, run `install-startup.bat`). Next to `bridge.exe`, create `allowed_origins.txt` with this one line: `https://app.hannapetwellnesscenter.com`, then restart the bridge. In the app on that PC: **Appointments → Tag Reader Off** (turns it on; the button then says **Tag Reader Ready**).
 4. Give each pet its tag: pet's page → **NFC Tag → Assign Tag** → tap the tag.
 
+### 17. Visit records and vets writing
+
+`git pull`, then `npm run db:migrate:remote`. Nothing else: visits checked out before this get their record the first time their appointment is opened.
+
+- **Every checked-out visit becomes a medical record** by itself: Services and Products (with medicines and doses, weight and follow-up) and a vaccination entry for each vaccine (so the Vaccinations card stays complete). Undoing the check-out or changing items keeps it in step.
+- **Vets, owners and admins write** on the appointment page (Medical Record card): Add Note, Add Diagnosis, Add Prescription (from the medicines list, with dose and quantity; "Given from clinic stock" also puts it on the bill and takes it off stock at check-out), Add Treatment Plan. Entries show who wrote them and when; edits and removals are kept in the activity log.
+
 ### 16. Photos on the medical records
 
 The 8,520 photos (paper records, prescriptions, vaccine cards) are inside the downloaded PDFs. They go to a private Cloudflare R2 bucket and show on each record; only logged-in staff can see them.

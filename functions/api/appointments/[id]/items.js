@@ -3,7 +3,7 @@
 
 import { json, fail, readJson, audit } from '../../../../lib/http.js'
 import { itemRows, insertItems } from '../../../../lib/appointments.js'
-import { syncVisitStock } from '../../../../lib/stock.js'
+import { syncVisit } from '../../../../lib/visitRecord.js'
 import { loadFull } from '../[id].js'
 
 export async function onRequestPost({ request, env, params, data }) {
@@ -15,7 +15,7 @@ export async function onRequestPost({ request, env, params, data }) {
   const rows = await itemRows(env, Array.isArray(body.items) ? body.items : [body], { actor: data.staff.name })
   if (!rows.length) return fail(400, 'Choose a service, or type the item’s name.')
   await env.DB.batch(insertItems(env, id, rows, data.staff.name))
-  await syncVisitStock(env, id, data.staff) // only changes stock on a visit already paid and checked out
+  await syncVisit(env, id, data.staff) // only changes stock on a visit already paid and checked out
   await audit(env, data.staff.email, 'add_item', 'appointment', id, { items: rows.map((r) => [r.name, r.detail].filter(Boolean).join(' · ')) })
   return json({ appointment: await loadFull(env, id) }, 201)
 }

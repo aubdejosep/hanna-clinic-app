@@ -6,7 +6,8 @@
 
 import { json, fail, readJson, clean, canManage, manilaToday, audit } from '../../../../lib/http.js'
 import { itemRows, insertItems, moveTo } from '../../../../lib/appointments.js'
-import { METHODS, syncVisitStock, visitDue } from '../../../../lib/stock.js'
+import { METHODS, visitDue } from '../../../../lib/stock.js'
+import { syncVisit } from '../../../../lib/visitRecord.js'
 import { toCents } from '../../../../lib/services.js'
 import { loadFull } from '../[id].js'
 
@@ -41,7 +42,7 @@ export async function onRequestPost({ request, env, params, data }) {
     const res = await moveTo(env, { ...appt, payment_status: 'paid' }, 'completed', { actor: data.staff.name, staffId: data.staff.id })
     if (res.error) return fail(400, res.error)
   } else {
-    await syncVisitStock(env, id, data.staff) // already tapped out: the stock comes off now
+    await syncVisit(env, id, data.staff) // already tapped out: the stock comes off now
   }
   await audit(env, data.staff.email, 'payment', 'appointment', id, { due, amount, method: body.method, added: rows.map((r) => r.name), checkOut: !!body.checkOut })
   return json({ appointment: await loadFull(env, id) })
@@ -60,7 +61,7 @@ export async function onRequestDelete({ request, env, params, data }) {
     env.DB.prepare('UPDATE payments SET voided_at = ?, voided_by = ?, void_reason = ? WHERE id = ?').bind(now, data.staff.name, reason, pay.id),
     env.DB.prepare("UPDATE appointments SET payment_status = 'unpaid', paid_at = NULL, updated_at = ? WHERE id = ?").bind(now, id),
   ])
-  await syncVisitStock(env, id, data.staff)
+  await syncVisit(env, id, data.staff)
   await audit(env, data.staff.email, 'void_payment', 'appointment', id, { reason })
   return json({ appointment: await loadFull(env, id) })
 }

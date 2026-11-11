@@ -4,7 +4,7 @@
 
 import { json, fail, readJson, audit } from '../../../../lib/http.js'
 import { moveTo, STAMP } from '../../../../lib/appointments.js'
-import { syncVisitStock } from '../../../../lib/stock.js'
+import { syncVisit } from '../../../../lib/visitRecord.js'
 import { loadFull } from '../[id].js'
 
 export async function onRequestPost({ request, env, params, data }) {
@@ -28,7 +28,7 @@ export async function onRequestPost({ request, env, params, data }) {
       env.DB.prepare('INSERT INTO appointment_events (appointment_id, at, from_status, to_status, via, actor) VALUES (?, ?, ?, ?, ?, ?)')
         .bind(id, now, appt.status, last.from_status, 'button', `${data.staff.name} (undo)`),
     ])
-    await syncVisitStock(env, id, data.staff) // undoing a check-out puts its stock back
+    await syncVisit(env, id, data.staff) // undoing a check-out puts its stock back
     await audit(env, data.staff.email, 'undo_status', 'appointment', id, { from: appt.status, to: last.from_status })
     return json({ appointment: await loadFull(env, id) })
   }

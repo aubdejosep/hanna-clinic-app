@@ -72,13 +72,14 @@ function Lightbox({ images, at, setAt }) {
   )
 }
 
-function Entry({ e }) {
+export function Entry({ e, as: Tag = 'li' }) {
   const d = e.details || {}
-  const plan = [['Status', d.status && `${d.status[0].toUpperCase()}${d.status.slice(1)}${d.priority ? ` · ${d.priority} priority` : ''}`],
+  const plan = [['Weight', d.weightKg != null && `${d.weightKg} kg`], ['Follow-Up', d.followUpDays && `In ${d.followUpDays} day${d.followUpDays === 1 ? '' : 's'}${d.followUpReason ? `: ${d.followUpReason}` : ''}`],
+    ['Status', d.status && `${d.status[0].toUpperCase()}${d.status.slice(1)}${d.priority ? ` · ${d.priority} priority` : ''}`],
     ['Start', d.start && prettyDay(d.start)], ['Target End', d.targetEnd && prettyDay(d.targetEnd)],
     ['Objectives', d.objectives], ['Protocol', d.protocol], ['Veterinarian', d.vet]].filter(([, v]) => v)
   return (
-    <li className="entry">
+    <Tag className="entry">
       <div className="entry-head">
         <EntryBadge type={d.booked ? 'services' : e.type} />
         {e.title && <strong>{e.title}</strong>}
@@ -91,6 +92,10 @@ function Entry({ e }) {
       )}
       {e.items.length > 0 && <div className="chips">{e.items.map((i, n) => <span key={n} className="chip" title={i.notes || undefined}>{itemText(i)}</span>)}</div>}
       {e.images?.length > 0 && <Photos images={e.images} />}
+      {(e.by || e.auto) && e.at && (
+        <p className="cell-sub entry-foot">{e.auto ? 'Added at check-out' : `By ${e.by}`} · {prettyDay(new Date(Date.parse(e.at) + 8 * 3600e3).toISOString().slice(0, 10))} {new Date(e.at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila' })}
+          {e.edited && ` · edited by ${e.edited.by}`}</p>
+      )}
       {(d.assigned || e.imageCount > (e.images?.length || 0)) && (
         <p className="cell-sub entry-foot">
           {d.assigned && <>Assigned: {d.assigned}</>}
@@ -98,7 +103,7 @@ function Entry({ e }) {
           {e.imageCount > (e.images?.length || 0) && <><Image size={13} aria-hidden /> {e.imageCount - (e.images?.length || 0)} image{e.imageCount - (e.images?.length || 0) > 1 ? 's' : ''} not uploaded yet</>}
         </p>
       )}
-    </li>
+    </Tag>
   )
 }
 
@@ -160,7 +165,7 @@ function RecordPanel({ r, onClose }) {
 
 // The pet's whole history, newest first, as cards (or a table) with search and pages, like the old
 // system. A card opens the record. On an appointment, the record from its day is marked This Visit.
-export function MedicalHistory({ pet, data, error, currentDay }) {
+export function MedicalHistory({ pet, data, error, currentDay, currentAppointmentId }) {
   const [find, setFind] = useState('')
   const [view, setView] = useState('cards')
   const [size, setSize] = useState(6)
@@ -204,7 +209,7 @@ export function MedicalHistory({ pet, data, error, currentDay }) {
               {slice.map((r) => {
                 const h = headline(r)
                 const img = images(r)
-                const current = currentDay && r.day === currentDay
+                const current = currentAppointmentId ? r.appointmentId === currentAppointmentId : currentDay && r.day === currentDay
                 return (
                   <li key={r.id}>
                     <button type="button" className={`rec-card ${current ? 'is-current' : ''}`} onClick={() => setOpen(r)} id={`record-${r.id}`}>
@@ -231,7 +236,7 @@ export function MedicalHistory({ pet, data, error, currentDay }) {
                 {slice.map((r) => {
                   const h = headline(r)
                   return (
-                    <tr key={r.id} onClick={() => setOpen(r)} className={currentDay && r.day === currentDay ? 'is-current-row' : undefined}>
+                    <tr key={r.id} onClick={() => setOpen(r)} className={(currentAppointmentId ? r.appointmentId === currentAppointmentId : currentDay && r.day === currentDay) ? 'is-current-row' : undefined}>
                       <td className="nowrap" data-label="Date">{prettyDay(r.day)}</td>
                       <td><strong>{cardTitle(h)}</strong>{r.bookingOnly && <span className="cell-sub">Booked services only</span>}</td>
                       <td className="hide-sm">{[...new Set(r.entries.map((e) => (e.details?.booked ? 'services' : e.type)))].map((t) => <EntryBadge key={t} type={t} />)}</td>

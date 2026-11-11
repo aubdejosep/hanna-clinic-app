@@ -6,6 +6,7 @@
 import { json, fail, readJson, clean, cleanMultiline, audit } from '../../../lib/http.js'
 import { petOut } from '../../../lib/clients.js'
 import { loadAppointment, apptNo, NEXT } from '../../../lib/appointments.js'
+import { syncVisitRecord, visitRecordId } from '../../../lib/visitRecord.js'
 
 export async function loadFull(env, id) {
   const appt = await loadAppointment(env, id)
@@ -44,8 +45,12 @@ export async function loadFull(env, id) {
   }
 }
 
-export async function onRequestGet({ env, params }) {
-  const appt = await loadFull(env, Number(params.id))
+export async function onRequestGet({ env, params, data }) {
+  const id = Number(params.id)
+  // Visits checked out before visit records existed get theirs the first time they're opened.
+  const row = await env.DB.prepare('SELECT id, status, source FROM appointments WHERE id = ?').bind(id).first()
+  if (row?.status === 'completed' && row.source !== 'legacy' && !(await visitRecordId(env, row, false))) await syncVisitRecord(env, id, data.staff)
+  const appt = await loadFull(env, id)
   return appt ? json({ appointment: appt }) : fail(404, 'This appointment was not found.')
 }
 
@@ -84,6 +89,7 @@ export async function onRequestPatch({ request, env, params, data }) {
   }
   if (!stmts.length) return fail(400, 'Nothing to change.')
   await env.DB.batch(stmts)
+  if (fields.includes('weight') || fields.includes('follow_up')) await syncVisitRecord(env, id, data.staff) // the visit record shows them
   await audit(env, data.staff.email, 'update', 'appointment', id, { fields })
   return json({ appointment: await loadFull(env, id) })
 }
