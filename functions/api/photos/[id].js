@@ -1,5 +1,5 @@
 // GET /api/photos/:id -> one photo from a medical record (logged-in staff only, like every /api route).
-// The browser keeps it for a day, so opening the same record again doesn't download it again.
+// The browser keeps it for an hour (private: never in a shared cache), so reopening a record is quick.
 
 import { fail } from '../../../lib/http.js'
 
@@ -10,6 +10,6 @@ export async function onRequestGet({ env, params }) {
   const obj = await env.PHOTOS.get(row.key)
   if (!obj) return fail(404, "This photo hasn't been uploaded yet.")
   return new Response(obj.body, {
-    headers: { 'Content-Type': row.content_type || 'image/jpeg', 'Cache-Control': 'private, max-age=86400', 'Content-Length': String(obj.size) },
+    headers: { 'Content-Type': row.content_type || 'image/jpeg', 'Cache-Control': 'private, max-age=3600', 'Content-Length': String(obj.size) },
   })
 }
