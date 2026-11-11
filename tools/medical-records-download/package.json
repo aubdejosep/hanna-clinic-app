@@ -9,9 +9,13 @@
     "appointments-test": "node appointments.mjs --pages 1",
     "appointments": "node appointments.mjs",
     "services-test": "node services.mjs --limit 3",
-    "services": "node services.mjs"
+    "services": "node services.mjs",
+    "records-test": "node records.mjs --limit 20",
+    "records": "node records.mjs"
   },
   "dependencies": {
-    "playwright-core": "1.63.0"
+    "playwright-core": "1.63.0",
+    "pdfjs-dist": "4.10.38",
+    "adm-zip": "0.5.16"
   }
 }

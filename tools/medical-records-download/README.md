@@ -166,3 +166,23 @@ It carries on after the 3 test services. If a service's variations don't match t
 ## 3. When it's finished
 
 Send Claude `output-services\services.json`. Then delete `output-services\login-state.json`.
+
+---
+
+# Read the medical records (after the download)
+
+`records.mjs` reads the PDFs inside `output\zips` on this PC and writes their text to one small file: pet and owner details, each record's date and old appointment number, and every entry (type, title, description, services used, number of images). Photos stay in the zips for now. About 10 minutes for all pets; it doesn't need the internet or a login.
+
+```
+git pull
+npm install
+npm run records-test
+```
+
+It reads 20 pets and prints a summary. Then:
+
+```
+npm run records
+```
+
+Running it again carries on where it stopped. At the end, send Claude `output-records\records.jsonl.gz` (a few MB) and the summary it prints. The file holds medical and client details, so share it privately.
