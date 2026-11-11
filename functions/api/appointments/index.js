@@ -8,6 +8,7 @@
 
 import { json, fail, readJson, isoDay, likePattern, manilaToday, cleanMultiline, audit } from '../../../lib/http.js'
 import { sweep, LIST_SELECT, apptOut, manilaNow, startsAt, isTime, itemRows, insertItems, loadAppointment } from '../../../lib/appointments.js'
+import { pullWebsiteBookings } from '../../../lib/website.js'
 
 const TABS = {
   accepted: "a.status IN ('pending', 'accepted') AND a.legacy_unclosed = 0",
@@ -24,6 +25,7 @@ const TABS = {
 
 export async function onRequestGet({ request, env }) {
   await sweep(env)
+  await pullWebsiteBookings(env).catch((err) => console.log('Website bookings', String(err).slice(0, 300)))
   const url = new URL(request.url)
   const p = url.searchParams
   const where = ['a.deleted_at IS NULL']

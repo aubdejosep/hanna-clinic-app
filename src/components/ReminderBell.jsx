@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, CalendarPlus, ClipboardCheck, PawPrint, Pill, Stethoscope, UserRound, X } from 'lucide-react'
+import { Bell, CalendarPlus, Globe, ClipboardCheck, PawPrint, Pill, Stethoscope, UserRound, X } from 'lucide-react'
 import { useToast } from './ui.jsx'
 import { useAppointmentsChanged } from './TagCheckIn.jsx'
 import { api } from '../lib/api.js'
@@ -14,8 +14,9 @@ const KIND = {
   no_vet: { icon: Stethoscope, label: 'Staff' },
   pet_info: { icon: PawPrint, label: 'Pet Details' },
   owner_info: { icon: UserRound, label: 'Owner Details' },
+  website_client: { icon: Globe, label: 'Online Clients' },
 }
-const linkOf = (r) => (r.kind === 'pet_info' ? `/pets/${r.pet.id}` : r.kind === 'owner_info' ? `/clients/${r.owner.id}` : `/appointments/${r.appointmentId}`)
+const linkOf = (r) => (r.kind === 'pet_info' ? `/pets/${r.pet.id}` : ['owner_info', 'website_client'].includes(r.kind) ? `/clients/${r.owner.id}` : `/appointments/${r.appointmentId}`)
 
 // The bell: workflow steps still to finish. Each one clears itself once the step is done.
 export default function ReminderBell({ align = 'right' }) {

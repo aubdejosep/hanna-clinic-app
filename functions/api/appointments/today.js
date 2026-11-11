@@ -6,9 +6,11 @@
 
 import { json, manilaToday } from '../../../lib/http.js'
 import { sweep, LIST_SELECT, apptOut } from '../../../lib/appointments.js'
+import { pullWebsiteBookings } from '../../../lib/website.js'
 
 export async function onRequestGet({ env }) {
   await sweep(env)
+  await pullWebsiteBookings(env).catch((err) => console.log('Website bookings', String(err).slice(0, 300)))
   const today = manilaToday()
   const [inClinic, stale, upcoming, counts] = await env.DB.batch([
     env.DB.prepare(`${LIST_SELECT} WHERE a.deleted_at IS NULL AND (

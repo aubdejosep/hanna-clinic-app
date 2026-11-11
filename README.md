@@ -4,7 +4,7 @@ The staff app for Hanna Pet Wellness Center at **app.hannapetwellnesscenter.com*
 
 Built with React + Vite and hosted on Cloudflare Pages with a D1 database. Staff log in on the app's own page with email and password; **Remember me** keeps a device logged in for 30 days.
 
-## What's built (phases 0–4)
+## What's built (phases 0–5)
 
 - **Masterlist:** search owners by name, mobile, customer number or pet; search pets by name, breed, microchip or owner; register an owner with their pets (warns when the mobile is already on file); edit owners and pets; allergies highlighted.
 - **Records to check:** the 115 imported owners with a missing, odd or shared mobile, or a duplicate name, each with **Mark as checked**.
@@ -22,6 +22,7 @@ Built with React + Vite and hosted on Cloudflare Pages with a D1 database. Staff
 - **Dashboard:** owners open on **Overview** (counts only, no money): Visits, Services Rendered, Vaccinations, New Pet Owners and New Pets against the period before, Visits per Day, Services by Category, Appointment Outcomes, Returning vs New Clients, Busiest Days and Busiest Hours, for Month to Date, Last 7 or 30 Days, Last Month or Year to Date. Everyone else opens on the **Clinic Board** (owners have it as a tab).
 - **Clinic Board:** today's visits station by station: Waiting (the queue, in arrival order, emergencies first) → With Vet → Inpatient → Dispense → Done Today. **Call Next** takes the first pet in the queue and assigns the vet who pressed it. Each card shows its unfinished steps until they're done.
 - **Reminders bell** (beside the logo; top bar on phones): follow-up ticked but not booked, Dispense with no medicines, a visit checked out with no services or no vet, and pets missing breed or weight or owners missing mobile or email (added in the app, or at the clinic today). Each clears itself once done, or with **Not Needed**. Vets see their own visits and unassigned ones.
+- **Website bookings:** every booking made on hannapetwellnesscenter.com/book lands in Appointments, one per pet, Accepted, Booked By "Website" (within a minute, while the app is open). Owners are matched by mobile, pets by name; new clients are created and flagged for a check (bell: "New online client"). Morning = opening time, Afternoon = 1 PM; the preference, the owner's note and travel plans are on the visit. Free consult codes become a FREE CONSULTATION item. Cancelling on the website's /staff page cancels it here. The website itself is unchanged.
 - **On a visit:** **Weight Today** (also the pet's latest weight), **Needs a Follow-Up** (in N days, with a reason, and **Book Follow-Up**), and **Medicine or Product** under Add Items.
 - **Legacy import:** `scripts/import-legacy.mjs` loads the old system's owner and pet exports, cleaning up phone numbers, placeholder emails, microchips and breed spellings (536 spellings → 293 breeds). `scripts/import-appointments.mjs` loads the scraped appointments list (see step 7).
 
@@ -98,6 +99,18 @@ Then print the QR code from **Clinic operations → Clinic profile → Kiosk QR 
    Read `data\import-appointments-report.md` for the few rows it couldn't match. Running it again replaces the earlier import and never touches appointments booked in the app.
 3. **Tag reader on the front-desk PC.** Install the gym's fob bridge there the same way as at the gym (its README: download, unzip to e.g. `C:\HannaClinic\bridge\`, run `install-startup.bat`). Next to `bridge.exe`, create `allowed_origins.txt` with this one line: `https://app.hannapetwellnesscenter.com`, then restart the bridge. In the app on that PC: **Appointments → Tag Reader Off** (turns it on; the button then says **Tag Reader Ready**).
 4. Give each pet its tag: pet's page → **NFC Tag → Assign Tag** → tap the tag.
+
+### 10. Website bookings (phase 5)
+
+1. Find the website database's ID: `npx wrangler d1 list` and copy the ID next to **hanna-leads**. Send it to Claude, who adds it to `wrangler.toml` as the `LEADS` binding (or add it yourself, below the `DB` block):
+   ```
+   [[d1_databases]]
+   binding = "LEADS"
+   database_name = "hanna-leads"
+   database_id = "<the ID>"
+   ```
+2. `git pull`, then `npm run db:migrate:remote`.
+3. Wait for the deployment, then open **Appointments**: upcoming website bookings appear within a minute.
 
 ### 9. Dashboard and reminders (phase 4)
 

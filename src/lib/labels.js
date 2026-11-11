@@ -6,4 +6,5 @@ export const REVIEW_LABELS = {
   same_name: 'Same name as another owner',
   same_name_same_owner: 'Same name as another pet of this owner',
   kiosk: 'Signed up at the kiosk: check their details',
+  website: 'Booked online: check their details',
 }
