@@ -3,6 +3,7 @@
 //      q matches pet, owner, customer number, or an entry's title, description or services.
 
 import { json, isoDay, likePattern, manilaToday } from '../../../lib/http.js'
+import { cached } from '../../../lib/cache.js'
 import { localMobile } from '../../../lib/clients.js'
 import { ENTRY_TYPES, recordOut } from '../../../lib/records.js'
 
@@ -26,8 +27,12 @@ export async function onRequestGet({ request, env }) {
   const size = Math.min(100, Math.max(1, Number(p.get('size')) || 25))
   const page = Math.max(1, Number(p.get('page')) || 1)
   const base = `FROM medical_records m JOIN pets pt ON pt.id = m.pet_id JOIN owners o ON o.id = m.owner_id WHERE ${where.join(' AND ')}`
+  // Without a search or filter the total only changes with an import: worked out once an hour, not per page.
+  const plain = where.length === 2
+  const countAll = () => env.DB.prepare(`SELECT COUNT(*) AS n ${base}`).bind(...binds).first().then((r) => r.n)
+  const n = plain ? await cached(env, `records_total:${binds[0]}`, 3600e3, countAll) : null
   const [total, rows] = await env.DB.batch([
-    env.DB.prepare(`SELECT COUNT(*) AS n ${base}`).bind(...binds),
+    plain ? env.DB.prepare('SELECT ? AS n').bind(n) : env.DB.prepare(`SELECT COUNT(*) AS n ${base}`).bind(...binds),
     env.DB.prepare(`SELECT m.*, (SELECT a.status FROM appointments a WHERE a.id = m.appointment_id) AS appt_status, (SELECT a.legacy_status FROM appointments a WHERE a.id = m.appointment_id) AS appt_legacy_status, pt.name AS pet_name, pt.species, o.full_name AS owner_name, o.customer_no, o.mobile ${base}
       ORDER BY m.day DESC, m.id DESC LIMIT ? OFFSET ?`).bind(...binds, size, (page - 1) * size),
   ])

@@ -11,14 +11,15 @@ export async function onRequestGet({ env }) {
   await sweep(env)
   const today = manilaToday()
   const [inClinic, stale, upcoming, counts] = await env.DB.batch([
-    env.DB.prepare(`${LIST_SELECT} WHERE a.deleted_at IS NULL AND (
-        (a.day = ? AND a.status IN ('arrived', 'started', 'dispense')) OR a.status = 'inpatient')
+    // Ids from two index lookups: an OR across day and status would read every appointment.
+    env.DB.prepare(`${LIST_SELECT} WHERE a.id IN (SELECT id FROM appointments WHERE day = ?1 AND status IN ('arrived', 'started', 'dispense')
+        UNION SELECT id FROM appointments WHERE status = 'inpatient') AND +a.deleted_at IS NULL
       ORDER BY a.emergency DESC, COALESCE(a.checked_in_at, a.starts_at)`).bind(today),
-    env.DB.prepare(`${LIST_SELECT} WHERE a.deleted_at IS NULL AND a.legacy_unclosed = 0 AND a.day < ? AND a.status IN ('arrived', 'started', 'dispense')
+    env.DB.prepare(`${LIST_SELECT} WHERE +a.deleted_at IS NULL AND a.legacy_unclosed = 0 AND a.day < ? AND a.status IN ('arrived', 'started', 'dispense')
       ORDER BY a.day DESC, a.time LIMIT 50`).bind(today),
-    env.DB.prepare(`${LIST_SELECT} WHERE a.deleted_at IS NULL AND a.day = ? AND a.status IN ('pending', 'accepted')
+    env.DB.prepare(`${LIST_SELECT} WHERE +a.deleted_at IS NULL AND a.day = ? AND a.status IN ('pending', 'accepted')
       ORDER BY a.emergency DESC, a.time, a.id`).bind(today),
-    env.DB.prepare(`SELECT status, COUNT(*) AS n FROM appointments WHERE deleted_at IS NULL AND day = ? GROUP BY status`).bind(today),
+    env.DB.prepare(`SELECT status, COUNT(*) AS n FROM appointments INDEXED BY idx_appointments_day WHERE day = ? AND deleted_at IS NULL GROUP BY status`).bind(today),
   ])
   return json({
     today,

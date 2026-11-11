@@ -10,7 +10,8 @@ export async function onRequestGet({ env }) {
   await sweep(env)
   const today = manilaToday()
   const { results } = await env.DB.prepare(`${LIST_SELECT}
-    WHERE a.deleted_at IS NULL AND ((a.day = ? AND a.status IN ('arrived', 'started', 'dispense', 'completed')) OR a.status = 'inpatient')
+    WHERE a.id IN (SELECT id FROM appointments WHERE day = ?1 AND status IN ('arrived', 'started', 'dispense', 'completed')
+      UNION SELECT id FROM appointments WHERE status = 'inpatient') AND +a.deleted_at IS NULL
     ORDER BY a.emergency DESC, COALESCE(a.checked_in_at, a.starts_at), a.id`).bind(today).all()
   const ids = results.map((r) => r.id)
   const extra = ids.length ? (await env.DB.prepare(`SELECT a.id, a.follow_up_days, a.weight_kg, p.breed, p.weight_kg AS pet_weight, o.mobile, o.email

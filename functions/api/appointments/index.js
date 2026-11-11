@@ -33,9 +33,13 @@ export async function onRequestGet({ request, env }) {
   const binds = []
   const like = likePattern(p.get('q'))
   if (like) {
-    where.push(`(p.name LIKE ? OR o.full_name LIKE ? OR o.customer_no LIKE ? OR a.booked_by_name LIKE ?
-      OR EXISTS (SELECT 1 FROM appointment_items i WHERE i.appointment_id = a.id AND i.deleted_at IS NULL AND (i.name LIKE ? OR i.detail LIKE ?)))`)
-    binds.push(like, like, like, like, like, like)
+    // Matching appointments are found once (pet, owner, booked by, or a service on it); the counts and the
+    // page then read only those, instead of searching every appointment three times.
+    const { results } = await env.DB.prepare(`SELECT a.id FROM appointments a WHERE a.pet_id IN (SELECT id FROM pets WHERE name LIKE ?1)
+      UNION SELECT a.id FROM appointments a WHERE a.owner_id IN (SELECT id FROM owners WHERE full_name LIKE ?1 OR customer_no LIKE ?1)
+      UNION SELECT id FROM appointments WHERE booked_by_name LIKE ?1
+      UNION SELECT appointment_id FROM appointment_items WHERE deleted_at IS NULL AND (name LIKE ?1 OR detail LIKE ?1) LIMIT 5000`).bind(like).all()
+    where.push(results.length ? `a.id IN (${results.map((r) => Number(r.id)).join(',')})` : '0')
   }
   const from = isoDay(p.get('from'))
   const to = isoDay(p.get('to'))
@@ -55,11 +59,10 @@ export async function onRequestGet({ request, env }) {
   const size = Math.min(cal ? 3000 : 100, Math.max(1, Number(p.get('size')) || 25))
   const page = Math.max(1, Number(p.get('page')) || 1)
   const order = p.get('order') === 'asc' ? 'ASC' : 'DESC'
-  // The owner and pet tables are only joined when searching by name.
-  const from_ = like ? 'FROM appointments a JOIN pets p ON p.id = a.pet_id JOIN owners o ON o.id = a.owner_id' : 'FROM appointments a'
+  const from_ = 'FROM appointments a'
   const filtered = where.length > 1
   const countTabs = async () => {
-    const { results } = await env.DB.prepare(`SELECT a.status, a.emergency, a.legacy_unclosed AS unclosed, COUNT(*) AS n ${from_} WHERE ${base.replace('+a.deleted_at', 'a.deleted_at')} GROUP BY a.status, a.emergency, a.legacy_unclosed`).bind(...binds).all()
+    const { results } = await env.DB.prepare(`SELECT a.status, a.emergency, a.legacy_unclosed AS unclosed, COUNT(*) AS n ${from_} WHERE ${filtered ? base : base.replace('+a.deleted_at', 'a.deleted_at')} GROUP BY a.status, a.emergency, a.legacy_unclosed`).bind(...binds).all()
     const t = { all: 0, accepted: 0, arrived: 0, started: 0, inpatient: 0, dispense: 0, completed: 0, cancelled: 0, no_show: 0, emergency: 0, unclosed: 0 }
     for (const c of results) {
       t.all += c.n
