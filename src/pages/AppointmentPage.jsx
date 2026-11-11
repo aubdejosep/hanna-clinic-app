@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowRight, CalendarClock, CalendarDays, CircleX, Clock, History, MessageSquare, Nfc, Plus, Siren, Stethoscope, Trash2, TriangleAlert, Undo2, User, UserRound } from 'lucide-react'
-import { ErrorNote, Field, PageHead, Panel, PetAvatar, useToast } from '../components/ui.jsx'
+import { ErrorNote, Field, PageHead, Panel, PetAvatar, useToast, PawLoader } from '../components/ui.jsx'
 import { BookPanel, CancelPanel, ReschedulePanel, ServicePicker, StaffSelect, StatusBadge } from '../components/AppointmentPanels.jsx'
 import { appointmentsChanged, useAppointmentsChanged } from '../components/TagCheckIn.jsx'
 import { api } from '../lib/api.js'
@@ -408,7 +408,7 @@ export default function AppointmentPage() {
   const a = data?.appointment
   const crumbs = [{ label: 'Dashboard', to: '/' }, { label: 'Appointments', to: '/appointments' }, { label: 'Appointment Details' }]
   if (error) return <><PageHead crumbs={crumbs} title="Appointment" /><ErrorNote error={error} /></>
-  if (!a) return <PageHead crumbs={crumbs} title=" " />
+  if (!a) return <><PageHead crumbs={crumbs} title=" " /><PawLoader label="Loading the appointment…" /></>
   const changed = (appointment, message) => {
     setData({ appointment })
     if (message) toast(message)

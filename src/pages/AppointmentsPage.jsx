@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowDownUp, CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Info, LayoutGrid, List, LogIn, RefreshCw, Rows3, Search, TriangleAlert } from 'lucide-react'
-import { Empty, ErrorNote, PageHead, PetAvatar, useToast } from '../components/ui.jsx'
+import { Empty, ErrorNote, PageHead, PetAvatar, useToast, PawLoader } from '../components/ui.jsx'
 import { BookPanel, StatusBadge, WalkInPanel } from '../components/AppointmentPanels.jsx'
 import { ReaderSwitch, appointmentsChanged, useAppointmentsChanged } from '../components/TagCheckIn.jsx'
 import { api, query } from '../lib/api.js'
@@ -70,7 +70,7 @@ function InClinic() {
           </div>
         </div>
       )}
-      {data && !data.inClinic.length ? (
+      {!data ? <PawLoader label="Checking who’s in…" /> : !data.inClinic.length ? (
         <p className="card-pad muted" style={{ margin: 0 }}>No pets checked in right now. Tap a pet’s tag at the front desk, or use <strong>Walk In</strong>.</p>
       ) : (
         <ul className="in-clinic">
@@ -148,7 +148,7 @@ function TableView({ params, update }) {
     <section className="card">
       <div className="card-head">
         <div><h2>Appointment List</h2><p>{data ? `${data.total.toLocaleString()} appointment${data.total === 1 ? '' : 's'}` : '…'}</p></div>
-        <button type="button" className="icon-btn" onClick={reload} aria-label="Refresh" title="Refresh"><RefreshCw /></button>
+        <button type="button" className="icon-btn" onClick={() => { if (!loading) reload() }} aria-busy={loading} aria-label="Refresh" title="Refresh">{loading ? <PawLoader small label="Refreshing…" /> : <RefreshCw />}</button>
       </div>
       <div className="toolbar">
         <div className="search">
@@ -199,6 +199,7 @@ function TableView({ params, update }) {
               </tr>
             </thead>
             <tbody aria-busy={loading}>
+              {!data && <tr className="no-hover"><td colSpan={6}><PawLoader label="Loading appointments…" /></td></tr>}
               {(data?.appointments || []).map((a) => <Row key={a.id} a={a} navigate={navigate} />)}
             </tbody>
           </table>
@@ -280,7 +281,7 @@ function CalendarView({ params, update }) {
         </div>
       </div>
       <ErrorNote error={error} />
-      {mode === 'day' ? (
+      {!data && !error ? <PawLoader label="Loading the calendar…" /> : mode === 'day' ? (
         <div className="cal-day">
           {(byDay[date] || []).length ? byDay[date].map((a) => <Pill key={a.id} a={a} />) : <p className="muted card-pad" style={{ margin: 0 }}>{data ? 'No appointments this day.' : '…'}</p>}
         </div>
@@ -307,6 +308,34 @@ function CalendarView({ params, update }) {
   )
 }
 
+// Opened from the website's staff email (?ref=BK-…): go straight to that booking's appointment,
+// or list them when the booking has several pets.
+function BookingRef({ refNo, onClear }) {
+  const navigate = useNavigate()
+  const { data, error } = useApi(`appointments/by-ref?ref=${encodeURIComponent(refNo)}`)
+  useEffect(() => {
+    if (data?.appointments.length === 1) navigate(`/appointments/${data.appointments[0].id}`, { replace: true })
+  }, [data, navigate])
+  if (error) return <ErrorNote error={error} />
+  if (!data) return <section className="card"><PawLoader label={`Finding booking ${refNo}…`} /></section>
+  if (data.appointments.length === 1) return null
+  return (
+    <section className="card">
+      <div className="card-head">
+        <div><h2>Online Booking {refNo}</h2><p>{data.appointments.length ? `${data.appointments.length} pets in this booking` : 'Not found'}</p></div>
+        <button type="button" className="btn btn-quiet" onClick={onClear}>Show All Appointments</button>
+      </div>
+      {data.appointments.length ? (
+        <ul className="appt-mini">
+          {data.appointments.map((a) => (
+            <li key={a.id}><Link to={`/appointments/${a.id}`}><span><strong>{a.pet}</strong> <span className="cell-sub">{prettyDay(a.day)} · {prettyTime(a.time)}</span></span><StatusBadge status={a.status} /></Link></li>
+          ))}
+        </ul>
+      ) : <p className="card-pad" style={{ margin: 0 }}>This booking isn’t in the app. It may have been cancelled, or its date has passed. Check the website’s booking email for the details.</p>}
+    </section>
+  )
+}
+
 export default function AppointmentsPage() {
   const [params, update] = useParamsState()
   const navigate = useNavigate()
@@ -323,6 +352,7 @@ export default function AppointmentsPage() {
       </PageHead>
 
       <div className="stack">
+        {params.get('ref') && <BookingRef refNo={params.get('ref')} onClear={() => update({ ref: '' })} />}
         <InClinic />
         <div className="view-bar">
           <ul className="legend" aria-label="Status colours">

@@ -36,6 +36,18 @@ export function PetAvatar({ species, large }) {
   )
 }
 
+// Loading: three paw prints stepping across. `small` fits inside a button; otherwise a centred block.
+export function PawLoader({ label = 'Loading…', small }) {
+  return (
+    <span className={`paw-loader ${small ? 'paw-small' : ''}`} role="status" aria-live="polite">
+      <span className="paw-steps" aria-hidden>
+        <PawPrint className="paw paw-1" /><PawPrint className="paw paw-2" /><PawPrint className="paw paw-3" />
+      </span>
+      {small ? <span className="sr-only">{label}</span> : <span className="paw-label">{label}</span>}
+    </span>
+  )
+}
+
 export function ReviewBadge({ flags }) {
   if (!flags?.length) return null
   return (

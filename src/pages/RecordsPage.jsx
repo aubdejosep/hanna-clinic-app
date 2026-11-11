@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, FileHeart, Search } from 'lucide-react'
-import { Empty, ErrorNote, PageHead, PetAvatar } from '../components/ui.jsx'
+import { Empty, ErrorNote, PageHead, PetAvatar, PawLoader } from '../components/ui.jsx'
 import { EntryBadge } from '../components/MedicalRecords.jsx'
 import { query } from '../lib/api.js'
 import { useApi, useDebounced } from '../lib/useApi.js'
@@ -46,6 +46,7 @@ export default function RecordsPage() {
             <table className="table">
               <thead><tr><th>Date</th><th>Pet &amp; Owner</th><th>Entries</th><th className="hide-sm">Kind</th></tr></thead>
               <tbody aria-busy={loading}>
+                {!data && <tr className="no-hover"><td colSpan={4}><PawLoader label="Loading records…" /></td></tr>}
                 {(data?.records || []).map((r) => (
                   <tr key={r.id} onClick={() => navigate(`/pets/${r.pet.id}#record-${r.id}`)}>
                     <td data-label="Date" style={{ whiteSpace: 'nowrap' }}>{prettyDay(r.day)}</td>

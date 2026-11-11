@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { CalendarDays, ChevronRight, Crown, Hash, Mail, Pencil, Phone, Plus, Trash2, TriangleAlert } from 'lucide-react'
-import { Empty, ErrorNote, PageHead, PetAvatar, useToast } from '../components/ui.jsx'
+import { Empty, ErrorNote, PageHead, PetAvatar, useToast, PawLoader } from '../components/ui.jsx'
 import { EditOwnerPanel, PetPanel } from '../components/ClientForms.jsx'
 import { RemoveOwnerPanel } from '../components/RemovePanels.jsx'
 import { canManage, useStaff } from '../lib/staff.js'
@@ -47,7 +47,7 @@ export default function OwnerPage() {
   const crumbs = [{ label: 'Client Portal' }, { label: 'Masterlist', to: '/clients' }, { label: o?.name || '…' }]
 
   if (error) return <><PageHead crumbs={crumbs} title="Owner" /><ErrorNote error={error} /></>
-  if (!o) return <PageHead crumbs={crumbs} title=" " />
+  if (!o) return <><PageHead crumbs={crumbs} title=" " /><PawLoader label="Loading the owner…" /></>
 
   async function markChecked() {
     setBusy(true)

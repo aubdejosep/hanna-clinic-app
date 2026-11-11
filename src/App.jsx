@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { TriangleAlert } from 'lucide-react'
 import Layout from './components/Layout.jsx'
-import { Empty } from './components/ui.jsx'
+import { Empty, PawLoader } from './components/ui.jsx'
 import { useApi } from './lib/useApi.js'
 import Dashboard from './pages/Dashboard.jsx'
 import Clients from './pages/Clients.jsx'
@@ -41,7 +41,7 @@ export default function App() {
       </main>
     )
   }
-  if (!data) return null
+  if (!data) return <main className="page-loading"><PawLoader label="Opening the clinic app…" /></main>
 
   return (
     <StaffContext.Provider value={data.staff}>

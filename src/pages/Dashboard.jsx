@@ -1,6 +1,6 @@
 import { useSearchParams, Link } from 'react-router-dom'
 import { CalendarCheck, PawPrint, Stethoscope, Syringe, TriangleAlert, UserPlus, Users } from 'lucide-react'
-import { ErrorNote, PageHead } from '../components/ui.jsx'
+import { ErrorNote, PageHead, PawLoader } from '../components/ui.jsx'
 import ClinicBoard from '../components/ClinicBoard.jsx'
 import { BarList, Columns, CompareLine, Split } from '../components/Charts.jsx'
 import { ReaderSwitch } from '../components/TagCheckIn.jsx'
@@ -53,7 +53,7 @@ function Overview({ range, setRange }) {
       <div className="overview-row">
         <section className="card overview-main">
           <div className="card-head"><div><h2>Visits per Day</h2><p>A visit is a pet seen that day: a checked-out appointment or a medical record.</p></div></div>
-          <div className="card-pad">{d && <CompareLine current={d.perDay.current} previous={d.perDay.previous} labelOf={shortDay} />}</div>
+          <div className="card-pad">{d ? <CompareLine current={d.perDay.current} previous={d.perDay.previous} labelOf={shortDay} /> : <PawLoader label="Counting visits…" />}</div>
         </section>
         <div className="overview-quad">
         <section className="card">

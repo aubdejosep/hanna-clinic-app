@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ClipboardList, FileHeart, Image, NotebookPen, Pill, Stethoscope, Syringe } from 'lucide-react'
-import { Empty, ErrorNote } from './ui.jsx'
+import { Empty, ErrorNote, PawLoader } from './ui.jsx'
 import { useApi } from '../lib/useApi.js'
 import { prettyDay } from '../lib/format.js'
 
@@ -97,7 +97,7 @@ export function MedicalHistory({ pet, data, error }) {
       <div className="card-head">
         <div><h2>Medical History</h2><p>{data ? `${data.records.length} record${data.records.length === 1 ? '' : 's'} · notes, diagnoses, vaccinations and treatment plans` : '…'}</p></div>
       </div>
-      {error ? <div className="card-pad"><ErrorNote error={error} /></div> : data && !data.records.length ? (
+      {error ? <div className="card-pad"><ErrorNote error={error} /></div> : !data ? <PawLoader label="Loading the medical history…" /> : !data.records.length ? (
         <Empty icon={FileHeart} title="No medical records" text={`The old system had no records for ${pet.name}.`} />
       ) : (
         <>

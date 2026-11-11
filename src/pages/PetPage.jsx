@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { CalendarDays, CalendarPlus, LogIn, Nfc, Pencil, Trash2, TriangleAlert, User } from 'lucide-react'
-import { Empty, ErrorNote, PageHead, PetAvatar, ReviewBadge, useToast } from '../components/ui.jsx'
+import { Empty, ErrorNote, PageHead, PetAvatar, ReviewBadge, useToast, PawLoader } from '../components/ui.jsx'
 import { PetPanel } from '../components/ClientForms.jsx'
 import { RemovePetPanel } from '../components/RemovePanels.jsx'
 import { canManage, useStaff } from '../lib/staff.js'
@@ -71,7 +71,7 @@ export default function PetPage() {
   }
 
   if (error) return <><PageHead crumbs={crumbs} title="Pet" /><ErrorNote error={error} /></>
-  if (!p) return <PageHead crumbs={crumbs} title=" " />
+  if (!p) return <><PageHead crumbs={crumbs} title=" " /><PawLoader label="Loading the pet…" /></>
 
   const facts = [
     ['Species', SPECIES_LABEL[p.species]],

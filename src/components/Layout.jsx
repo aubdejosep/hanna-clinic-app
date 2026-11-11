@@ -58,12 +58,8 @@ function NavGroup({ group, pathname, staff }) {
 
 function Brand() {
   return (
-    <NavLink to="/" className="brand" aria-label="Hanna Pet Wellness Center: Dashboard">
-      <img src="/brand/logo-192.png" alt="" width="40" height="40" />
-      <span>
-        <span className="wordmark">hanna pet wellness</span>
-        <small>Clinic App</small>
-      </span>
+    <NavLink to="/" className="brand" aria-label="Hanna Pet Wellness Center: Dashboard" title="Dashboard">
+      <img src="/brand/logo-192.png" alt="Hanna Pet Wellness Center" width="96" height="96" />
     </NavLink>
   )
 }

@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import { Bell, Building2, CalendarOff, Clock, Gauge, Download, ExternalLink, FileText, Info, Mail, MapPin, Pencil, Phone, Plus, QrCode, Receipt, Store, Trash2, Type } from 'lucide-react'
 import QRCode from 'qrcode'
-import { ErrorNote, Field, PageHead, useToast } from '../components/ui.jsx'
+import { ErrorNote, Field, PageHead, useToast, PawLoader } from '../components/ui.jsx'
 import { prettyDay } from '../lib/format.js'
 import { prettyTime } from '../lib/appointments.js'
 import { FacebookIcon, InstagramIcon, TikTokIcon, ViberIcon, WhatsAppIcon, XIcon } from '../components/BrandIcons.jsx'
@@ -333,7 +333,7 @@ export default function ClinicProfilePage() {
   const crumbs = [{ label: 'Clinic Operations' }, { label: 'Clinic Profile' }]
 
   if (error) return <><PageHead crumbs={crumbs} title="Clinic Profile" /><ErrorNote error={error} /></>
-  if (!c) return <PageHead crumbs={crumbs} title=" " />
+  if (!c) return <><PageHead crumbs={crumbs} title=" " /><PawLoader label="Loading the clinic profile…" /></>
 
   return (
     <div className="profile-page">

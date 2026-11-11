@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, BedDouble, CircleCheck, Hourglass, LogOut, Megaphone, Pill, Siren, Stethoscope, TriangleAlert } from 'lucide-react'
-import { ErrorNote, PetAvatar, useToast } from './ui.jsx'
+import { ErrorNote, PetAvatar, useToast, PawLoader } from './ui.jsx'
 import { appointmentsChanged, useAppointmentsChanged } from './TagCheckIn.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
@@ -89,7 +89,8 @@ export default function ClinicBoard() {
           <Megaphone aria-hidden /> {waiting.length ? `Call Next: ${waiting[0].pet.name}` : 'Call Next'}
         </button>
       </div>
-      <div className="board">
+      {!data && <PawLoader label="Loading the clinic board…" />}
+      {data && <div className="board">
         {STATIONS.map((st) => {
           const list = s?.[st.key] || []
           return (
@@ -108,7 +109,7 @@ export default function ClinicBoard() {
             </div>
           )
         })}
-      </div>
+      </div>}
     </section>
   )
 }
