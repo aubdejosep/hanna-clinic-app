@@ -49,11 +49,11 @@ function Entry({ e }) {
   )
 }
 
-export function RecordCard({ r, showPetLink }) {
+export function RecordCard({ r, showPetLink, current }) {
   return (
-    <article className="record" id={`record-${r.id}`}>
+    <article className={`record ${current ? 'is-current' : ''}`} id={`record-${r.id}`}>
       <header className="record-head">
-        <strong>{prettyDay(r.day)}</strong>
+        <strong>{prettyDay(r.day)}</strong>{current && <span className="badge">This Visit</span>}
         <span className="cell-sub">
           {r.kind === 'visit' ? 'Visit' : 'Record'}
           {r.appointmentNo && <> · {r.appointmentId ? <Link to={`/appointments/${r.appointmentId}`}>#{r.appointmentNo}</Link> : `#${r.appointmentNo}`}</>}
@@ -69,8 +69,9 @@ export function RecordCard({ r, showPetLink }) {
 
 const FILTERS = [['', 'All'], ['vaccination', 'Vaccinations'], ['diagnosis', 'Diagnoses'], ['note', 'Notes'], ['treatment_plan', 'Treatment Plans']]
 
-// Pet page: the whole history, newest first, with a filter by entry type.
-export function MedicalHistory({ pet, data, error }) {
+// Pet page (and the appointment page, like the old system): the whole history, newest first, with a
+// filter by entry type. On an appointment, the record from its day is marked This Visit.
+export function MedicalHistory({ pet, data, error, currentDay }) {
   const [filter, setFilter] = useState('')
   const [shown, setShown] = useState(8)
   const { hash } = useLocation()
@@ -95,7 +96,7 @@ export function MedicalHistory({ pet, data, error }) {
   return (
     <section className="card">
       <div className="card-head">
-        <div><h2>Medical History</h2><p>{data ? `${data.records.length} record${data.records.length === 1 ? '' : 's'} · notes, diagnoses, vaccinations and treatment plans` : '…'}</p></div>
+        <div><h2>Medical History</h2><p>{data ? `${data.records.length} record${data.records.length === 1 ? '' : 's'} for ${pet.name} · notes, diagnoses, vaccinations and treatment plans` : '…'}</p></div>
       </div>
       {error ? <div className="card-pad"><ErrorNote error={error} /></div> : !data ? <PawLoader label="Loading the medical history…" /> : !data.records.length ? (
         <Empty icon={FileHeart} title="No medical records" text={`The old system had no records for ${pet.name}.`} />
@@ -111,7 +112,7 @@ export function MedicalHistory({ pet, data, error }) {
             </div>
           </div>
           <div className="records">
-            {records.slice(0, shown).map((r) => <RecordCard key={r.id} r={r} />)}
+            {records.slice(0, shown).map((r) => <RecordCard key={r.id} r={r} current={currentDay && r.day === currentDay} />)}
           </div>
           {records.length > shown && (
             <div className="card-pad" style={{ paddingTop: 0 }}>
@@ -122,6 +123,12 @@ export function MedicalHistory({ pet, data, error }) {
       )}
     </section>
   )
+}
+
+// Appointment page: the pet's whole history, with this visit's record marked.
+export function AppointmentHistory({ pet, day }) {
+  const { data, error } = useApi(`pets/${pet.id}/records`)
+  return <MedicalHistory pet={pet} data={data} error={error} currentDay={day} />
 }
 
 export function VaccinationsCard({ data }) {
