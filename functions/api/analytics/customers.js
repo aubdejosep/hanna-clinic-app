@@ -22,7 +22,7 @@ export async function onRequestGet({ request, env, data }) {
   return json(await cached(env, `cust:${today}:${key}`, 10 * 60 * 1000, async () => {
     const [ownersQ, visitsQ, paidQ, petsQ] = await env.DB.batch([
       env.DB.prepare(`SELECT id, full_name, customer_no, mobile, source, COALESCE(legacy_added_on, substr(created_at, 1, 10)) AS added FROM owners WHERE deleted_at IS NULL`),
-      env.DB.prepare(`SELECT owner_id, day FROM medical_records WHERE deleted_at IS NULL AND day <= ?1
+      env.DB.prepare(`SELECT owner_id, day FROM medical_records WHERE deleted_at IS NULL AND booking_only = 0 AND day <= ?1
         UNION SELECT owner_id, day FROM appointments WHERE status = 'completed' AND deleted_at IS NULL AND day <= ?1`).bind(today),
       env.DB.prepare(`SELECT a.owner_id, SUM(p.amount_cents) AS cents, MIN(p.day) AS first FROM payments p JOIN appointments a ON a.id = p.appointment_id
         WHERE p.voided_at IS NULL AND p.day BETWEEN ?1 AND ?2 GROUP BY a.owner_id`).bind(r.from, r.to),

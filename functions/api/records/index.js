@@ -2,14 +2,15 @@
 //   -> the Records List: one row per medical record with its pet, owner and entries (newest first).
 //      q matches pet, owner, customer number, or an entry's title, description or services.
 
-import { json, isoDay, likePattern } from '../../../lib/http.js'
+import { json, isoDay, likePattern, manilaToday } from '../../../lib/http.js'
 import { localMobile } from '../../../lib/clients.js'
 import { ENTRY_TYPES, recordOut } from '../../../lib/records.js'
 
 export async function onRequestGet({ request, env }) {
   const p = new URL(request.url).searchParams
-  const where = ['m.deleted_at IS NULL']
-  const binds = []
+  // Booking-only records for future days are just upcoming bookings: those are under Appointments.
+  const where = ['m.deleted_at IS NULL', 'NOT (m.booking_only = 1 AND m.day > ?)']
+  const binds = [manilaToday()]
   const like = likePattern(p.get('q'))
   if (like) {
     where.push(`(pt.name LIKE ? OR o.full_name LIKE ? OR o.customer_no LIKE ? OR EXISTS (SELECT 1 FROM medical_entries e WHERE e.record_id = m.id
@@ -27,7 +28,7 @@ export async function onRequestGet({ request, env }) {
   const base = `FROM medical_records m JOIN pets pt ON pt.id = m.pet_id JOIN owners o ON o.id = m.owner_id WHERE ${where.join(' AND ')}`
   const [total, rows] = await env.DB.batch([
     env.DB.prepare(`SELECT COUNT(*) AS n ${base}`).bind(...binds),
-    env.DB.prepare(`SELECT m.*, pt.name AS pet_name, pt.species, o.full_name AS owner_name, o.customer_no, o.mobile ${base}
+    env.DB.prepare(`SELECT m.*, (SELECT a.status FROM appointments a WHERE a.id = m.appointment_id) AS appt_status, (SELECT a.legacy_status FROM appointments a WHERE a.id = m.appointment_id) AS appt_legacy_status, pt.name AS pet_name, pt.species, o.full_name AS owner_name, o.customer_no, o.mobile ${base}
       ORDER BY m.day DESC, m.id DESC LIMIT ? OFFSET ?`).bind(...binds, size, (page - 1) * size),
   ])
   const ids = rows.results.map((r) => r.id)

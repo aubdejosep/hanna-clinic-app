@@ -105,6 +105,17 @@ Then print the QR code from **Clinic operations → Clinic profile → Kiosk QR 
 3. **Tag reader on the front-desk PC.** Install the gym's fob bridge there the same way as at the gym (its README: download, unzip to e.g. `C:\HannaClinic\bridge\`, run `install-startup.bat`). Next to `bridge.exe`, create `allowed_origins.txt` with this one line: `https://app.hannapetwellnesscenter.com`, then restart the bridge. In the app on that PC: **Appointments → Tag Reader Off** (turns it on; the button then says **Tag Reader Ready**).
 4. Give each pet its tag: pet's page → **NFC Tag → Assign Tag** → tap the tag.
 
+### 15. Medical records: keep the services lists
+
+The first records import left out the old system's "Auto-generated note record", which holds each visit's **Services and Products**. Re-run it (same files as step 8; it replaces the earlier import):
+```
+git pull
+npm run db:migrate:remote
+npm run import:records -- --records data\records.jsonl.gz --owners data\masterlist_owners_2026-11-06.csv --pets data\masterlist_pets_2026-11-06.csv
+npx wrangler d1 execute hanna-clinic --remote --file data/import-records.sql
+```
+Records with nothing but booked services are marked "booked services only": shown in the history with whether the visit happened, but not counted as visits.
+
 ### 14. Deceased pets from the old system
 
 `git pull`, then (the CSV is in `data/`, which git ignores):

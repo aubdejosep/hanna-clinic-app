@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ClipboardList, FileHeart, Image, NotebookPen, Pill, Stethoscope, Syringe } from 'lucide-react'
+import { ClipboardList, FileHeart, Image, NotebookPen, Package, Pill, Stethoscope, Syringe } from 'lucide-react'
 import { Empty, ErrorNote, PawLoader } from './ui.jsx'
 import { useApi } from '../lib/useApi.js'
 import { prettyDay } from '../lib/format.js'
@@ -11,8 +11,10 @@ export const ENTRY = {
   diagnosis: { label: 'Diagnosis', icon: Stethoscope },
   treatment_plan: { label: 'Treatment Plan', icon: ClipboardList },
   prescription: { label: 'Prescription', icon: Pill },
+  services: { label: 'Services', icon: Package },
   other: { label: 'Entry', icon: FileHeart },
 }
+const BOOKING_STATUS = { completed: 'visit completed', unclosed: 'never closed in the old system', no_show: 'no show', cancelled: 'cancelled', accepted: 'booked', arrived: 'in clinic', started: 'in clinic' }
 const itemText = (i) => `${i.name}${i.detail ? ` · ${i.detail}` : ''}${i.qty && i.qty !== 1 ? ` × ${i.qty}` : ''}`
 
 export function EntryBadge({ type }) {
@@ -28,7 +30,7 @@ function Entry({ e }) {
   return (
     <li className="entry">
       <div className="entry-head">
-        <EntryBadge type={e.type} />
+        <EntryBadge type={d.booked ? 'services' : e.type} />
         {e.title && <strong>{e.title}</strong>}
       </div>
       {e.description && <p className="entry-text">{e.description}</p>}
@@ -58,6 +60,7 @@ export function RecordCard({ r, showPetLink, current }) {
           {r.kind === 'visit' ? 'Visit' : 'Record'}
           {r.appointmentNo && <> · {r.appointmentId ? <Link to={`/appointments/${r.appointmentId}`}>#{r.appointmentNo}</Link> : `#${r.appointmentNo}`}</>}
           {r.source === 'legacy' && ' · from the old system'}
+          {r.bookingOnly && ` · booked services only${r.appointmentStatus ? ` · ${BOOKING_STATUS[r.appointmentStatus] || r.appointmentStatus}` : ''}`}
           {r.source === 'legacy' && r.day > new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10) && ' · dated by a future booking (written early in the old system)'}
         </span>
         {showPetLink}

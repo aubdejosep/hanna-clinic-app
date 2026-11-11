@@ -33,7 +33,7 @@ export function ranges(range, today) {
 
 const VISITS = `visits AS (
   SELECT pet_id, owner_id, day FROM appointments WHERE status = 'completed' AND deleted_at IS NULL
-  UNION SELECT pet_id, owner_id, day FROM medical_records WHERE deleted_at IS NULL)`
+  UNION SELECT pet_id, owner_id, day FROM medical_records WHERE deleted_at IS NULL AND booking_only = 0)`
 const VACCINE_ITEM = "(i.name LIKE '%VACCIN%' OR i.name IN ('ARV', 'KCV') OR i.detail LIKE '%RABIES%')"
 
 export async function onRequestGet({ request, env, data }) {

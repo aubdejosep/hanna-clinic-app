@@ -8,9 +8,10 @@
 //   data/import-records-report.md   -> what was matched, skipped and filled in
 //
 // Run it after the appointments import. It:
-//   * adds every record with its entries (Note, Vaccination, Diagnosis, Treatment Plan), leaving out the
-//     old system's automatic "Auto-generated note record" made when a booking was created, and records
-//     holding nothing but an automatic vaccine placeholder (a booking, not a vaccination);
+//   * adds every record with its entries (Note, Vaccination, Diagnosis, Treatment Plan). The old system's
+//     "Auto-generated note record" (made when a visit was booked) becomes a "Services and Products" entry:
+//     its boilerplate text is dropped, its list of services and products is kept. A record with nothing
+//     but that list (and vaccine placeholders) is marked booking_only: shown, but not proof of a visit;
 //   * fills in birthdates and owner addresses the app doesn't have yet (never overwrites);
 //   * settles the bookings the old system left open: Completed when the pet has a record that day,
 //     otherwise No Show;
@@ -103,6 +104,12 @@ const isPlaceholder = (e) => e.type === 'VACCINATION' && PLACEHOLDER.test(String
 const TYPE = { NOTE: 'note', VACCINATION: 'vaccination', DIAGNOSIS: 'diagnosis', 'TREATMENT PLAN': 'treatment_plan', PRESCRIPTION: 'prescription' }
 
 function shapeEntry(e) {
+  if (isAuto(e)) {
+    return {
+      type: 'note', title: 'Services and Products', description: null, details: { booked: true }, imageCount: e.imageCount || 0,
+      items: (e.items || []).map((i) => ({ kind: i.kind, name: tidy(i.name), detail: tidy(i.detail) || null, qty: i.qty || 1, ...(i.notes && !/^Booked as part of the appointment/i.test(i.notes) ? { notes: tidy(i.notes) } : {}) })),
+    }
+  }
   let title = tidy(e.title)
   const details = {}
   const plan = title.match(/^(.*?)\s+(ACTIVE|COMPLETED|CANCELLED|ON HOLD|PAUSED|INACTIVE)\s+Priority:\s*(\w+)$/i)
@@ -133,14 +140,17 @@ function shapeEntry(e) {
   }
 }
 
-const report = { placeholdersKept: 0, pdfs: rows.length, errors: 0, autoOnly: 0, empty: 0, unmatched: [], ambiguous: 0, byPhone: 0, records: 0, entries: 0, types: {}, images: 0 }
+const report = { bookingOnly: 0, placeholdersKept: 0, pdfs: rows.length, errors: 0, autoOnly: 0, empty: 0, unmatched: [], ambiguous: 0, byPhone: 0, records: 0, entries: 0, types: {}, images: 0 }
 const records = []
 const latestByPet = new Map() // pet key -> {day, birthdate, address, no}
 rows.forEach((r, idx) => {
   if (r.error) { report.errors++; return }
   const real = (r.entries || []).filter((e) => !isAuto(e) && !isPlaceholder(e))
-  const kept = real.length ? (r.entries || []).filter((e) => !isAuto(e)) : []
+  const bookingOnly = !real.length
+  // Booking only: just the services list (a vaccine placeholder repeats what's in it). Otherwise everything.
+  const kept = bookingOnly ? (r.entries || []).filter((e) => isAuto(e) && (e.items || []).length) : (r.entries || [])
   if (!kept.length) { if ((r.entries || []).length) report.autoOnly++; else report.empty++; return }
+  if (bookingOnly) report.bookingOnly++
   report.placeholdersKept += kept.filter(isPlaceholder).length
   const day = iso(r.date)
   const m = match(r)
@@ -148,7 +158,7 @@ rows.forEach((r, idx) => {
   if (m.how === 'name (ambiguous)') report.ambiguous++
   if (m.how === 'phone') report.byPhone++
   const entries = kept.map(shapeEntry)
-  records.push({ ref: idx + 1, no: m.no, pet: m.pet, day, kind: r.kind === 'appointment' ? 'visit' : 'record', recordId: r.recordId, apptNo: r.appointmentNo === 'Standalone' ? null : r.appointmentNo, file: `${r.zip}/${r.file}`, entries })
+  records.push({ ref: idx + 1, bookingOnly, no: m.no, pet: m.pet, day, kind: r.kind === 'appointment' ? 'visit' : 'record', recordId: r.recordId, apptNo: r.appointmentNo === 'Standalone' ? null : r.appointmentNo, file: `${r.zip}/${r.file}`, entries })
   report.records++
   report.entries += entries.length
   for (const e of entries) { report.types[e.type] = (report.types[e.type] || 0) + 1; report.images += e.imageCount }
@@ -172,8 +182,8 @@ const sql = [
 ]
 records.sort((a, b) => a.day.localeCompare(b.day) || a.ref - b.ref)
 for (const r of records) {
-  sql.push(`INSERT INTO medical_records (pet_id, owner_id, day, kind, source, legacy_record_id, legacy_appointment_no, legacy_ref, legacy_file, created_at)
-SELECT p.id, p.owner_id, ${q(r.day)}, ${q(r.kind)}, 'legacy', ${q(r.recordId)}, ${q(r.apptNo)}, ${r.ref}, ${q(r.file)}, ${q(now)} ${petSel(r.no, r.pet)};`)
+  sql.push(`INSERT INTO medical_records (pet_id, owner_id, day, kind, booking_only, source, legacy_record_id, legacy_appointment_no, legacy_ref, legacy_file, created_at)
+SELECT p.id, p.owner_id, ${q(r.day)}, ${q(r.kind)}, ${r.bookingOnly ? 1 : 0}, 'legacy', ${q(r.recordId)}, ${q(r.apptNo)}, ${r.ref}, ${q(r.file)}, ${q(now)} ${petSel(r.no, r.pet)};`)
   r.entries.forEach((e, i) => {
     sql.push(`INSERT INTO medical_entries (record_id, pet_id, day, type, title, description, items, details, image_count, sort, created_at)
 SELECT id, pet_id, day, ${q(e.type)}, ${q(e.title)}, ${q(e.description)}, ${q(JSON.stringify(e.items))}, ${q(e.details ? JSON.stringify(e.details) : null)}, ${e.imageCount}, ${i}, ${q(now)} FROM medical_records WHERE source = 'legacy' AND legacy_ref = ${r.ref};`)
@@ -186,7 +196,7 @@ for (const p of latestByPet.values()) {
   if (p.address) { addresses++; sql.push(`UPDATE owners SET address = ${q(p.address)}, updated_at = ${q(now)} WHERE (address IS NULL OR address = '') AND customer_no = ${q(p.no)};`) }
 }
 // Link records to the pet's appointment that day, then settle the bookings left open in the old system.
-const hasRecord = "EXISTS (SELECT 1 FROM medical_records m WHERE m.pet_id = a.pet_id AND m.day = a.day AND m.deleted_at IS NULL)"
+const hasRecord = "EXISTS (SELECT 1 FROM medical_records m WHERE m.pet_id = a.pet_id AND m.day = a.day AND m.deleted_at IS NULL AND m.booking_only = 0)"
 sql.push(
   `UPDATE medical_records SET appointment_id = (SELECT a.id FROM appointments a WHERE a.pet_id = medical_records.pet_id AND a.day = medical_records.day AND a.deleted_at IS NULL AND a.status <> 'cancelled' ORDER BY a.id LIMIT 1) WHERE source = 'legacy';`,
   `INSERT INTO appointment_events (appointment_id, at, from_status, to_status, via, actor) SELECT a.id, ${q(now)}, a.status, 'completed', 'import', 'Medical records import' FROM appointments a WHERE a.legacy_unclosed = 1 AND ${hasRecord};`,
@@ -207,7 +217,8 @@ Generated ${now} from \`${args.records.split(/[\\/]/).pop()}\`. Contains medical
 | | Count |
 |---|---|
 | PDFs read on the clinic PC | ${report.pdfs} |
-| Only the old system's automatic booking notes and vaccine placeholders (left out) | ${report.autoOnly} |
+| Booking only: just the services booked, no notes (kept, not counted as visits) | ${report.bookingOnly} |
+| Nothing usable (left out) | ${report.autoOnly} |
 | Vaccine placeholders kept because the record has real entries (text dropped, vaccine kept) | ${report.placeholdersKept} |
 | Empty ("No medical records found") | ${report.empty} |
 | Couldn't be read | ${report.errors} |
@@ -223,5 +234,5 @@ Usually pets added after the masterlist export, or renamed since.
 ${report.unmatched.map((r) => `- ${line(r)}`).join('\n') || '- none'}
 `)
 console.log(`${report.records} records with ${report.entries} entries ${JSON.stringify(report.types)}.
-Left out: ${report.autoOnly} automatic booking notes, ${report.empty} empty, ${report.unmatched.length} not matched to a pet.
+Booking only: ${report.bookingOnly}. Left out: ${report.autoOnly} with nothing usable, ${report.empty} empty, ${report.unmatched.length} not matched to a pet.
 Wrote data/import-records.sql and data/import-records-report.md`)

@@ -1051,3 +1051,4 @@ body:has(.omni-sheet) .fab-wrap { display: none; }
 @media (max-width: 520px) { .stat-grid-3 { grid-template-columns: 1fr; } }
 .record.is-current { box-shadow: inset 3px 0 0 var(--teal-deep); }
 .record-head .badge { margin-left: 6px; }
+.entry-services { background: var(--teal-tint); }
