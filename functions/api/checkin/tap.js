@@ -34,7 +34,7 @@ export async function onRequestPost({ request, env, data }) {
     if (open.checked_in_at && Date.now() - Date.parse(open.checked_in_at) < DOUBLE_TAP_MS) {
       return json({ result: 'ignored', uid, pet: petInfo, appointment: await loadAppointment(env, open.id) })
     }
-    const res = await moveTo(env, open, 'completed', { via: 'tag', actor })
+    const res = await moveTo(env, open, 'completed', { via: 'tag', actor, staffId: data.staff.id })
     if (res.error) return fail(400, res.error)
     await audit(env, data.staff.email, 'tap_out', 'appointment', open.id, { uid })
     return json({ result: 'checked_out', uid, pet: petInfo, appointment: await loadAppointment(env, open.id) })

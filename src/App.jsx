@@ -16,6 +16,8 @@ import LoginPage from './pages/LoginPage.jsx'
 import AppointmentsPage from './pages/AppointmentsPage.jsx'
 import AppointmentPage from './pages/AppointmentPage.jsx'
 import RecordsPage from './pages/RecordsPage.jsx'
+import InventoryPage from './pages/InventoryPage.jsx'
+import { CountPage, CountsPage, MovementsPage } from './pages/StockPages.jsx'
 import { StaffContext } from './lib/staff.js'
 
 export default function App() {
@@ -59,6 +61,10 @@ export default function App() {
         <Route path="clinic/profile" element={<ClinicProfilePage />} />
         <Route path="clinic/services" element={<ServicesPage />} />
         <Route path="clinic" element={<ClinicProfilePage />} />
+        <Route path="inventory" element={<InventoryPage />} />
+        <Route path="inventory/movements" element={<MovementsPage />} />
+        <Route path="inventory/counts" element={<CountsPage />} />
+        <Route path="inventory/counts/:id" element={<CountPage />} />
         <Route path="inbox/*" element={<ComingSoon module="inbox" />} />
         <Route path="*" element={<ComingSoon module="missing" />} />
       </Route>

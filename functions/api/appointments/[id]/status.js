@@ -4,6 +4,7 @@
 
 import { json, fail, readJson, audit } from '../../../../lib/http.js'
 import { moveTo, STAMP } from '../../../../lib/appointments.js'
+import { syncVisitStock } from '../../../../lib/stock.js'
 import { loadFull } from '../[id].js'
 
 export async function onRequestPost({ request, env, params, data }) {
@@ -27,13 +28,14 @@ export async function onRequestPost({ request, env, params, data }) {
       env.DB.prepare('INSERT INTO appointment_events (appointment_id, at, from_status, to_status, via, actor) VALUES (?, ?, ?, ?, ?, ?)')
         .bind(id, now, appt.status, last.from_status, 'button', `${data.staff.name} (undo)`),
     ])
+    await syncVisitStock(env, id, data.staff) // undoing a check-out puts its stock back
     await audit(env, data.staff.email, 'undo_status', 'appointment', id, { from: appt.status, to: last.from_status })
     return json({ appointment: await loadFull(env, id) })
   }
 
   const to = String(body.to || '')
   if (to === 'cancelled') return fail(400, 'Use Cancel, so the reason is saved.')
-  const res = await moveTo(env, appt, to, { actor: data.staff.name })
+  const res = await moveTo(env, appt, to, { actor: data.staff.name, staffId: data.staff.id })
   if (res.error) return fail(400, res.error)
   if (body.assignMe) await env.DB.prepare('INSERT OR IGNORE INTO appointment_staff (appointment_id, staff_id) VALUES (?, ?)').bind(id, data.staff.id).run()
   await audit(env, data.staff.email, 'status', 'appointment', id, { from: appt.status, to })

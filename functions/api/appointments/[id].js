@@ -10,7 +10,7 @@ import { loadAppointment, apptNo, NEXT } from '../../../lib/appointments.js'
 export async function loadFull(env, id) {
   const appt = await loadAppointment(env, id)
   if (!appt) return null
-  const [pet, items, staff, notes, events, from, to, tag, later] = await env.DB.batch([
+  const [pet, items, staff, notes, events, from, to, tag, later, payments] = await env.DB.batch([
     env.DB.prepare('SELECT * FROM pets WHERE id = ?').bind(appt.pet.id),
     env.DB.prepare('SELECT * FROM appointment_items WHERE appointment_id = ? AND deleted_at IS NULL ORDER BY id').bind(id),
     env.DB.prepare(`SELECT s.id, s.first_name, s.last_name, s.title, s.role FROM appointment_staff x JOIN staff s ON s.id = x.staff_id
@@ -22,6 +22,7 @@ export async function loadFull(env, id) {
     env.DB.prepare('SELECT uid FROM pet_tags WHERE pet_id = ? AND retired_at IS NULL LIMIT 1').bind(appt.pet.id),
     env.DB.prepare(`SELECT id, day, time, status FROM appointments WHERE pet_id = ? AND id <> ? AND day > ? AND deleted_at IS NULL
       AND status NOT IN ('cancelled', 'no_show') ORDER BY day, time LIMIT 1`).bind(appt.pet.id, id, appt.day),
+    env.DB.prepare('SELECT * FROM payments WHERE appointment_id = ? ORDER BY id').bind(id),
   ])
   const link = (r) => r ? { id: r.id, no: apptNo(r), day: r.day, time: r.time, status: r.status } : null
   const history = events.results.map((e) => ({ at: e.at, from: e.from_status, to: e.to_status, via: e.via, actor: e.actor }))
@@ -29,6 +30,9 @@ export async function loadFull(env, id) {
     ...appt,
     pet: { ...appt.pet, ...petOut(pet.results[0]), tag: tag.results[0]?.uid || null },
     items: items.results.map((i) => ({ id: i.id, serviceId: i.service_id, variationId: i.variation_id, productId: i.product_id, name: i.name, detail: i.detail, kind: i.kind, qty: i.qty, price: i.price_cents == null ? null : i.price_cents / 100 })),
+    due: items.results.reduce((n, i) => n + (i.price_cents || 0) * (i.qty || 1), 0) / 100,
+    payments: payments.results.map((p) => ({ id: p.id, at: p.at, due: p.due_cents / 100, amount: p.amount_cents / 100, method: p.method, reference: p.reference, note: p.note,
+      by: p.staff_name, voidedAt: p.voided_at, voidedBy: p.voided_by, voidReason: p.void_reason })),
     staff: staff.results.map((s) => ({ id: s.id, name: `${s.first_name} ${s.last_name}`.trim(), title: s.title, role: s.role })),
     notes: notes.results.map((n) => ({ id: n.id, author: n.author, staffId: n.staff_id, body: n.body, at: n.created_at })),
     history,

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, BedDouble, CircleCheck, Hourglass, LogOut, Megaphone, Pill, Siren, Stethoscope, TriangleAlert } from 'lucide-react'
+import { ArrowRight, BedDouble, Wallet, CircleCheck, Hourglass, LogOut, Megaphone, Pill, Siren, Stethoscope, TriangleAlert } from 'lucide-react'
 import { ErrorNote, PetAvatar, useToast, PawLoader } from './ui.jsx'
 import { appointmentsChanged, useAppointmentsChanged } from './TagCheckIn.jsx'
-import { CheckOutPanel } from './QuickAdd.jsx'
+import { PaymentPanel } from './QuickAdd.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { clockTime, since } from '../lib/appointments.js'
@@ -13,13 +13,14 @@ const STATIONS = [
   { key: 'waiting', title: 'Waiting', hint: 'Tapped in. First come, first served; emergencies on top.', icon: Hourglass },
   { key: 'with_vet', title: 'With Vet', hint: 'Consultation started.', icon: Stethoscope },
   { key: 'inpatient', title: 'Inpatient', hint: 'Confined or recovering.', icon: BedDouble },
-  { key: 'dispense', title: 'Dispense', hint: 'Front desk: medicines and the bill, then check out.', icon: Pill },
+  { key: 'dispense', title: 'Dispense', hint: 'Front desk: anything else given, then Take Payment. Tap the tag on the way out.', icon: Pill },
   { key: 'done', title: 'Done Today', hint: 'Checked out. Unfinished steps stay here until done.', icon: CircleCheck },
 ]
 const NEXT = { with_vet: ['dispense', 'Send to Dispense'], inpatient: ['dispense', 'Send to Dispense'], dispense: ['completed', 'Check Out'] }
+const PAID = new Set(['paid', 'not_tracked'])
 
 function Card({ a, station, position, onMove, onCheckOut, busy }) {
-  const next = NEXT[station]
+  const next = station === 'dispense' && !PAID.has(a.paymentStatus) ? ['pay', 'Take Payment'] : NEXT[station]
   const at = station === 'waiting' ? a.checkedInAt : station === 'with_vet' ? a.startedAt : station === 'inpatient' ? (a.admittedAt || a.checkedInAt) : station === 'dispense' ? a.dispenseAt : a.checkedOutAt
   return (
     <li className={`board-card ${a.emergency ? 'is-urgent' : ''}`}>
@@ -39,13 +40,13 @@ function Card({ a, station, position, onMove, onCheckOut, busy }) {
       {a.steps.length > 0 && (
         <ul className="steps" aria-label="Still to do">
           {a.steps.map((s, i) => (
-            <li key={i}><Link to={s.kind === 'pet_info' ? `/pets/${a.pet.id}` : s.kind === 'owner_info' ? `/clients/${a.owner.id}` : `/appointments/${a.id}${s.kind === 'confirm_items' ? '?confirm=1' : ''}`} className="step-chip"><TriangleAlert aria-hidden /> {s.text}</Link></li>
+            <li key={i}><Link to={s.kind === 'pet_info' ? `/pets/${a.pet.id}` : s.kind === 'owner_info' ? `/clients/${a.owner.id}` : `/appointments/${a.id}${s.kind === 'unpaid' ? '?pay=1' : ''}`} className="step-chip"><TriangleAlert aria-hidden /> {s.text}</Link></li>
           ))}
         </ul>
       )}
       {next && (
-        <button type="button" className="btn btn-quiet board-move" onClick={() => (next[0] === 'completed' ? onCheckOut(a) : onMove(a, next[0]))} disabled={busy}>
-          {next[0] === 'completed' ? <LogOut aria-hidden /> : <ArrowRight aria-hidden />} {next[1]}
+        <button type="button" className="btn btn-quiet board-move" onClick={() => (next[0] === 'pay' ? onCheckOut(a) : onMove(a, next[0]))} disabled={busy}>
+          {next[0] === 'pay' ? <Wallet aria-hidden /> : next[0] === 'completed' ? <LogOut aria-hidden /> : <ArrowRight aria-hidden />} {next[1]}
         </button>
       )}
     </li>
@@ -112,7 +113,7 @@ export default function ClinicBoard() {
           )
         })}
       </div>}
-      {checkOut && <CheckOutPanel appointmentId={checkOut.id} onClose={() => setCheckOut(null)} onDone={(n, msg) => { setCheckOut(null); toast(msg); appointmentsChanged() }} />}
+      {checkOut && <PaymentPanel appointmentId={checkOut.id} onClose={() => setCheckOut(null)} onDone={(n, msg) => { setCheckOut(null); toast(msg); appointmentsChanged() }} />}
     </section>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, CalendarPlus, Globe, ClipboardCheck, ListChecks, PawPrint, Pill, Stethoscope, UserRound, X } from 'lucide-react'
+import { Bell, CalendarClock, CalendarPlus, Globe, ClipboardCheck, Package, PawPrint, Wallet, Pill, Stethoscope, UserRound, X } from 'lucide-react'
 import { useToast } from './ui.jsx'
 import { useAppointmentsChanged } from './TagCheckIn.jsx'
 import { api } from '../lib/api.js'
@@ -10,14 +10,16 @@ import { prettyDay } from '../lib/format.js'
 const KIND = {
   follow_up: { icon: CalendarPlus, label: 'Follow-Ups' },
   dispense: { icon: Pill, label: 'Dispensed Items' },
-  confirm_items: { icon: ListChecks, label: 'Confirm Items' },
+  unpaid: { icon: Wallet, label: 'Payments' },
+  low_stock: { icon: Package, label: 'Stock' },
+  expiring: { icon: CalendarClock, label: 'Stock' },
   no_services: { icon: ClipboardCheck, label: 'Services' },
   no_vet: { icon: Stethoscope, label: 'Staff' },
   pet_info: { icon: PawPrint, label: 'Pet Details' },
   owner_info: { icon: UserRound, label: 'Owner Details' },
   website_client: { icon: Globe, label: 'Online Clients' },
 }
-const linkOf = (r) => (r.kind === 'pet_info' ? `/pets/${r.pet.id}` : ['owner_info', 'website_client'].includes(r.kind) ? `/clients/${r.owner.id}` : `/appointments/${r.appointmentId}${r.kind === 'confirm_items' ? '?confirm=1' : ''}`)
+const linkOf = (r) => (r.kind === 'low_stock' ? '/inventory?filter=low' : r.kind === 'expiring' ? '/inventory?filter=expiring' : r.kind === 'pet_info' ? `/pets/${r.pet.id}` : ['owner_info', 'website_client'].includes(r.kind) ? `/clients/${r.owner.id}` : `/appointments/${r.appointmentId}${r.kind === 'unpaid' ? '?pay=1' : ''}`)
 
 // The bell: workflow steps still to finish. Each one clears itself once the step is done.
 export default function ReminderBell({ align = 'right' }) {
@@ -83,7 +85,7 @@ export default function ReminderBell({ align = 'right' }) {
                       <span className="cell-sub">{r.text}{r.day ? ` · Visit ${prettyDay(r.day)}` : ''}</span>
                       <div className="bell-actions">
                         <Link className="text-btn" to={linkOf(r)} onClick={() => setOpen(false)}>{r.action}</Link>
-                        <button type="button" className="text-btn" onClick={() => notNeeded(r)} disabled={busy === r.key}>Not Needed</button>
+                        {r.kind !== 'unpaid' && <button type="button" className="text-btn" onClick={() => notNeeded(r)} disabled={busy === r.key}>{['low_stock', 'expiring'].includes(r.kind) ? 'Hide for Today' : 'Not Needed'}</button>}
                       </div>
                     </div>
                   </li>

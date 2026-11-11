@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowDownUp, CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Info, LayoutGrid, List, LogIn, RefreshCw, Rows3, Search, TriangleAlert } from 'lucide-react'
 import { Empty, ErrorNote, PageHead, PetAvatar, useToast, PawLoader } from '../components/ui.jsx'
 import { BookPanel, StatusBadge, WalkInPanel } from '../components/AppointmentPanels.jsx'
-import { CheckOutPanel } from '../components/QuickAdd.jsx'
+import { PaymentPanel } from '../components/QuickAdd.jsx'
 import { ReaderSwitch, appointmentsChanged, useAppointmentsChanged } from '../components/TagCheckIn.jsx'
 import { query } from '../lib/api.js'
 import { useApi, useDebounced } from '../lib/useApi.js'
@@ -80,7 +80,7 @@ function InClinic() {
           ))}
         </ul>
       )}
-      {checkingOut && <CheckOutPanel appointmentId={checkingOut.id} onClose={() => setCheckingOut(null)} onDone={(n, msg) => { setCheckingOut(null); toast(msg); appointmentsChanged() }} />}
+      {checkingOut && <PaymentPanel appointmentId={checkingOut.id} onClose={() => setCheckingOut(null)} onDone={(n, msg) => { setCheckingOut(null); toast(msg); appointmentsChanged() }} />}
     </section>
   )
 }

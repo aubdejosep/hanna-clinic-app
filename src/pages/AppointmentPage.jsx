@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowRight, CalendarClock, ListChecks, CalendarDays, CircleX, Clock, History, MessageSquare, Nfc, Plus, Siren, Stethoscope, Trash2, TriangleAlert, Undo2, User, UserRound } from 'lucide-react'
+import { ArrowRight, Ban, CalendarClock, Wallet, CalendarDays, CircleX, Clock, History, MessageSquare, Nfc, Plus, Siren, Stethoscope, Trash2, TriangleAlert, Undo2, User, UserRound } from 'lucide-react'
 import { ErrorNote, Field, PageHead, Panel, PetAvatar, useToast, PawLoader } from '../components/ui.jsx'
 import { BookPanel, CancelPanel, ReschedulePanel, ServicePicker, StaffSelect, StatusBadge } from '../components/AppointmentPanels.jsx'
-import { CheckOutPanel, toSend } from '../components/QuickAdd.jsx'
+import { PaymentPanel, PaymentSummary, peso, toSend } from '../components/QuickAdd.jsx'
 import { appointmentsChanged, useAppointmentsChanged } from '../components/TagCheckIn.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
@@ -71,7 +71,7 @@ function StatusControl({ a, onChange, setPanel }) {
         {actions.length > 0 && (
           <div className="status-actions">
             {actions.map(([to, label, hint], i) => (
-              <button key={to} type="button" className={`btn ${i === 0 ? '' : 'btn-quiet'}`} onClick={() => (to === 'completed' ? setPanel('checkout') : go({ to }, to))} disabled={!!busy} title={hint || undefined}>
+              <button key={to} type="button" className={`btn ${i === 0 ? '' : 'btn-quiet'}`} onClick={() => (to === 'completed' && a.paymentStatus !== 'paid' && a.paymentStatus !== 'not_tracked' ? setPanel('pay') : go({ to }, to))} disabled={!!busy} title={hint || undefined}>
                 {busy === to ? 'Saving…' : label} {i === 0 && <ArrowRight aria-hidden />}
               </button>
             ))}
@@ -320,16 +320,18 @@ function Items({ a, onChange }) {
       </div>
       {a.items.length ? (
         <table className="table">
-          <thead><tr><th>Item</th><th>Type</th><th><span className="sr-only">Remove</span></th></tr></thead>
+          <thead><tr><th>Item</th><th>Type</th><th className="num">Price</th><th><span className="sr-only">Remove</span></th></tr></thead>
           <tbody>
             {a.items.map((it) => (
               <tr key={it.id} style={{ cursor: 'default' }}>
                 <td><strong>{it.name}</strong>{it.detail && <span className="cell-sub">{it.detail}</span>}</td>
                 <td data-label="Type">{it.kind === 'product' ? 'Product' : 'Service'}{it.qty !== 1 && ` × ${it.qty}`}</td>
+                <td data-label="Price" className="num">{it.price != null ? peso(it.price * (it.qty || 1)) : '—'}</td>
                 <td style={{ textAlign: 'right' }}>{a.status !== 'cancelled' && <button type="button" className="icon-btn" onClick={() => remove(it)} aria-label={`Remove ${it.name}`} title="Remove"><Trash2 /></button>}</td>
               </tr>
             ))}
           </tbody>
+          <tfoot><tr className="no-hover"><td colSpan={2}><strong>Total</strong></td><td className="num" data-label="Total"><strong>{peso(a.due)}</strong></td><td /></tr></tfoot>
         </table>
       ) : <p className="card-pad muted" style={{ margin: 0 }}>No services yet. Add what was done during the visit.</p>}
       {adding && (
@@ -341,6 +343,50 @@ function Items({ a, onChange }) {
         </Panel>
       )}
     </section>
+  )
+}
+
+// Payment: the total from the price list and how it was paid. Owners can void a payment (with a reason).
+function Payment({ a, setPanel }) {
+  const staff = useStaff()
+  if (['cancelled', 'no_show', 'accepted', 'pending'].includes(a.status) && !a.payments.length) return null
+  const live = a.payments.find((p) => !p.voidedAt)
+  return (
+    <section className="card">
+      <div className="card-head">
+        <div><h2>Payment</h2><p>{a.paymentStatus === 'paid' ? `Paid${a.stockDeductedAt ? ' · taken off stock' : ' · stock comes off at check-out'}` : a.paymentStatus === 'not_tracked' ? 'From before payments were recorded in the app' : `Not paid yet · total ${peso(a.due)}`}</p></div>
+        {a.paymentStatus === 'unpaid' && <button type="button" className="btn" onClick={() => setPanel('pay')}><Wallet aria-hidden /> Take Payment</button>}
+        {live && canManage(staff) && <button type="button" className="btn btn-quiet" onClick={() => setPanel('void')}><Ban aria-hidden /> Void Payment</button>}
+      </div>
+      {a.payments.length > 0 && <div className="card-pad"><PaymentSummary a={a} /></div>}
+    </section>
+  )
+}
+
+function VoidPanel({ a, onClose, onDone }) {
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  async function save() {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await api(`appointments/${a.id}/pay`, { method: 'DELETE', body: { reason } })
+      onDone(res.appointment)
+    } catch (err) {
+      setError(err)
+      setBusy(false)
+    }
+  }
+  return (
+    <Panel dirty={!!reason.trim()} title="Void Payment" intro={`${a.pet.name} · ${prettyDay(a.day)}. The visit goes back to unpaid and its stock goes back on the shelf until it's paid again.`} onClose={onClose} busy={busy}
+      footer={<><button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Keep It</button>
+        <button type="button" className="btn btn-dark" onClick={save} disabled={busy || !reason.trim()}>{busy ? 'Voiding…' : 'Void Payment'}</button></>}>
+      <ErrorNote error={error && !error.body?.errors ? error : null} />
+      <section className="form-section">
+        <Field label="Reason" error={error?.body?.errors?.reason}>{(f) => <input {...f} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} placeholder="e.g. charged the wrong pet" autoFocus />}</Field>
+      </section>
+    </Panel>
   )
 }
 
@@ -403,9 +449,9 @@ export default function AppointmentPage() {
   const { data, error, setData, reload } = useApi(`appointments/${id}`)
   useAppointmentsChanged(reload)
   const [params, setParams] = useSearchParams()
-  const [panel, setPanel] = useState(params.get('confirm') ? 'confirm' : null)
+  const [panel, setPanel] = useState(params.get('pay') ? 'pay' : null)
   const toast = useToast()
-  const closePanel = () => { setPanel(null); if (params.get('confirm')) setParams({}, { replace: true }) }
+  const closePanel = () => { setPanel(null); if (params.get('pay')) setParams({}, { replace: true }) }
   const navigate = useNavigate()
   const a = data?.appointment
   const crumbs = [{ label: 'Dashboard', to: '/' }, { label: 'Appointments', to: '/appointments' }, { label: 'Appointment Details' }]
@@ -420,7 +466,7 @@ export default function AppointmentPage() {
     a.to && { icon: CalendarDays, title: 'New Appointment', text: `Rescheduled to ${prettyDay(a.to.day)}, ${prettyTime(a.to.time)}`, link: `/appointments/${a.to.id}`, no: a.to.no },
     a.from && { icon: CalendarClock, title: 'View Original Appointment', text: `This appointment was rescheduled${a.rescheduleReason ? `: ${a.rescheduleReason}` : ''}`, link: `/appointments/${a.from.id}`, no: a.from.no },
     a.legacyInfo && { icon: TriangleAlert, title: 'Note from the Old System', text: a.legacyInfo },
-    a.status === 'completed' && !a.itemsConfirmedAt && { icon: ListChecks, title: 'Confirm Items', text: 'Checked out with a tag tap. Check the list and add anything else given.', onClick: () => setPanel('confirm') },
+    a.status === 'completed' && a.paymentStatus === 'unpaid' && { icon: Wallet, title: 'Take Payment', text: 'Checked out without a payment. Its medicines stay on the stock count until it is paid.', onClick: () => setPanel('pay') },
     a.reason && { icon: MessageSquare, title: a.kind === 'walk_in' ? 'Reason for the Visit' : 'Notes for the Visit', text: a.reason },
   ].filter(Boolean)
 
@@ -469,6 +515,7 @@ export default function AppointmentPage() {
             <Notes a={a} onChange={changed} />
           </div>
           <Items a={a} onChange={changed} />
+          <Payment a={a} setPanel={setPanel} />
           <VisitRecord petId={a.pet.id} day={a.day} showEmpty={['arrived', 'started', 'inpatient', 'dispense', 'completed'].includes(a.status)} />
           <Timeline a={a} />
         </div>
@@ -482,8 +529,11 @@ export default function AppointmentPage() {
         <BookPanel pet={{ ...a.pet, owner: a.owner }} defaultDay={addDays(a.day, a.followUpDays || 7)} followUpOf={{ id: a.id, reason: a.followUpReason }} onClose={() => setPanel(null)}
           onDone={(n) => { setPanel(null); appointmentsChanged(); toast(`Follow-up booked for ${prettyDay(n.day)}, ${prettyTime(n.time)}`); reload() }} />
       )}
-      {(panel === 'checkout' || (panel === 'confirm' && a.status === 'completed' && !a.itemsConfirmedAt)) && (
-        <CheckOutPanel appointmentId={a.id} checkOut={panel === 'checkout'} onClose={closePanel} onDone={(n, msg) => { closePanel(); changed(n, msg) }} />
+      {panel === 'pay' && (
+        <PaymentPanel appointmentId={a.id} onClose={closePanel} onDone={(n, msg) => { closePanel(); changed(n, msg) }} />
+      )}
+      {panel === 'void' && (
+        <VoidPanel a={a} onClose={closePanel} onDone={(n) => { closePanel(); changed(n, 'Payment voided') }} />
       )}
       {panel === 'cancel' && (
         <CancelPanel appointment={a} onClose={() => setPanel(null)} onDone={(n) => { setPanel(null); changed(n, 'Appointment cancelled') }} />

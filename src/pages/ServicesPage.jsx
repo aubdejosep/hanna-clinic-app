@@ -1,6 +1,6 @@
 // Clinic operations → Services: the price list, as on the old Services page.
 import { useState } from 'react'
-import { Plus, Search, Stethoscope, Trash2 } from 'lucide-react'
+import { Boxes, Plus, Search, Stethoscope, Trash2 } from 'lucide-react'
 import { Empty, ErrorNote, Field, PageHead, Panel, useToast } from '../components/ui.jsx'
 import { api, ApiError, query } from '../lib/api.js'
 import { useApi, useDebounced } from '../lib/useApi.js'
@@ -92,6 +92,8 @@ function ServicePanel({ service, categories, onClose, onDone }) {
         </label>
       </section>
 
+      {editing && <StockUse service={service} />}
+
       <section className="form-section">
         <div className="form-section-head"><h3 className="label">Variations <small>(optional)</small></h3></div>
         <p className="field-hint" style={{ margin: 0 }}>For prices that depend on size or type, e.g. “1–3 kg” and “3–5 kg”.</p>
@@ -109,6 +111,61 @@ function ServicePanel({ service, categories, onClose, onDone }) {
         <button type="button" className="btn btn-quiet" style={{ justifySelf: 'start' }} onClick={() => set({ variations: [...v.variations, { name: '', price: v.price }] })}><Plus aria-hidden /> New Variation</button>
       </section>
     </Panel>
+  )
+}
+
+// Uses from Stock: what this service (or each size) takes off stock when a visit is paid and
+// checked out, e.g. VACCINE · ANTI RABIES uses 1 vial of Rabisin. Saved on its own button.
+function StockUse({ service }) {
+  const { data } = useApi(`services/${service.id}/stock`)
+  const products = useApi('inventory').data?.products || []
+  const [links, setLinks] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  const list = links ?? (data?.links || []).map((l) => ({ ...l, qty: String(l.qty) }))
+  const groups = [{ id: null, name: service.variations.length ? 'All Sizes (unless a size has its own)' : service.name }, ...service.variations.map((x) => ({ id: x.id, name: x.name }))]
+  const byName = Object.fromEntries(products.map((p) => [p.name.toLowerCase(), p]))
+  const set = (next) => { setLinks(next); setMsg('') }
+  async function save() {
+    setBusy(true)
+    try {
+      const res = await api(`services/${service.id}/stock`, { method: 'PUT', body: { links: list.filter((l) => l.productId).map((l) => ({ variationId: l.variationId, productId: l.productId, qty: l.qty })) } })
+      setLinks(res.links.map((l) => ({ ...l, qty: String(l.qty) })))
+      setMsg('Saved')
+    } catch (err) {
+      setMsg(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <section className="form-section">
+      <div className="form-section-head"><h3 className="label"><Boxes size={14} aria-hidden /> Uses from Stock <small>(optional)</small></h3></div>
+      <p className="field-hint" style={{ margin: 0 }}>What comes off stock when this service is on a paid, checked-out visit. Staff never need to add it by hand.</p>
+      <datalist id="stock-products">{products.map((p) => <option key={p.id} value={p.name} />)}</datalist>
+      {!data ? <span className="cell-sub">Loading…</span> : groups.map((g) => {
+        const mine = list.map((l, i) => [l, i]).filter(([l]) => (l.variationId || null) === g.id)
+        return (
+          <div key={g.id || 'base'} className="stock-use">
+            <strong>{g.name}</strong>
+            {mine.map(([l, i]) => (
+              <div key={i} className="stock-use-row">
+                <input className="select" list="stock-products" value={l.name || ''} placeholder="Product" aria-label="Product"
+                  onChange={(e) => { const p = byName[e.target.value.toLowerCase()]; set(list.map((x, j) => (j === i ? { ...x, name: e.target.value, productId: p?.id || null, unit: p?.unit } : x))) }} />
+                <input className="select stock-use-qty" value={l.qty} inputMode="decimal" aria-label="How many" onChange={(e) => set(list.map((x, j) => (j === i ? { ...x, qty: e.target.value.replace(/[^\d.]/g, '') } : x)))} />
+                <span className="cell-sub">{l.unit ? `${l.unit}s` : ''}</span>
+                <button type="button" className="icon-btn" onClick={() => set(list.filter((_, j) => j !== i))} aria-label="Remove" title="Remove"><Trash2 /></button>
+              </div>
+            ))}
+            <button type="button" className="text-btn" onClick={() => set([...list, { variationId: g.id, productId: null, name: '', qty: '1' }])}><Plus size={14} aria-hidden /> Add Product</button>
+          </div>
+        )
+      })}
+      <div className="inline-row">
+        <button type="button" className="btn btn-quiet" onClick={save} disabled={busy || links === null}>{busy ? 'Saving…' : 'Save Stock Use'}</button>
+        {msg && <span className="cell-sub">{msg}</span>}
+      </div>
+    </section>
   )
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Activity, CalendarDays, ChevronDown, ChevronRight, FolderOpen, Inbox, LayoutDashboard, LogOut, Menu, UserRound, X } from 'lucide-react'
+import { Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, FolderOpen, Inbox, LayoutDashboard, LogOut, Menu, UserRound, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 import { initials } from '../lib/format.js'
 import { canManage, ROLE_LABEL } from '../lib/staff.js'
@@ -26,6 +26,11 @@ const NAV = [
     { to: '/records', label: 'Records List' },
     { to: '/records/templates', label: 'Templates', soon: true },
   ] },
+  { label: 'Inventory', icon: Boxes, children: [
+    { to: '/inventory', label: 'Product List' },
+    { to: '/inventory/movements', label: 'Stock Movements' },
+    { to: '/inventory/counts', label: 'Stock Count' },
+  ] },
   { to: '/inbox', label: 'Inbox', icon: Inbox, soon: true },
 ]
 
@@ -46,7 +51,7 @@ function NavGroup({ group, pathname, staff }) {
       {open && (
         <div className="nav-children">
           {group.children.filter((c) => !c.owners || canManage(staff)).map((c) => (
-            <NavLink key={c.to} to={c.to} end={c.to === '/records'} className={({ isActive }) => `nav-link nav-child ${isActive || (c.to === '/clients' && pathname.startsWith('/pets')) ? 'active' : ''}`}>
+            <NavLink key={c.to} to={c.to} end={c.to === '/records' || c.to === '/inventory'} className={({ isActive }) => `nav-link nav-child ${isActive || (c.to === '/clients' && pathname.startsWith('/pets')) ? 'active' : ''}`}>
               {c.label}
             </NavLink>
           ))}

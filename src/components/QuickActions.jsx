@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, BedDouble, CalendarDays, CalendarPlus, UserCheck, UserPlus, X } from 'lucide-react'
+import { ArrowLeft, BedDouble, CalendarDays, CalendarPlus, ShoppingBag, UserCheck, UserPlus, X } from 'lucide-react'
 import { useToast } from './ui.jsx'
 import { BookPanel, WalkInPanel } from './AppointmentPanels.jsx'
 import { appointmentsChanged } from './TagCheckIn.jsx'
+import { SellPanel } from './SellPanel.jsx'
 import { prettyDay } from '../lib/format.js'
 import { prettyTime } from '../lib/appointments.js'
 
 // The old system's floating button, bottom right on every page: Appointment (Book Appointment,
-// Walk In, Admit Inpatient) and Register Pet Owner/Pets.
+// Walk In, Admit Inpatient), Register Pet Owner/Pets, and Sell Items (over the counter).
 export default function QuickActions() {
   const [menu, setMenu] = useState(null) // null | 'main' | 'appointment'
   const [panel, setPanel] = useState(null) // 'book' | 'walkin' | 'admit'
@@ -28,7 +29,7 @@ export default function QuickActions() {
   const done = (a, message) => { setPanel(null); appointmentsChanged(); toast(message); navigate(`/appointments/${a.id}`) }
   const items = menu === 'appointment'
     ? [['Book Appointment', CalendarPlus, () => open('book')], ['Walk In', UserCheck, () => open('walkin')], ['Admit Inpatient', BedDouble, () => open('admit')]]
-    : [['Appointment', CalendarDays, () => setMenu('appointment')], ['Register Pet Owner/Pets', UserPlus, () => { setMenu(null); navigate('/clients?new=1') }]]
+    : [['Appointment', CalendarDays, () => setMenu('appointment')], ['Register Pet Owner/Pets', UserPlus, () => { setMenu(null); navigate('/clients?new=1') }], ['Sell Items', ShoppingBag, () => open('sell')]]
 
   return (
     <>
@@ -54,6 +55,7 @@ export default function QuickActions() {
       </div>
       {panel === 'book' && <BookPanel onClose={() => setPanel(null)} onDone={(a) => done(a, `${a.pet.name} booked for ${prettyDay(a.day)}, ${prettyTime(a.time)}`)} />}
       {panel === 'walkin' && <WalkInPanel onClose={() => setPanel(null)} onDone={(a) => done(a, `${a.pet.name} checked in`)} />}
+      {panel === 'sell' && <SellPanel onClose={() => setPanel(null)} onDone={(msg) => { setPanel(null); toast(msg) }} />}
       {panel === 'admit' && <WalkInPanel admit onClose={() => setPanel(null)} onDone={(a) => done(a, `${a.pet.name} admitted as inpatient`)} />}
     </>
   )

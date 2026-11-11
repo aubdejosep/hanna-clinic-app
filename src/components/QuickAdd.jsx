@@ -10,7 +10,7 @@ import { sizeFor, sizeOptions } from '../../lib/sizing.js'
 // visits ("usually goes with"), Same as Last Visit, and sizes picked from the pet's weight.
 // An item: {serviceId, variationId} | {productId, name, detail, qty, kind: 'product'} | {name, detail, kind}.
 
-const peso = (n) => `₱${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+export const peso = (n) => `₱${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 const norm = (s) => String(s || '').trim().toLowerCase()
 const SPECIES_WORD = { dog: 'Dogs', cat: 'Cats' }
 const OTHER_SPECIES = { dog: /\bcats?\b/i, cat: /\bdogs?\b/i }
@@ -58,6 +58,14 @@ function serviceItem(c, s, variationId, weight, species) {
   }
   return { serviceId: s.id, variationId: variationId ?? null }
 }
+
+// Price from the lists: a service at its size's price, a product per unit × quantity.
+function priceOf(c, it) {
+  if (it.serviceId) return (it.variationId ? c.vById[it.variationId]?.v.price : c.sById[it.serviceId]?.price) || 0
+  if (it.productId) return (c.pById[it.productId]?.price || 0) * (it.qty || 1)
+  return 0
+}
+const unitWord = (unit, n) => (unit ? `${unit}${n === 1 || ['ml'].includes(unit) ? '' : unit === 'box' ? 'es' : 's'}` : '')
 
 // The key used by the server's cohorts (lib/catalog.js) for an item, and back.
 function keyOf(c, it) {
@@ -117,7 +125,7 @@ function searchRows(c, find, species, rank) {
   return scored.sort((a, b) => b.score - a.score).slice(0, 14)
 }
 
-export function ServicePicker({ items, setItems, products, petId, appointmentId, existing = [], onWeightSaved }) {
+export function ServicePicker({ items, setItems, products, petId, appointmentId, existing = [], onWeightSaved, onTotal }) {
   const { data, error } = useApi(`services/picker${appointmentId ? `?appointmentId=${appointmentId}` : petId ? `?petId=${petId}` : ''}`)
   const c = useCatalog(data)
   const pet = data?.pet || null
@@ -134,6 +142,8 @@ export function ServicePicker({ items, setItems, products, petId, appointmentId,
     if (!c || !(weight > 0)) return
     setItems((prev) => prev.map((it) => (it.serviceId && (it.auto || it.needsSize) ? serviceItem(c, c.sById[it.serviceId], null, weight, species) : it)))
   }, [weight, c]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { if (c) onTotal?.(items.reduce((n, it) => n + priceOf(c, it), 0)) }, [items, c]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const has = (it) => items.some((x) => sameItem(x, it)) || existing.some((x) => sameItem(x, it))
   const add = (list) => setItems((prev) => [...prev, ...list.filter((it) => it && !prev.some((x) => sameItem(x, it)) && !existing.some((x) => sameItem(x, it)))])
@@ -249,7 +259,7 @@ export function ServicePicker({ items, setItems, products, petId, appointmentId,
                       {r.type === 'product' ? <Pill aria-hidden /> : <Stethoscope aria-hidden />}
                       <span>
                         <strong>{r.type === 'product' ? r.p.name : r.v ? `${r.s.name} · ${r.v.name}` : r.s.name}</strong>
-                        <span className="cell-sub">{r.type === 'product' ? r.p.category : [sizedHint && weight ? `${sizedHint} for ${weight} kg` : sizedHint, r.s.category, peso(r.v ? r.v.price : r.s.price)].filter(Boolean).join(' · ')}</span>
+                        <span className="cell-sub">{r.type === 'product' ? [r.p.category, r.p.price != null && `${peso(r.p.price)} per ${r.p.unit}`, r.p.onHand != null && `${r.p.onHand} ${unitWord(r.p.unit, r.p.onHand)} in stock`].filter(Boolean).join(' · ') : [sizedHint && weight ? `${sizedHint} for ${weight} kg` : sizedHint, r.s.category, peso(r.v ? r.v.price : r.s.price)].filter(Boolean).join(' · ')}</span>
                       </span>
                       {on ? <Check className="qa-tick" aria-hidden /> : <Plus className="qa-plus" aria-hidden />}
                     </button>
@@ -301,7 +311,7 @@ export function ServicePicker({ items, setItems, products, petId, appointmentId,
             <div key={n} className="qa-med">
               <strong>{it.name}</strong>
               <Field label="Dose or Instructions" optional>{(a) => <input {...a} value={it.detail || ''} onChange={(e) => update(n, { detail: e.target.value.slice(0, 80) })} placeholder="e.g. ½ tab twice a day, 3 days" />}</Field>
-              <Field label="Quantity">{(a) => <input {...a} value={it.qty || 1} onChange={(e) => update(n, { qty: Math.max(1, Math.min(99, Number(e.target.value.replace(/[^\d]/g, '')) || 1)) })} inputMode="numeric" style={{ width: 72 }} />}</Field>
+              <Field label={`Quantity${c.pById[it.productId]?.unit ? ` (${unitWord(c.pById[it.productId].unit, 2)})` : ''}`}>{(a) => <input {...a} value={it.qty || 1} onChange={(e) => update(n, { qty: Math.max(1, Math.min(99, Number(e.target.value.replace(/[^\d]/g, '')) || 1)) })} inputMode="numeric" style={{ width: 72 }} />}</Field>
             </div>
           ))}
         </section>
@@ -435,47 +445,116 @@ function ServiceCard({ s, items, existing, toggle, quick, c, weight }) {
 export const toSend = (items) => items.map(({ serviceId, variationId, productId, name, detail, kind, qty }) => (
   serviceId ? { serviceId, variationId } : { productId, name, detail, kind: productId ? 'product' : kind, qty }))
 
-// "Anything else given?" at Check Out: the list so far, what usually goes with it, and one search
-// for anything else. Also used later to confirm a visit that was checked out with a tag tap.
-export function CheckOutPanel({ appointmentId, checkOut = true, onClose, onDone }) {
+const METHODS = [['cash', 'Cash'], ['gcash', 'GCash'], ['maya', 'Maya'], ['card', 'Card'], ['bank', 'Bank Transfer'], ['no_charge', 'No Charge']]
+export const METHOD_LABEL = Object.fromEntries(METHODS)
+
+// Take Payment at the front desk: "Anything else given?" (the list so far, what usually goes with it,
+// one search), the total from the price list, and how they paid. Stock comes off once the visit is
+// paid and checked out: with Paid & Check Out, or later at the tag tap-out.
+export function PaymentPanel({ appointmentId, onClose, onDone }) {
   const { data, error: loadError } = useApi(`appointments/${appointmentId}`)
   const a = data?.appointment
   const [picked, setPicked] = useState([])
-  const [busy, setBusy] = useState(false)
+  const [extra, setExtra] = useState(0)
+  const [method, setMethod] = useState('')
+  const [amount, setAmount] = useState(null) // null: follows the total
+  const [cash, setCash] = useState('')
+  const [reference, setReference] = useState('')
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
-  async function save() {
-    setBusy(true)
+  const errors = error?.body?.errors || {}
+  const paid = a?.paymentStatus === 'paid'
+  const total = Math.round(((a?.due || 0) + extra) * 100) / 100
+  const shownAmount = method === 'no_charge' ? '0' : amount ?? String(total)
+  const differs = method && Number(shownAmount) !== total
+  const change = method === 'cash' && Number(cash) > Number(shownAmount) ? Number(cash) - Number(shownAmount) : null
+  const canCheckOut = a && a.status !== 'completed'
+
+  async function save(checkOut) {
+    setBusy(checkOut ? 'out' : 'paid')
     setError(null)
     try {
-      const res = await api(`appointments/${appointmentId}/confirm`, { method: 'POST', body: { items: toSend(picked), checkOut } })
-      onDone(res.appointment, checkOut ? `${a.pet.name} checked out` : 'Items confirmed')
+      const res = paid
+        ? await api(`appointments/${appointmentId}/status`, { method: 'POST', body: { to: 'completed' } })
+        : await api(`appointments/${appointmentId}/pay`, { method: 'POST', body: { items: toSend(picked), method, amount: shownAmount, reference, note, checkOut } })
+      onDone(res.appointment, paid || checkOut ? `${a.pet.name} checked out` : `${a.pet.name}: paid. Tap the tag on the way out.`)
     } catch (err) {
       setError(err)
-      setBusy(false)
+      setBusy(null)
     }
   }
-  const total = (a?.items.length || 0) + picked.length
-  const verb = checkOut ? 'Check Out' : 'Confirm'
+  const total0 = (a?.items.length || 0) + picked.length
   return (
-    <Panel dirty={picked.length > 0} discardTitle="Discard the items you picked?" busy={busy} onClose={onClose}
-      title={a ? `${checkOut ? 'Check Out' : 'Confirm Items for'} ${a.pet.name}` : verb}
-      intro="Anything else given today? Vitamins, medicines to take home, an extra service. Add it now so the medical record is complete."
-      footer={<><button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Cancel</button>
-        <button type="button" className="btn" onClick={save} disabled={busy || !a || !total}>
-          <ListChecks aria-hidden /> {busy ? 'Saving…' : picked.length ? `Add ${picked.length} & ${verb}` : `Nothing Else, ${verb}`}
-        </button></>}>
-      <ErrorNote error={loadError || error} />
+    <Panel dirty={picked.length > 0 || !!method} discardTitle="Close without taking the payment?" busy={!!busy} onClose={onClose}
+      title={a ? (paid ? `Check Out ${a.pet.name}` : `Take Payment: ${a.pet.name}`) : 'Take Payment'}
+      intro={paid ? 'Already paid. Check them out when they leave.' : 'Anything else given today? Vitamins, medicines to take home, an extra service. Add it before taking the payment so the record and the stock are right.'}
+      footer={<><button type="button" className="btn btn-quiet" onClick={onClose} disabled={!!busy}>Cancel</button>
+        {paid ? (
+          canCheckOut && <button type="button" className="btn" onClick={() => save(true)} disabled={!!busy}>{busy ? 'Saving…' : 'Check Out'}</button>
+        ) : (
+          <>
+            <button type="button" className={`btn ${canCheckOut ? 'btn-quiet' : ''}`} onClick={() => save(false)} disabled={!!busy || !a || !total0 || !method}>{busy === 'paid' ? 'Saving…' : 'Mark as Paid'}</button>
+            {canCheckOut && <button type="button" className="btn" onClick={() => save(true)} disabled={!!busy || !total0 || !method}>{busy === 'out' ? 'Saving…' : 'Paid & Check Out'}</button>}
+          </>
+        )}</>}>
+      <ErrorNote error={loadError || (error && !Object.keys(errors).length ? error : null)} />
       {!a ? <PawLoader small label="Loading the visit…" /> : (
         <>
           <section className="form-section">
             <h3 className="label">On This Visit</h3>
             {a.items.length ? (
-              <ul className="qa-onvisit">{a.items.map((it) => <li key={it.id}><Check aria-hidden /> {it.name}{it.detail ? ` · ${it.detail}` : ''}{it.qty > 1 ? ` × ${it.qty}` : ''}</li>)}</ul>
+              <ul className="qa-onvisit">{a.items.map((it) => (
+                <li key={it.id}><Check aria-hidden /> <span>{it.name}{it.detail ? ` · ${it.detail}` : ''}{it.qty > 1 ? ` × ${it.qty}` : ''}</span>
+                  <span className="qa-price">{it.price != null ? peso(it.price * (it.qty || 1)) : '—'}</span></li>
+              ))}</ul>
             ) : <p className="field-hint" style={{ margin: 0 }}>Nothing yet. Add at least the main service below.</p>}
           </section>
-          <ServicePicker items={picked} setItems={setPicked} products appointmentId={a.id} existing={a.items} />
+          {!paid && <ServicePicker items={picked} setItems={setPicked} products appointmentId={a.id} existing={a.items} onTotal={setExtra} />}
+          {!paid && (
+            <section className="form-section pay-box">
+              <div className="pay-total"><span className="label">Total</span><strong>{peso(total)}</strong></div>
+              {picked.length > 0 && <p className="field-hint" style={{ margin: 0 }}>Includes {picked.length} item{picked.length > 1 ? 's' : ''} added now. Items with no price on the list count as ₱0.</p>}
+              <div>
+                <span className="field-label">Paid With</span>
+                <div className="chips pay-methods" role="radiogroup" aria-label="Paid With">
+                  {METHODS.map(([k, l]) => <button key={k} type="button" role="radio" aria-checked={method === k} className="choice pay-method" onClick={() => setMethod(k)}>{l}</button>)}
+                </div>
+                {errors.method && <span className="field-error">{errors.method}</span>}
+              </div>
+              {method && method !== 'no_charge' && (
+                <div className="form-row">
+                  <Field label="Amount Paid (₱)" error={errors.amount}>{(f) => <input {...f} value={shownAmount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" />}</Field>
+                  {method === 'cash'
+                    ? <Field label="Cash Received (₱)" optional hint={change != null ? `Change: ${peso(change)}` : undefined}>{(f) => <input {...f} value={cash} onChange={(e) => setCash(e.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" />}</Field>
+                    : <Field label="Reference No." optional>{(f) => <input {...f} value={reference} onChange={(e) => setReference(e.target.value)} maxLength={60} />}</Field>}
+                </div>
+              )}
+              {(differs || method === 'no_charge') && (
+                <Field label={method === 'no_charge' ? 'Why No Charge' : 'Why the Amount Differs'} error={errors.note}>{(f) => <input {...f} value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} placeholder={method === 'no_charge' ? 'e.g. free first consultation' : 'e.g. senior discount 10%'} />}</Field>
+              )}
+            </section>
+          )}
+          {paid && <PaymentSummary a={a} />}
         </>
       )}
     </Panel>
+  )
+}
+export const CheckOutPanel = PaymentPanel
+
+export function PaymentSummary({ a }) {
+  const live = a.payments.filter((p) => !p.voidedAt)
+  return (
+    <ul className="pay-list">
+      {a.payments.map((p) => (
+        <li key={p.id} className={p.voidedAt ? 'is-void' : ''}>
+          <strong>{peso(p.amount)}</strong> {METHOD_LABEL[p.method]}{p.reference ? ` · Ref ${p.reference}` : ''}
+          <span className="cell-sub">{p.by} · {prettyDay(p.at.slice(0, 10))}{p.amount !== p.due ? ` · total was ${peso(p.due)}` : ''}{p.note ? ` · ${p.note}` : ''}</span>
+          {p.voidedAt && <span className="cell-sub">Voided by {p.voidedBy}: {p.voidReason}</span>}
+        </li>
+      ))}
+      {!live.length && !a.payments.length && <li className="cell-sub">No payment yet.</li>}
+    </ul>
   )
 }

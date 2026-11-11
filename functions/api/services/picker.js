@@ -25,7 +25,7 @@ export async function onRequestGet({ env, request }) {
       WHERE s.deleted_at IS NULL AND s.active = 1 ORDER BY c.name COLLATE NOCASE, s.name COLLATE NOCASE`),
     env.DB.prepare(`SELECT v.id, v.service_id, v.name, v.price_cents FROM service_variations v
       JOIN services s ON s.id = v.service_id WHERE v.active = 1 AND s.deleted_at IS NULL ORDER BY v.sort, v.id`),
-    env.DB.prepare('SELECT id, name, category FROM products WHERE deleted_at IS NULL AND active = 1 ORDER BY name COLLATE NOCASE'),
+    env.DB.prepare('SELECT id, name, category, unit, price_cents, on_hand, counted_at FROM products WHERE deleted_at IS NULL AND active = 1 ORDER BY name COLLATE NOCASE'),
   ])
   let pet = null
   if (petId) {
@@ -49,7 +49,7 @@ export async function onRequestGet({ env, request }) {
   for (const v of variations.results) (byService[v.service_id] ||= []).push({ id: v.id, name: v.name, price: v.price_cents / 100 })
   return json({
     services: services.results.map((s) => ({ id: s.id, name: s.name, description: s.description, category: s.category || 'Other', price: s.price_cents / 100, variations: byService[s.id] || [] })),
-    products: products.results,
+    products: products.results.map((p) => ({ id: p.id, name: p.name, category: p.category, unit: p.unit, price: p.price_cents == null ? null : p.price_cents / 100, onHand: p.counted_at ? p.on_hand : null })),
     cohorts: await cohorts(env),
     pet,
   })
