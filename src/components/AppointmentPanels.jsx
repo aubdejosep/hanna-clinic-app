@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Check, Plus, Search, Siren, UserPlus, X } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, Plus, Search, Siren, UserPlus, X } from 'lucide-react'
 import { ErrorNote, Field, Panel, PetAvatar } from './ui.jsx'
 import { api } from '../lib/api.js'
 import { useApi, useDebounced } from '../lib/useApi.js'
@@ -88,20 +88,17 @@ export function ServicePicker({ items, setItems, products }) {
     const v = s && p.variationId ? s.variations.find((x) => x.id === p.variationId) : null
     return s && (!p.variationId || v) ? [s, v] : null
   }).filter(Boolean), [data])
-  const groups = useMemo(() => {
+  const shown = useMemo(() => {
     const words = find.toLowerCase().split(/\s+/).filter(Boolean)
-    const hit = (...texts) => words.every((w) => texts.some((t) => String(t || '').toLowerCase().includes(w)))
-    const g = {}
-    for (const s of data?.services || []) {
-      const options = [[s, null], ...s.variations.map((v) => [s, v])].filter(([, v]) => hit(s.category, s.name, v?.name))
-      if (options.length) (g[s.category] ||= []).push(...options)
-    }
-    return Object.entries(g)
+    const hit = (s) => words.every((w) => [s.name, s.category, s.description, ...s.variations.map((v) => v.name)].some((t) => String(t || '').toLowerCase().includes(w)))
+    return (data?.services || []).filter(hit)
   }, [data, find])
   const has = (s, v) => items.some((i) => i.serviceId === s.id && (i.variationId || null) === (v?.id || null))
-  const toggle = (s, v) => setItems(has(s, v)
-    ? items.filter((i) => !(i.serviceId === s.id && (i.variationId || null) === (v?.id || null)))
-    : [...items, { serviceId: s.id, variationId: v?.id || null, label: v ? `${s.name} · ${v.name}` : s.name }])
+  // Updates from the latest list, so "All" can tick several variations in one go.
+  const toggle = (s, v) => setItems((prev) => {
+    const same = (i) => i.serviceId === s.id && (i.variationId || null) === (v?.id || null)
+    return prev.some(same) ? prev.filter((i) => !same(i)) : [...prev, { serviceId: s.id, variationId: v?.id || null, label: v ? `${s.name} · ${v.name}` : s.name }]
+  })
   function addOther() {
     const name = other.trim()
     if (!name) return
@@ -142,20 +139,12 @@ export function ServicePicker({ items, setItems, products }) {
           </div>
         </section>
       )}
-      {find && !groups.length && <p className="field-hint" style={{ margin: 0 }}>No service matches “{find}”. Type it under Other Service below.</p>}
-      {groups.map(([category, options]) => (
-        <section key={category} className="form-section">
-          <h3 className="label">{category}</h3>
-          <div className="choice-grid">
-            {options.map(([s, v]) => (
-              <button key={`${s.id}-${v?.id || 0}`} type="button" className="choice" aria-pressed={has(s, v)} onClick={() => toggle(s, v)}>
-                <strong>{v ? v.name : s.name}</strong>
-                <span className="cell-sub">{v ? s.name : s.variations.length ? 'Base price' : null} {peso(v ? v.price : s.price)}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      ))}
+      {find && !shown.length && <p className="field-hint" style={{ margin: 0 }}>No service matches “{find}”. Type it under Other Service below.</p>}
+      {shown.length > 0 && (
+        <div className="svc-grid">
+          {shown.map((s) => <ServiceCard key={s.id} s={s} has={has} toggle={toggle} />)}
+        </div>
+      )}
       <section className="form-section">
         <h3 className="label">Other Service</h3>
         <p className="field-hint" style={{ margin: 0 }}>Not on the list yet? Type it, e.g. Vaccine · Anti Rabies.</p>
@@ -166,6 +155,64 @@ export function ServicePicker({ items, setItems, products }) {
         <button type="button" className="btn btn-quiet" style={{ justifySelf: 'start' }} onClick={addOther} disabled={!other.trim()}><Plus aria-hidden /> Add Service</button>
       </section>
       {products && <MedicineFields onAdd={(it) => setItems([...items, it])} />}
+    </div>
+  )
+}
+
+// One service, like the old picker: the circle picks the service itself (base price); a service with
+// variations has "Choose variations", a list with search, All and a checkbox per variation.
+function ServiceCard({ s, has, toggle }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const box = useRef(null)
+  useEffect(() => {
+    if (!open) return undefined
+    const onDown = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false) }
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) } }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey, true)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey, true) }
+  }, [open])
+  const picked = s.variations.filter((v) => has(s, v))
+  const listed = s.variations.filter((v) => v.name.toLowerCase().includes(q.trim().toLowerCase()))
+  const allOn = listed.length > 0 && listed.every((v) => has(s, v))
+  const setAll = () => listed.forEach((v) => { if (has(s, v) === allOn) toggle(s, v) })
+  return (
+    <div className={`svc-card ${has(s, null) || picked.length ? 'is-picked' : ''}`}>
+      <div className="svc-card-head">
+        <div>
+          <strong>{s.name}</strong>
+          <span className="badge badge-soft svc-cat">{s.category}</span>
+        </div>
+        <button type="button" className="svc-radio" role="checkbox" aria-checked={has(s, null)} onClick={() => toggle(s, null)}
+          aria-label={`${s.name}${s.variations.length ? ' (base price)' : ''} ${peso(s.price)}`} title={`${s.variations.length ? 'Base price' : 'Pick'}: ${peso(s.price)}`}>
+          {has(s, null) && <Check aria-hidden />}
+        </button>
+      </div>
+      {s.description && <p className="svc-desc">{s.description}</p>}
+      <div className="svc-foot">
+        {s.variations.length ? (
+          <div className="svc-vars" ref={box}>
+            <span className="cell-sub">Select Variations (Multiple allowed)</span>
+            <button type="button" className="svc-select" onClick={() => setOpen(!open)} aria-expanded={open}>
+              <span>{picked.length ? picked.map((v) => v.name).join(', ') : 'Choose variations'}</span>
+              <ChevronDown aria-hidden />
+            </button>
+            {open && (
+              <div className="svc-pop card" role="listbox" aria-multiselectable="true" aria-label={`${s.name} variations`}>
+                {s.variations.length > 5 && (
+                  <div className="search svc-pop-search"><Search aria-hidden /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" aria-label="Search variations" autoFocus /></div>
+                )}
+                <label className="svc-opt svc-all"><input type="checkbox" checked={allOn} onChange={setAll} /> <span>All</span> <span className="cell-sub">({listed.length})</span></label>
+                {listed.map((v) => (
+                  <label key={v.id} className="svc-opt"><input type="checkbox" checked={has(s, v)} onChange={() => toggle(s, v)} /> <span>{v.name}</span> <span className="cell-sub">{peso(v.price)}</span></label>
+                ))}
+                <button type="button" className="svc-close" onClick={() => setOpen(false)}>Close</button>
+              </div>
+            )}
+          </div>
+        ) : <span className="cell-sub">Standard service · {peso(s.price)}</span>}
+      </div>
     </div>
   )
 }
