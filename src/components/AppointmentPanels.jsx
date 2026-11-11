@@ -94,12 +94,18 @@ export function StaffSelect({ value, onChange }) {
 }
 
 // --- Day and time, with how busy that day already is ---
-function ScheduleFields({ day, time, setDay, setTime, errors }) {
+function ScheduleFields({ day, time, setDay, setTime, errors, preferTime }) {
   const clinic = useApi('clinic').data?.clinic
   const busy = useApi(day ? `appointments?from=${day}&to=${day}&size=1` : null)
   const slots = day ? timeSlots(day, clinic?.hours, clinic?.closedDates) : []
   const closure = day ? closedOn(day, clinic?.closedDates) : null
-  useEffect(() => { if (time && slots.length && !slots.includes(time)) setTime('') }, [day]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    let t = time
+    if (t && slots.length && !slots.includes(t)) t = ''
+    // A follow-up starts at the same time as the visit it follows (or the next open time that day).
+    if (preferTime && !t && slots.length) t = slots.includes(preferTime) ? preferTime : slots.find((x) => x >= preferTime) || slots[0]
+    if (t !== time) setTime(t)
+  }, [day, slots.length]) // eslint-disable-line react-hooks/exhaustive-deps
   const booked = busy.data ? busy.data.tabs.all - busy.data.tabs.cancelled : null
   return (
     <div className="form-row">
@@ -120,18 +126,28 @@ function ScheduleFields({ day, time, setDay, setTime, errors }) {
 
 // --- Book Appointment: Pet → Services → Schedule (the old 3-step panel) ---
 export function BookPanel({ pet: givenPet, defaultDay, followUpOf, onClose, onDone }) {
-  const [step, setStep] = useState(givenPet ? 1 : 0)
+  // A follow-up opens on Schedule, already filled in: the follow-up check-up, the day it's due, the same time.
+  const [step, setStep] = useState(followUpOf && givenPet ? 2 : givenPet ? 1 : 0)
+  const picker = useApi(followUpOf && givenPet ? `services/picker?petId=${givenPet.id}` : null)
+  const [prefilled, setPrefilled] = useState(false)
   const [pet, setPet] = useState(givenPet || null)
   const [items, setItems] = useState([])
   const [day, setDay] = useState(defaultDay && defaultDay > manilaToday() ? defaultDay : manilaToday())
   const [time, setTime] = useState('')
   const [startReason] = useState(followUpOf?.reason ? `Follow-up: ${followUpOf.reason}` : followUpOf ? 'Follow-up' : '')
   const [reason, setReason] = useState(startReason)
-  const [staffIds, setStaffIds] = useState([])
+  const [staffIds, setStaffIds] = useState(followUpOf?.staffIds || []) // a follow-up keeps the same vet
   const [emergency, setEmergency] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const errors = fieldErrors(error)
+  useEffect(() => {
+    if (prefilled || !picker.data) return
+    const s = picker.data.services.find((x) => /^CHECK ?UP$/i.test(x.name.trim()))
+    const v = s?.variations.find((x) => /FOLLOW/i.test(x.name))
+    if (s) setItems([{ serviceId: s.id, variationId: v?.id || null }])
+    setPrefilled(true)
+  }, [picker.data]) // eslint-disable-line react-hooks/exhaustive-deps
   const bookDirty = (!givenPet && !!pet) || items.length > 0 || !!time || reason !== startReason || emergency || staffIds.length > 0
 
   async function save() {
@@ -148,10 +164,10 @@ export function BookPanel({ pet: givenPet, defaultDay, followUpOf, onClose, onDo
   const next = [
     <button key="n" type="button" className="btn" disabled={!pet} onClick={() => setStep(1)}>Next: Select Services <ArrowRight aria-hidden /></button>,
     <button key="n" type="button" className="btn" onClick={() => setStep(2)}>{items.length ? 'Next: Schedule' : 'Skip: No Services Yet'} <ArrowRight aria-hidden /></button>,
-    <button key="n" type="button" className="btn" disabled={busy || !day || !time} onClick={save}>{busy ? 'Booking…' : 'Book Appointment'}</button>,
+    <button key="n" type="button" className="btn" disabled={busy || !day || !time} onClick={save}>{busy ? 'Booking…' : followUpOf ? 'Book Follow-Up' : 'Book Appointment'}</button>,
   ][step]
   return (
-    <Panel dirty={bookDirty} discardTitle="Discard this booking?" title="Book Appointment" intro={['Select the pet', pet ? `Services for ${pet.name}` : 'Services', pet ? `When ${pet.name} is coming in` : 'Schedule'][step]}
+    <Panel dirty={bookDirty} discardTitle="Discard this booking?" title={followUpOf ? 'Book Follow-Up' : 'Book Appointment'} intro={['Select the pet', pet ? `Services for ${pet.name}` : 'Services', pet ? `When ${pet.name} is coming in` : 'Schedule'][step]}
       onClose={onClose} busy={busy}
       footer={<>{step > 0 && !(givenPet && step === 1) && <button type="button" className="btn btn-quiet" onClick={() => setStep(step - 1)} disabled={busy}>Back</button>}{next}</>}>
       <Steps steps={['Pet', 'Services', 'Schedule']} at={step} />
@@ -161,7 +177,8 @@ export function BookPanel({ pet: givenPet, defaultDay, followUpOf, onClose, onDo
       {step === 2 && (
         <>
           <section className="form-section">
-            <ScheduleFields day={day} time={time} setDay={setDay} setTime={setTime} errors={errors} />
+            {followUpOf && items.length > 0 && <p className="field-hint" style={{ margin: 0 }}>Follow-up{followUpOf.reason ? ` for ${followUpOf.reason}` : ''}: {items.length} service{items.length > 1 ? 's' : ''} added. Press Back to change them.</p>}
+            <ScheduleFields day={day} time={time} setDay={setDay} setTime={setTime} errors={errors} preferTime={followUpOf?.time} />
             <Field label="Notes for the Visit" optional hint="What the owner said, e.g. limping since Sunday.">
               {(a) => <textarea {...a} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} />}
             </Field>

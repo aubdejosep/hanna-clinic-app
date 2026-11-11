@@ -19,7 +19,7 @@ const KIND = {
   owner_info: { icon: UserRound, label: 'Owner Details' },
   website_client: { icon: Globe, label: 'Online Clients' },
 }
-const linkOf = (r) => (r.kind === 'low_stock' ? '/inventory?filter=low' : r.kind === 'expiring' ? '/inventory?filter=expiring' : r.kind === 'pet_info' ? `/pets/${r.pet.id}` : ['owner_info', 'website_client'].includes(r.kind) ? `/clients/${r.owner.id}` : `/appointments/${r.appointmentId}${r.kind === 'unpaid' ? '?pay=1' : ''}`)
+const linkOf = (r) => (r.kind === 'low_stock' ? '/inventory?filter=low' : r.kind === 'expiring' ? '/inventory?filter=expiring' : r.kind === 'pet_info' ? `/pets/${r.pet.id}` : ['owner_info', 'website_client'].includes(r.kind) ? `/clients/${r.owner.id}` : `/appointments/${r.appointmentId}${r.kind === 'unpaid' ? '?pay=1' : r.kind === 'follow_up' ? '?followup=1' : ''}`)
 
 // The bell: workflow steps still to finish. Each one clears itself once the step is done.
 export default function ReminderBell({ align = 'right' }) {

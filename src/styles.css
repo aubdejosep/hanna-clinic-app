@@ -1100,3 +1100,8 @@ body:has(.omni-sheet) .fab-wrap { display: none; }
 .rx-dispense { align-self: center; margin-top: 18px; white-space: nowrap; }
 @media (max-width: 760px) { .rx-row { grid-template-columns: 1fr auto; } .rx-row .field:first-child { grid-column: 1 / -1; } }
 .visit-entry { list-style: none; }
+.write-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface); font: 700 var(--fs-small)/1 var(--font-body); color: var(--heading); cursor: pointer; text-transform: uppercase; letter-spacing: .02em; }
+.chip-btn:hover { background: var(--teal-tint); border-color: var(--teal-deep); }
+.chip-btn svg { width: 14px; height: 14px; color: var(--teal-deep); }
+.qa-pager .pager { border-top: 0; padding: 4px 0; }

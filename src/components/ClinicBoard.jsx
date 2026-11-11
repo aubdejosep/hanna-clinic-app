@@ -40,7 +40,7 @@ function Card({ a, station, position, onMove, onCheckOut, busy }) {
       {a.steps.length > 0 && (
         <ul className="steps" aria-label="Still to do">
           {a.steps.map((s, i) => (
-            <li key={i}><Link to={s.kind === 'pet_info' ? `/pets/${a.pet.id}` : s.kind === 'owner_info' ? `/clients/${a.owner.id}` : `/appointments/${a.id}${s.kind === 'unpaid' ? '?pay=1' : ''}`} className="step-chip"><TriangleAlert aria-hidden /> {s.text}</Link></li>
+            <li key={i}><Link to={s.kind === 'pet_info' ? `/pets/${a.pet.id}` : s.kind === 'owner_info' ? `/clients/${a.owner.id}` : `/appointments/${a.id}${s.kind === 'unpaid' ? '?pay=1' : s.kind === 'follow_up' ? '?followup=1' : ''}`} className="step-chip"><TriangleAlert aria-hidden /> {s.text}</Link></li>
           ))}
         </ul>
       )}

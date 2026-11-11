@@ -449,9 +449,9 @@ export default function AppointmentPage() {
   const { data, error, setData, reload } = useApi(`appointments/${id}`)
   useAppointmentsChanged(reload)
   const [params, setParams] = useSearchParams()
-  const [panel, setPanel] = useState(params.get('pay') ? 'pay' : null)
+  const [panel, setPanel] = useState(params.get('pay') ? 'pay' : params.get('followup') ? 'followup' : null)
   const toast = useToast()
-  const closePanel = () => { setPanel(null); if (params.get('pay')) setParams({}, { replace: true }) }
+  const closePanel = () => { setPanel(null); if (params.get('pay') || params.get('followup')) setParams({}, { replace: true }) }
   const navigate = useNavigate()
   const a = data?.appointment
   const crumbs = [{ label: 'Dashboard', to: '/' }, { label: 'Appointments', to: '/appointments' }, { label: 'Appointment Details' }]
@@ -526,8 +526,8 @@ export default function AppointmentPage() {
           onDone={(n) => { setPanel(null); appointmentsChanged(); toast(`Rescheduled to ${prettyDay(n.day)}, ${prettyTime(n.time)}`); navigate(`/appointments/${n.id}`) }} />
       )}
       {panel === 'followup' && (
-        <BookPanel pet={{ ...a.pet, owner: a.owner }} defaultDay={addDays(a.day, a.followUpDays || 7)} followUpOf={{ id: a.id, reason: a.followUpReason }} onClose={() => setPanel(null)}
-          onDone={(n) => { setPanel(null); appointmentsChanged(); toast(`Follow-up booked for ${prettyDay(n.day)}, ${prettyTime(n.time)}`); reload() }} />
+        <BookPanel pet={{ ...a.pet, owner: a.owner }} defaultDay={addDays(a.day, a.followUpDays || 7)} followUpOf={{ id: a.id, reason: a.followUpReason, time: a.time, staffIds: a.staff.map((x) => x.id) }} onClose={closePanel}
+          onDone={(n) => { closePanel(); appointmentsChanged(); toast(`Follow-up booked for ${prettyDay(n.day)}, ${prettyTime(n.time)}`); reload() }} />
       )}
       {panel === 'pay' && (
         <PaymentPanel appointmentId={a.id} onClose={closePanel} onDone={(n, msg) => { closePanel(); changed(n, msg) }} />

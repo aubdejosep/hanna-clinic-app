@@ -2,12 +2,13 @@
 // Prescription, Treatment Plan) and what's added by itself at check-out (services and products, vaccines).
 // Below it, the pet's whole Medical History.
 import { useMemo, useState } from 'react'
-import { ClipboardList, NotebookPen, Pencil, Pill, Plus, Stethoscope, Trash2 } from 'lucide-react'
+import { ClipboardList, FileHeart, NotebookPen, Pencil, Pill, Plus, Stethoscope, Syringe, Trash2 } from 'lucide-react'
 import { ErrorNote, Field, Panel, PawLoader } from './ui.jsx'
 import { Entry, MedicalHistory } from './MedicalRecords.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { useStaff } from '../lib/staff.js'
+import { prettyDay } from '../lib/format.js'
 
 const WRITERS = ['vet', 'owner', 'admin']
 const KINDS = {
@@ -16,6 +17,8 @@ const KINDS = {
   prescription: { label: 'Prescription', icon: Pill, hint: 'Medicines to give or take home' },
   treatment_plan: { label: 'Treatment Plan', icon: ClipboardList, hint: 'A plan over days or weeks' },
 }
+// A new diagnosis starts from the clinic's usual layout; vets fill in each line.
+const DIAGNOSIS_TEMPLATE = { diagnosis: 'PE: \nDx: \nRx: \nFF UP: ' }
 const blankMed = () => ({ name: '', productId: null, dose: '', qty: '1', dispense: true })
 
 function WritePanel({ a, kind, entry, onClose, onDone }) {
@@ -25,7 +28,7 @@ function WritePanel({ a, kind, entry, onClose, onDone }) {
   const byName = useMemo(() => Object.fromEntries(products.map((p) => [p.name.toLowerCase(), p])), [products])
   const d = entry?.details || {}
   const [v, setV] = useState({
-    title: entry?.title || '', description: entry?.description || '',
+    title: entry?.title || '', description: entry ? entry.description || '' : DIAGNOSIS_TEMPLATE[kind] || '',
     status: d.status || 'active', priority: d.priority || 'medium', start: d.start || a.day, targetEnd: d.targetEnd || '', objectives: d.objectives || '', protocol: d.protocol || '',
   })
   const [meds, setMeds] = useState([blankMed()])
@@ -122,61 +125,97 @@ function WritePanel({ a, kind, entry, onClose, onDone }) {
         )}
         <Field label={kind === 'prescription' ? 'Notes' : kind === 'treatment_plan' ? 'Notes' : 'Description'} optional={kind !== 'note' && kind !== 'diagnosis'} error={errors.description}>
           {(f) => <textarea {...f} rows={kind === 'diagnosis' || kind === 'note' ? 8 : 4} value={v.description} onChange={(e) => set({ description: e.target.value })}
-            placeholder={kind === 'diagnosis' ? 'PE: …\nDx: …\nRx: …\nFF UP: …' : undefined} />}
+            />}
         </Field>
       </section>
     </Panel>
   )
 }
 
-function VisitRecordCard({ a, record, canWrite, onWrite }) {
+const TABS = [['note', 'Notes'], ['diagnosis', 'Diagnosis'], ['vaccination', 'Vaccination'], ['treatment_plan', 'Treatment Plans'], ['prescription', 'Prescriptions']]
+const ICON = { note: NotebookPen, diagnosis: Stethoscope, vaccination: Syringe, treatment_plan: ClipboardList, prescription: Pill }
+
+// The visit's record in a window (like the old system's Medical Record): a tab per kind with its count,
+// that kind's entries, and its Add button. Keeps the appointment page short.
+function RecordWindow({ a, record, canWrite, open, tab, setTab, onWrite, onClose }) {
   const entries = record?.entries || []
-  const written = entries.filter((e) => !e.auto)
-  const auto = entries.filter((e) => e.auto)
-  const open = !['cancelled', 'no_show', 'accepted', 'pending'].includes(a.status)
+  const counts = {}
+  for (const e of entries) counts[e.type] = (counts[e.type] || 0) + 1
+  const list = entries.filter((e) => e.type === tab).sort((x, y) => (x.auto ? 1 : 0) - (y.auto ? 1 : 0))
   return (
-    <section className="card">
-      <div className="card-head">
-        <div><h2>Medical Record</h2><p>{entries.length ? `This visit · ${written.length} written${auto.length ? `, ${auto.length} added at check-out` : ''}` : open ? 'Nothing written for this visit yet' : 'Written once the pet is checked in'}</p></div>
-      </div>
-      {canWrite && open && (
-        <div className="card-pad write-buttons">
-          {Object.entries(KINDS).map(([k, K]) => (
-            <button key={k} type="button" className="write-btn" onClick={() => onWrite(k, null)}>
-              <K.icon aria-hidden /><span><strong>Add {K.label}</strong><span className="cell-sub">{K.hint}</span></span>
+    <Panel wide title="Medical Record" intro={`${a.pet.name} · ${prettyDay(a.day)} · #${a.no}`} onClose={onClose}>
+      <div className="rec-tabs" role="tablist" aria-label="Kind of entry">
+        {TABS.map(([k, label]) => {
+          const I = ICON[k]
+          return (
+            <button key={k} type="button" role="tab" aria-selected={tab === k} className="rec-tab" onClick={() => setTab(k)}>
+              <span className="rec-tab-top"><I aria-hidden /> <strong>{label}</strong> <span className="tab-count">{counts[k] || 0}</span></span>
             </button>
-          ))}
-        </div>
+          )
+        })}
+      </div>
+      {canWrite && open && KINDS[tab] && (
+        <button type="button" className="btn" style={{ justifySelf: 'start' }} onClick={() => onWrite(tab, null)}><Plus aria-hidden /> Add {KINDS[tab].label}</button>
       )}
-      {entries.length > 0 && (
-        <div className="card-pad" style={{ paddingTop: canWrite && open ? 0 : undefined }}><ul className="entries rec-entries">
-          {[...written, ...auto].map((e) => (
+      {list.length ? (
+        <ul className="entries rec-entries">
+          {list.map((e) => (
             <li key={e.id} className="visit-entry">
               <Entry e={e} as="div" />
               {canWrite && !e.auto && <button type="button" className="icon-btn visit-entry-edit" onClick={() => onWrite(e.type, e)} aria-label={`Edit ${e.title || 'entry'}`} title="Edit"><Pencil /></button>}
             </li>
           ))}
-        </ul></div>
+        </ul>
+      ) : <p className="muted" style={{ margin: 0 }}>{tab === 'vaccination' ? 'Vaccines given are added here at check-out.' : `No ${TABS.find(([k]) => k === tab)[1].toLowerCase()} for this visit yet.`}</p>}
+    </Panel>
+  )
+}
+
+// On the page: one short card. Counts per kind, quick Add buttons, and Open Record for the full window.
+function VisitRecordCard({ a, record, canWrite, open, onWrite, onOpen }) {
+  const entries = record?.entries || []
+  const counts = {}
+  for (const e of entries) counts[e.type] = (counts[e.type] || 0) + 1
+  const NAMES = { note: ['Note', 'Notes'], diagnosis: ['Diagnosis', 'Diagnoses'], vaccination: ['Vaccination', 'Vaccinations'], treatment_plan: ['Treatment Plan', 'Treatment Plans'], prescription: ['Prescription', 'Prescriptions'] }
+  const summary = TABS.filter(([k]) => counts[k]).map(([k]) => `${counts[k]} ${NAMES[k][counts[k] === 1 ? 0 : 1]}`)
+  return (
+    <section className="card">
+      <div className="card-head">
+        <div><h2>Medical Record</h2><p>{entries.length ? `This visit · ${summary.join(' · ')}` : open ? 'Nothing written for this visit yet' : 'Written once the pet is checked in'}</p></div>
+        {(entries.length > 0 || (canWrite && open)) && <button type="button" className="btn btn-quiet" onClick={() => onOpen()}><FileHeart aria-hidden /> Open Record</button>}
+      </div>
+      {canWrite && open && (
+        <div className="card-pad write-quick">
+          {Object.entries(KINDS).map(([k, K]) => (
+            <button key={k} type="button" className="chip-btn" onClick={() => onWrite(k, null)}><Plus aria-hidden /> {K.label}</button>
+          ))}
+        </div>
       )}
-      {!entries.length && !(canWrite && open) && <p className="card-pad muted" style={{ margin: 0 }}>{a.status === 'completed' ? 'Nothing was recorded for this visit.' : 'The visit record starts when the pet is checked in.'}</p>}
     </section>
   )
 }
 
-// Appointment page: this visit's record, then the pet's whole history (one load for both).
+// Appointment page: this visit's record (a short card and a window), then the pet's whole history.
 export function VisitMedical({ a, onVisitChanged, toast }) {
   const staff = useStaff()
   const { data, error, reload } = useApi(`pets/${a.pet.id}/records`)
-  const [writing, setWriting] = useState(null) // {kind, entry}
+  const [writing, setWriting] = useState(null) // {kind, entry, back}
+  const [windowTab, setWindowTab] = useState(null) // the record window is open on this tab
   const record = (data?.records || []).find((r) => r.appointmentId === a.id && r.source === 'staff')
   const canWrite = WRITERS.includes(staff?.role)
+  const open = !['cancelled', 'no_show', 'accepted', 'pending'].includes(a.status)
+  const firstTab = () => (TABS.find(([k]) => (record?.entries || []).some((e) => e.type === k)) || TABS[1])[0]
+  // One panel at a time: writing closes the window and comes back to it.
+  const write = (kind, entry, back) => { setWindowTab(null); setWriting({ kind, entry, back }) }
+  const finish = () => { const back = writing?.back; const kind = writing?.kind; setWriting(null); if (back) setWindowTab(kind) }
   return (
     <>
       {!data && !error ? <section className="card"><PawLoader small label="Loading the medical record…" /></section>
-        : <VisitRecordCard a={a} record={record} canWrite={canWrite} onWrite={(kind, entry) => setWriting({ kind, entry })} />}
+        : <VisitRecordCard a={a} record={record} canWrite={canWrite} open={open} onWrite={(k, e) => write(k, e, false)} onOpen={() => setWindowTab(firstTab())} />}
       <MedicalHistory pet={a.pet} data={data} error={error} currentDay={a.day} currentAppointmentId={a.id} />
-      {writing && <WritePanel a={a} kind={writing.kind} entry={writing.entry} onClose={() => setWriting(null)}
-        onDone={(msg) => { setWriting(null); reload(); onVisitChanged(); toast(msg) }} />}
+      {windowTab && <RecordWindow a={a} record={record} canWrite={canWrite} open={open} tab={windowTab} setTab={setWindowTab} onWrite={(k, e) => write(k, e, true)} onClose={() => setWindowTab(null)} />}
+      {writing && <WritePanel a={a} kind={writing.kind} entry={writing.entry} onClose={finish}
+        onDone={(msg) => { finish(); reload(); onVisitChanged(); toast(msg) }} />}
     </>
   )
 }

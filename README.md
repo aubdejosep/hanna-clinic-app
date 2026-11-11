@@ -105,6 +105,17 @@ Then print the QR code from **Clinic operations → Clinic profile → Kiosk QR 
 3. **Tag reader on the front-desk PC.** Install the gym's fob bridge there the same way as at the gym (its README: download, unzip to e.g. `C:\HannaClinic\bridge\`, run `install-startup.bat`). Next to `bridge.exe`, create `allowed_origins.txt` with this one line: `https://app.hannapetwellnesscenter.com`, then restart the bridge. In the app on that PC: **Appointments → Tag Reader Off** (turns it on; the button then says **Tag Reader Ready**).
 4. Give each pet its tag: pet's page → **NFC Tag → Assign Tag** → tap the tag.
 
+### 18. UAT fixes
+
+`git pull`, then `npm run db:migrate:remote` (moves what owners ticked on the website, e.g. "Grooming", from unpriced items into the visit notes for visits not yet checked out).
+
+- Check In on a booking for another day moves the visit to today, so it shows on the Clinic Board and In Clinic Now.
+- Website bookings: what the owner ticked is in the visit notes ("Asked for: …"), not on the bill.
+- The visit's Medical Record is a short card (quick Add buttons, Open Record); the record opens in a window with a tab per kind.
+- A new diagnosis starts with PE / Dx / Rx / FF UP lines.
+- Search in Add Items and Take Payment shows 10 results a page.
+- Book Follow-Up (bell, board or appointment) opens on Schedule, filled in: the follow-up check-up, the day it's due, the same time and vet.
+
 ### 17. Visit records and vets writing
 
 `git pull`, then `npm run db:migrate:remote`. Nothing else: visits checked out before this get their record the first time their appointment is opened.

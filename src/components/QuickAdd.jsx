@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronDown, History, ListChecks, Pill, Plus, Scale, Search, Sparkles, Stethoscope, X } from 'lucide-react'
-import { ErrorNote, Field, Panel, PawLoader } from './ui.jsx'
+import { ErrorNote, Field, Pager, Panel, PawLoader } from './ui.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { prettyDay } from '../lib/format.js'
@@ -122,7 +122,7 @@ function searchRows(c, find, species, rank) {
     if (species && OTHER_SPECIES[species]?.test(r.type === 'product' ? r.p.name : `${r.s.name} ${r.v?.name || ''}`)) score -= 5
     scored.push({ ...r, key, score })
   }
-  return scored.sort((a, b) => b.score - a.score).slice(0, 14)
+  return scored.sort((a, b) => b.score - a.score)
 }
 
 export function ServicePicker({ items, setItems, products, petId, appointmentId, existing = [], onWeightSaved, onTotal }) {
@@ -170,6 +170,10 @@ export function ServicePicker({ items, setItems, products, petId, appointmentId,
   const lastItems = useMemo(() => (c && pet?.lastVisit ? pet.lastVisit.items.map((it) => fromPast(c, it, weight, species)).filter((it) => products || !(it.productId || it.kind === 'product')) : []), [c, pet, weight, species, products])
   const lastMissing = lastItems.filter((it) => !has(it))
   const rows = useMemo(() => (c ? searchRows(c, find, species, rank).filter((r) => products || r.type !== 'product') : []), [c, find, species, rank, products])
+  // 10 results a page; a new search starts again at page 1.
+  const [resultPage, setResultPage] = useState(1)
+  useEffect(() => setResultPage(1), [find])
+  const pageRows = rows.slice((resultPage - 1) * 10, resultPage * 10)
 
   function pickRow(r) {
     if (r.type === 'product') toggle({ productId: r.p.id, name: r.p.name, kind: 'product', qty: 1, detail: '' })
@@ -249,7 +253,7 @@ export function ServicePicker({ items, setItems, products, petId, appointmentId,
         <section className="form-section qa-results" aria-label="Search results">
           {rows.length > 0 && (
             <ul className="qa-list">
-              {rows.map((r) => {
+              {pageRows.map((r) => {
                 const it = r.type === 'product' ? { productId: r.p.id } : serviceItem(c, r.s, r.v?.id ?? null, weight, species)
                 const on = r.type === 'product' ? items.some((x) => x.productId === r.p.id) : items.some((x) => x.serviceId === r.s.id && (!r.v || x.variationId === r.v.id))
                 const sizedHint = r.type === 'service' && c.sized.has(r.s.id) ? (it.variationId ? c.vById[it.variationId]?.v.name : it.auto ? 'Base size' : 'Size from weight') : null
@@ -268,6 +272,7 @@ export function ServicePicker({ items, setItems, products, petId, appointmentId,
               })}
             </ul>
           )}
+          {rows.length > 10 && <div className="qa-pager"><Pager page={resultPage} pageSize={10} total={rows.length} onPage={setResultPage} noun="results" /></div>}
           <p className="field-hint" style={{ margin: 0 }}>{rows.length ? <>Press <kbd>Enter</kbd> to add the top one.</> : <>Nothing on the lists matches “{find}”.</>}</p>
           <div className="inline-row">
             {products && <button type="button" className="btn btn-quiet" onClick={() => addTyped('product')}><Plus aria-hidden /> Add “{find.trim()}” as Medicine</button>}
