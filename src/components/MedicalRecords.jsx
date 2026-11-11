@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ClipboardList, FileHeart, Image, NotebookPen, Package, Pill, Stethoscope, Syringe } from 'lucide-react'
-import { Empty, ErrorNote, PawLoader } from './ui.jsx'
+import { ClipboardList, FileHeart, Image, LayoutGrid, List, NotebookPen, Package, Pill, Search, Stethoscope, Syringe } from 'lucide-react'
+import { Empty, ErrorNote, Pager, Panel, PawLoader } from './ui.jsx'
 import { useApi } from '../lib/useApi.js'
 import { prettyDay } from '../lib/format.js'
 
@@ -70,60 +70,134 @@ export function RecordCard({ r, showPetLink, current }) {
   )
 }
 
-const FILTERS = [['', 'All'], ['vaccination', 'Vaccinations'], ['diagnosis', 'Diagnoses'], ['note', 'Notes'], ['treatment_plan', 'Treatment Plans']]
+const TABS = [['note', 'Notes', 'General observations'], ['diagnosis', 'Diagnosis', 'Medical findings'], ['vaccination', 'Vaccination', 'Immunization records'],
+  ['treatment_plan', 'Treatment Plans', 'Treatment protocol'], ['prescription', 'Prescriptions', 'Medications prescribed']]
+const SIZES = [6, 12, 24]
 
-// Pet page (and the appointment page, like the old system): the whole history, newest first, with a
-// filter by entry type. On an appointment, the record from its day is marked This Visit.
+// What a card shows as its title: the first entry with a real title, else the services list.
+const headline = (r) => r.entries.find((e) => e.title && !e.details?.booked) || r.entries[0]
+// A services list is titled by what's on it, e.g. "PROHEART, VACCINE · FLUVACCINE".
+const cardTitle = (h) => (h?.details?.booked && h.items.length ? h.items.slice(0, 2).map((i) => `${i.name}${i.detail ? ` · ${i.detail}` : ''}`).join(', ') + (h.items.length > 2 ? ` +${h.items.length - 2}` : '') : h?.title || 'Record')
+const images = (r) => r.entries.reduce((n, e) => n + (e.imageCount || 0), 0)
+const words = (r) => [r.appointmentNo, ...r.entries.flatMap((e) => [e.title, e.description, ...e.items.map((i) => `${i.name} ${i.detail || ''}`)])].join(' ').toLowerCase()
+
+// One record, like the old system's Medical Record window: a tab per kind of entry with its count.
+function RecordPanel({ r, onClose }) {
+  const counts = {}
+  for (const e of r.entries) counts[e.type] = (counts[e.type] || 0) + 1
+  const [tab, setTab] = useState(() => (TABS.find(([k]) => counts[k]) || TABS[0])[0])
+  const list = r.entries.filter((e) => e.type === tab)
+  return (
+    <Panel wide onClose={onClose} title="Medical Record"
+      intro={<>{prettyDay(r.day)}{r.appointmentNo && <> · {r.appointmentId ? <Link to={`/appointments/${r.appointmentId}`} onClick={onClose}>#{r.appointmentNo}</Link> : `#${r.appointmentNo}`}</>}
+        {r.source === 'legacy' && ' · from the old system'}{r.bookingOnly && ` · booked services only${r.appointmentStatus ? ` · ${BOOKING_STATUS[r.appointmentStatus] || r.appointmentStatus}` : ''}`}</>}>
+      <div className="rec-tabs" role="tablist" aria-label="Kind of entry">
+        {TABS.map(([k, label, hint]) => {
+          const T = ENTRY[k]
+          return (
+            <button key={k} type="button" role="tab" aria-selected={tab === k} className="rec-tab" onClick={() => setTab(k)} disabled={!counts[k]}>
+              <span className="rec-tab-top"><T.icon aria-hidden /> <strong>{label}</strong> <span className="tab-count">{counts[k] || 0}</span></span>
+              <span className="cell-sub">{hint}</span>
+            </button>
+          )
+        })}
+      </div>
+      {list.length ? <ul className="entries rec-entries">{list.map((e) => <Entry key={e.id} e={e} />)}</ul> : <p className="muted" style={{ margin: 0 }}>Nothing of this kind in this record.</p>}
+    </Panel>
+  )
+}
+
+// The pet's whole history, newest first, as cards (or a table) with search and pages, like the old
+// system. A card opens the record. On an appointment, the record from its day is marked This Visit.
 export function MedicalHistory({ pet, data, error, currentDay }) {
-  const [filter, setFilter] = useState('')
-  const [shown, setShown] = useState(8)
+  const [find, setFind] = useState('')
+  const [view, setView] = useState('cards')
+  const [size, setSize] = useState(6)
+  const [page, setPage] = useState(1)
+  const [open, setOpen] = useState(null)
   const { hash } = useLocation()
-  const records = useMemo(() => (data?.records || [])
-    .map((r) => (filter ? { ...r, entries: r.entries.filter((e) => e.type === filter) } : r))
-    .filter((r) => r.entries.length), [data, filter])
-  const counts = useMemo(() => {
-    const c = {}
-    for (const r of data?.records || []) for (const e of r.entries) c[e.type] = (c[e.type] || 0) + 1
-    return c
-  }, [data])
-  useEffect(() => { // opened from the Records List: show and scroll to that record
+  const q = find.trim().toLowerCase()
+  const all = data?.records || []
+  const shown = useMemo(() => (q ? all.filter((r) => q.split(/\s+/).every((w) => words(r).includes(w))) : all), [all, q])
+  const pages = Math.max(1, Math.ceil(shown.length / size))
+  const at = Math.min(page, pages)
+  const slice = shown.slice((at - 1) * size, at * size)
+  useEffect(() => { // opened from the Records List: open that record
     const m = hash.match(/^#record-(\d+)$/)
     if (!m || !data) return
-    const i = (data.records || []).findIndex((r) => String(r.id) === m[1])
-    if (i >= 0) {
-      setFilter('')
-      setShown((s) => Math.max(s, i + 1))
-      setTimeout(() => document.getElementById(`record-${m[1]}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
-    }
-  }, [hash, data])
+    const r = all.find((x) => String(x.id) === m[1])
+    if (r) setOpen(r)
+  }, [hash, data]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <section className="card">
       <div className="card-head">
-        <div><h2>Medical History</h2><p>{data ? `${data.records.length} record${data.records.length === 1 ? '' : 's'} for ${pet.name} · notes, diagnoses, vaccinations and treatment plans` : '…'}</p></div>
+        <div><h2>Medical History</h2><p>{data ? `${all.length} record${all.length === 1 ? '' : 's'} for ${pet.name} · notes, diagnoses, vaccinations and prescriptions` : '…'}</p></div>
       </div>
-      {error ? <div className="card-pad"><ErrorNote error={error} /></div> : !data ? <PawLoader label="Loading the medical history…" /> : !data.records.length ? (
+      {error ? <div className="card-pad"><ErrorNote error={error} /></div> : !data ? <PawLoader label="Loading the medical history…" /> : !all.length ? (
         <Empty icon={FileHeart} title="No medical records" text={`The old system had no records for ${pet.name}.`} />
       ) : (
         <>
-          <div className="toolbar tab-scroll">
-            <div className="tabs" role="group" aria-label="Show">
-              {FILTERS.filter(([k]) => !k || counts[k]).map(([k, l]) => (
-                <button key={l} type="button" className="tab" aria-pressed={filter === k} onClick={() => { setFilter(k); setShown(8) }}>
-                  {l}{k && <span className="tab-count">{counts[k]}</span>}
-                </button>
-              ))}
+          <div className="toolbar">
+            <div className="search">
+              <Search aria-hidden />
+              <label className="sr-only" htmlFor={`mh-${pet.id}`}>Search Medical Records</label>
+              <input id={`mh-${pet.id}`} type="search" value={find} onChange={(e) => { setFind(e.target.value); setPage(1) }} placeholder="Search medical records" autoComplete="off" />
+            </div>
+            <div className="tabs" role="group" aria-label="View">
+              <button type="button" className="tab" aria-pressed={view === 'cards'} onClick={() => setView('cards')}><LayoutGrid size={14} aria-hidden /> Cards</button>
+              <button type="button" className="tab" aria-pressed={view === 'table'} onClick={() => setView('table')}><List size={14} aria-hidden /> Table</button>
             </div>
           </div>
-          <div className="records">
-            {records.slice(0, shown).map((r) => <RecordCard key={r.id} r={r} current={currentDay && r.day === currentDay} />)}
-          </div>
-          {records.length > shown && (
-            <div className="card-pad" style={{ paddingTop: 0 }}>
-              <button type="button" className="btn btn-quiet" onClick={() => setShown(shown + 20)}>Show More ({records.length - shown} older)</button>
-            </div>
+          {!shown.length ? <p className="card-pad muted" style={{ margin: 0 }}>No record matches “{find}”.</p> : view === 'cards' ? (
+            <ul className="rec-cards">
+              {slice.map((r) => {
+                const h = headline(r)
+                const img = images(r)
+                const current = currentDay && r.day === currentDay
+                return (
+                  <li key={r.id}>
+                    <button type="button" className={`rec-card ${current ? 'is-current' : ''}`} onClick={() => setOpen(r)} id={`record-${r.id}`}>
+                      <span className="rec-card-top">
+                        <span className="badge badge-soft">{prettyDay(r.day)}</span>
+                        {current && <span className="badge">This Visit</span>}
+                        <EntryBadge type={h?.details?.booked ? 'services' : h?.type} />
+                      </span>
+                      <span className="chips">
+                        <span className="chip"><FileHeart aria-hidden /> {r.entries.length} {r.entries.length === 1 ? 'Entry' : 'Entries'}</span>
+                        {img > 0 && <span className="chip"><Image aria-hidden /> {img}</span>}
+                      </span>
+                      <strong className="rec-card-title">{cardTitle(h)}</strong>
+                      <span className="cell-sub">{r.appointmentNo ? `#${r.appointmentNo}` : 'Record'}{r.bookingOnly ? ` · booked services only${r.appointmentStatus ? ` · ${BOOKING_STATUS[r.appointmentStatus] || r.appointmentStatus}` : ''}` : ''}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            <table className="table">
+              <thead><tr><th>Date</th><th>Title</th><th className="hide-sm">Kinds</th><th className="num">Entries</th></tr></thead>
+              <tbody>
+                {slice.map((r) => {
+                  const h = headline(r)
+                  return (
+                    <tr key={r.id} onClick={() => setOpen(r)} className={currentDay && r.day === currentDay ? 'is-current-row' : undefined}>
+                      <td className="nowrap" data-label="Date">{prettyDay(r.day)}</td>
+                      <td><strong>{cardTitle(h)}</strong>{r.bookingOnly && <span className="cell-sub">Booked services only</span>}</td>
+                      <td className="hide-sm">{[...new Set(r.entries.map((e) => (e.details?.booked ? 'services' : e.type)))].map((t) => <EntryBadge key={t} type={t} />)}</td>
+                      <td className="num" data-label="Entries">{r.entries.length}{images(r) ? ` · ${images(r)} img` : ''}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           )}
+          <Pager page={at} pageSize={size} total={shown.length} onPage={setPage} noun="records"
+            right={<label className="inline-row" style={{ gap: 8 }}>Rows per page
+              <select className="select" value={size} onChange={(e) => { setSize(Number(e.target.value)); setPage(1) }}>{SIZES.map((n) => <option key={n} value={n}>{n}</option>)}</select>
+            </label>} />
         </>
       )}
+      {open && <RecordPanel r={open} onClose={() => setOpen(null)} />}
     </section>
   )
 }

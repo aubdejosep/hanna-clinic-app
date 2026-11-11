@@ -128,7 +128,7 @@ export function Field({ label, optional, hint, error, children }) {
 // Slide-over panel: Escape closes it, focus moves in on open and back out on close.
 // Unsaved input is never lost by accident: closing with X, Escape or a click outside asks first when
 // something was typed in a field (searches don't count) or the panel says it's `dirty` (picks made).
-export function Panel({ title, intro, onClose, footer, children, busy, dirty, discardTitle }) {
+export function Panel({ title, intro, onClose, footer, children, busy, dirty, discardTitle, wide }) {
   const ref = useRef(null)
   const [typed, setTyped] = useState(false)
   const [asking, setAsking] = useState(false)
@@ -179,7 +179,7 @@ export function Panel({ title, intro, onClose, footer, children, busy, dirty, di
   return (
     <>
       <div className="scrim" onClick={request} />
-      <aside className="panel" role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : undefined} ref={ref}>
+      <aside className={`panel ${wide ? 'panel-wide' : ''}`} role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : undefined} ref={ref}>
         <div className="panel-head">
           <div>
             <h2>{title}</h2>
