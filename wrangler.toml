@@ -8,3 +8,10 @@ binding = "DB"
 database_name = "hanna-clinic"
 database_id = "48ed1085-1b31-4727-bde8-4835d1c0c008"
 migrations_dir = "migrations"
+
+# The website's database (hannapetwellnesscenter.com/book). Read only: new bookings are copied into
+# Appointments (lib/website.js). Nothing is ever written to it from here.
+[[d1_databases]]
+binding = "LEADS"
+database_name = "hanna-leads"
+database_id = "c375bd47-6531-4d32-a1b6-34d93fd48768"
