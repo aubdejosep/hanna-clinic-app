@@ -195,8 +195,9 @@ function VisitRecordCard({ a, record, canWrite, open, onWrite, onOpen }) {
   )
 }
 
-// Appointment page: this visit's record (a short card and a window), then the pet's whole history.
-export function VisitMedical({ a, onVisitChanged, toast }) {
+// Appointment page: this visit's record (a short card and a window) and the pet's whole history, as
+// three pieces the page places where it likes: { card, history, overlays }.
+export function useVisitMedical({ a, onVisitChanged, toast }) {
   const staff = useStaff()
   const { data, error, reload } = useApi(`pets/${a.pet.id}/records`)
   const [writing, setWriting] = useState(null) // {kind, entry, back}
@@ -208,14 +209,16 @@ export function VisitMedical({ a, onVisitChanged, toast }) {
   // One panel at a time: writing closes the window and comes back to it.
   const write = (kind, entry, back) => { setWindowTab(null); setWriting({ kind, entry, back }) }
   const finish = () => { const back = writing?.back; const kind = writing?.kind; setWriting(null); if (back) setWindowTab(kind) }
-  return (
-    <>
-      {!data && !error ? <section className="card"><PawLoader small label="Loading the medical record…" /></section>
-        : <VisitRecordCard a={a} record={record} canWrite={canWrite} open={open} onWrite={(k, e) => write(k, e, false)} onOpen={() => setWindowTab(firstTab())} />}
-      <MedicalHistory pet={a.pet} data={data} error={error} currentDay={a.day} currentAppointmentId={a.id} />
-      {windowTab && <RecordWindow a={a} record={record} canWrite={canWrite} open={open} tab={windowTab} setTab={setWindowTab} onWrite={(k, e) => write(k, e, true)} onClose={() => setWindowTab(null)} />}
-      {writing && <WritePanel a={a} kind={writing.kind} entry={writing.entry} onClose={finish}
-        onDone={(msg) => { finish(); reload(); onVisitChanged(); toast(msg) }} />}
-    </>
-  )
+  return {
+    card: !data && !error ? <section className="card"><PawLoader small label="Loading the medical record…" /></section>
+      : <VisitRecordCard a={a} record={record} canWrite={canWrite} open={open} onWrite={(k, e) => write(k, e, false)} onOpen={() => setWindowTab(firstTab())} />,
+    history: <MedicalHistory pet={a.pet} data={data} error={error} currentDay={a.day} currentAppointmentId={a.id} />,
+    overlays: (
+      <>
+        {windowTab && <RecordWindow a={a} record={record} canWrite={canWrite} open={open} tab={windowTab} setTab={setWindowTab} onWrite={(k, e) => write(k, e, true)} onClose={() => setWindowTab(null)} />}
+        {writing && <WritePanel a={a} kind={writing.kind} entry={writing.entry} onClose={finish}
+          onDone={(msg) => { finish(); reload(); onVisitChanged(); toast(msg) }} />}
+      </>
+    ),
+  }
 }

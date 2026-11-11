@@ -1,16 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowRight, Ban, CalendarClock, Wallet, CalendarDays, CircleX, Clock, History, MessageSquare, Nfc, Plus, Siren, Stethoscope, Trash2, TriangleAlert, Undo2, User, UserRound } from 'lucide-react'
+import { ArrowRight, Ban, CalendarClock, ChevronDown, Wallet, CalendarDays, CircleX, Clock, History, MessageSquare, Nfc, Plus, Siren, Stethoscope, Trash2, TriangleAlert, Undo2, User, UserRound } from 'lucide-react'
 import { ErrorNote, Field, PageHead, Panel, PetAvatar, useToast, PawLoader } from '../components/ui.jsx'
-import { BookPanel, CancelPanel, ReschedulePanel, ServicePicker, StaffSelect, StatusBadge } from '../components/AppointmentPanels.jsx'
+import { BookPanel, CancelPanel, ReschedulePanel, ServicePicker, StatusBadge } from '../components/AppointmentPanels.jsx'
 import { PaymentPanel, PaymentSummary, peso, toSend } from '../components/QuickAdd.jsx'
 import { appointmentsChanged, useAppointmentsChanged } from '../components/TagCheckIn.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { age, prettyDay, SEX_LABEL, SPECIES_LABEL } from '../lib/format.js'
 import { ACTIONS, STATUS, addDays, clockTime, longDay, prettyTime } from '../lib/appointments.js'
-import { canManage, useStaff } from '../lib/staff.js'
-import { VisitMedical } from '../components/VisitRecord.jsx'
+import { canManage, ROLE_LABEL, useStaff } from '../lib/staff.js'
+import { useVisitMedical } from '../components/VisitRecord.jsx'
 
 const PATH = [
   ['accepted', 'Accepted'], ['arrived', 'Arrived'], ['started', 'Started'],
@@ -187,54 +187,99 @@ function Actions({ a, onChange, setPanel }) {
   }
   return (
     <section className="card">
-      <div className="card-head"><div><h2>Appointment Actions</h2><p>Schedule, emergency and follow-up</p></div></div>
+      <div className="card-head"><div><h2>Appointment Actions</h2><p>{!canSchedule && !canCancel ? (a.status === 'completed' ? 'This visit is closed.' : a.status === 'cancelled' ? 'This appointment is cancelled.' : 'The visit has started, so it can’t be moved now.') : 'Emergency, schedule and follow-up'}</p></div></div>
       <div className="card-pad stack" style={{ gap: 10 }}>
-        <span className="label">Emergency Control</span>
-        <button type="button" className={`btn ${a.emergency ? 'btn-dark' : 'btn-quiet'}`} onClick={emergency} disabled={busy || a.status === 'cancelled'}>
-          <Siren aria-hidden /> {a.emergency ? 'Remove Emergency Flag' : 'Mark as Emergency'}
-        </button>
-        <span className="label" style={{ marginTop: 6 }}>Scheduling</span>
-        <button type="button" className="btn btn-quiet" onClick={() => setPanel('reschedule')} disabled={!canSchedule}><CalendarClock aria-hidden /> Reschedule</button>
-        <button type="button" className="btn btn-quiet" onClick={() => setPanel('cancel')} disabled={!canCancel}><CircleX aria-hidden /> Cancel</button>
-        {!canSchedule && !canCancel && <p className="field-hint" style={{ margin: 0 }}>{a.status === 'completed' ? 'This visit is closed.' : a.status === 'cancelled' ? 'This appointment is cancelled.' : 'The visit has started, so it can’t be moved now.'}</p>}
+        <div className="action-row">
+          <button type="button" className={`btn btn-sm ${a.emergency ? 'btn-dark' : 'btn-quiet'}`} onClick={emergency} disabled={busy || a.status === 'cancelled'}>
+            <Siren aria-hidden /> {a.emergency ? 'Remove Emergency' : 'Emergency'}
+          </button>
+          <button type="button" className="btn btn-sm btn-quiet" onClick={() => setPanel('reschedule')} disabled={!canSchedule}><CalendarClock aria-hidden /> Reschedule</button>
+          <button type="button" className="btn btn-sm btn-quiet" onClick={() => setPanel('cancel')} disabled={!canCancel}><CircleX aria-hidden /> Cancel</button>
+        </div>
         {!['cancelled', 'no_show', 'pending', 'accepted'].includes(a.status) && <FollowUp a={a} onChange={onChange} setPanel={setPanel} />}
       </div>
     </section>
   )
 }
 
-function StaffCard({ a, onChange }) {
-  const [editing, setEditing] = useState(false)
-  const [ids, setIds] = useState(a.staff.map((s) => s.id))
+// Staff for this visit, picked from a short list at the top of the page (saved as you tick).
+function StaffPicker({ a, onChange }) {
+  const { data } = useApi('staff/directory')
+  const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  async function save() {
+  const box = useRef(null)
+  useEffect(() => {
+    if (!open) return undefined
+    const onDown = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false) }
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [open])
+  const ids = a.staff.map((s) => s.id)
+  async function toggle(id) {
     setBusy(true)
     try {
-      const res = await api(`appointments/${a.id}`, { method: 'PATCH', body: { staffIds: ids } })
+      const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]
+      const res = await api(`appointments/${a.id}`, { method: 'PATCH', body: { staffIds: next } })
       onChange(res.appointment, 'Staff saved')
-      setEditing(false)
     } finally {
       setBusy(false)
     }
   }
   return (
-    <section className="card">
-      <div className="card-head">
-        <div><h2>Staff Assignment</h2><p>Assign veterinarians</p></div>
-        {!editing && <button type="button" className="btn btn-quiet" onClick={() => { setIds(a.staff.map((s) => s.id)); setEditing(true) }}>{a.staff.length ? 'Change' : 'Assign Staff'}</button>}
+    <div className="staff-picker" ref={box}>
+      <span className="field-label">Staff</span>
+      <button type="button" className="staff-picker-btn" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <Stethoscope aria-hidden />
+        <span>{a.staff.length ? a.staff.map((s) => s.name).join(', ') : 'Assign staff'}</span>
+        <ChevronDown aria-hidden />
+      </button>
+      {open && (
+        <div className="staff-pop card" role="group" aria-label="Staff for this visit">
+          {(data?.staff || []).map((s) => (
+            <label key={s.id} className="svc-opt"><input type="checkbox" checked={ids.includes(s.id)} onChange={() => toggle(s.id)} disabled={busy} />
+              <span>{s.name}</span><span className="cell-sub">{s.title || ROLE_LABEL[s.role] || s.role}</span></label>
+          ))}
+          {!data && <span className="cell-sub">Loading…</span>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// The top of the page: the pet and owner, when, the staff, and today's weight, in one row.
+function VisitBar({ a, onChange }) {
+  const p = a.pet
+  return (
+    <section className="card visit-bar">
+      <div className="vb-pet">
+        <PetAvatar species={p.species} />
+        <div className="vb-text">
+          <Link to={`/pets/${p.id}`} className="vb-name">{p.name}</Link>
+          <span className="cell-sub">{[SPECIES_LABEL[p.species], p.breed, SEX_LABEL[p.sex], age(p.birthdate)].filter(Boolean).join(' · ')}</span>
+          <span className="cell-sub"><User size={12} aria-hidden /> <Link to={`/clients/${a.owner.id}`}>{a.owner.name}</Link>{a.owner.mobileLocal && <> · <a href={`tel:${a.owner.mobile}`}>{a.owner.mobileLocal}</a></>}</span>
+          <span className="vb-chips">
+            {p.allergies && <span className="badge badge-warn" title={p.allergies}><TriangleAlert aria-hidden /> Allergies: {p.allergies}</span>}
+            {p.tag ? <span className="badge badge-soft"><Nfc aria-hidden /> {p.tag}</span> : <Link className="cell-sub" to={`/pets/${p.id}`}>No NFC tag</Link>}
+          </span>
+          {p.notes && <span className="cell-sub vb-notes" title={p.notes}>Pet notes: {p.notes}</span>}
+        </div>
       </div>
-      <div className="card-pad stack" style={{ gap: 12 }}>
-        {editing ? (
-          <>
-            <StaffSelect value={ids} onChange={setIds} />
-            <div className="panel-actions">
-              <button type="button" className="btn btn-quiet" onClick={() => setEditing(false)} disabled={busy}>Cancel</button>
-              <button type="button" className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save Staff'}</button>
-            </div>
-          </>
-        ) : a.staff.length ? (
-          <div className="chips">{a.staff.map((s) => <span key={s.id} className="chip"><Stethoscope aria-hidden /> {s.name}</span>)}</div>
-        ) : <p className="muted" style={{ margin: 0 }}>No one assigned yet.</p>}
+      <div className="vb-when">
+        <span className="appt-when"><CalendarDays aria-hidden /> {longDay(a.day)}</span>
+        <span className="appt-when"><Clock aria-hidden /> {prettyTime(a.time)}<span className="cell-sub">#{a.no}</span></span>
+        <span className="vb-chips">
+          {a.kind === 'walk_in' && <span className="chip"><UserRound aria-hidden /> Walk-In</span>}
+          {a.from && <span className="chip"><CalendarClock aria-hidden /> Rescheduled</span>}
+          {a.source === 'legacy' && <span className="chip">From the Old System</span>}
+          {a.bookedBy && <span className="chip">Booked by {a.bookedBy}</span>}
+        </span>
+        {a.checkedInAt && <span className="cell-sub">In {clockTime(a.checkedInAt)}{a.checkedOutAt ? ` · Out ${clockTime(a.checkedOutAt)}` : ''}</span>}
+      </div>
+      <div className="vb-side">
+        <StaffPicker a={a} onChange={onChange} />
+        {!['cancelled', 'no_show'].includes(a.status) && <WeightToday a={a} onChange={onChange} />}
       </div>
     </section>
   )
@@ -246,6 +291,7 @@ function Notes({ a, onChange }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   async function add() {
+    if (!text.trim()) return
     setBusy(true)
     setError(null)
     try {
@@ -264,13 +310,14 @@ function Notes({ a, onChange }) {
   }
   return (
     <section className="card">
-      <div className="card-head"><div><h2>Staff Notes</h2><p>{a.notes.length} note{a.notes.length === 1 ? '' : 's'} · clinic-internal</p></div></div>
-      <div className="card-pad stack" style={{ gap: 12 }}>
+      <div className="card-head"><div><h2>Staff Notes</h2><p>{a.notes.length ? `${a.notes.length} note${a.notes.length === 1 ? '' : 's'} · ` : ''}Only clinic staff see these</p></div></div>
+      <div className="card-pad stack" style={{ gap: 10 }}>
         <ErrorNote error={error} />
-        <Field label="Add a Note" hint="Only clinic staff see notes.">
-          {(f) => <textarea {...f} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} style={{ minHeight: 64 }} />}
-        </Field>
-        <button type="button" className="btn btn-quiet" style={{ justifySelf: 'start' }} onClick={add} disabled={busy || !text.trim()}><MessageSquare aria-hidden /> {busy ? 'Adding…' : 'Add Note'}</button>
+        <div className="inline-row">
+          <label className="sr-only" htmlFor="staff-note">Add a Note</label>
+          <input id="staff-note" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} maxLength={2000} placeholder="Add a note, e.g. owner will pick up at 5" />
+          <button type="button" className="btn btn-sm btn-quiet" onClick={add} disabled={busy || !text.trim()}><MessageSquare aria-hidden /> {busy ? 'Adding…' : 'Add'}</button>
+        </div>
         {a.notes.length > 0 && (
           <ul className="notes">
             {a.notes.map((n) => (
@@ -319,19 +366,19 @@ function Items({ a, onChange }) {
         {a.status !== 'cancelled' && <button type="button" className="btn btn-quiet" onClick={() => setAdding(true)}><Plus aria-hidden /> Add Items</button>}
       </div>
       {a.items.length ? (
-        <table className="table">
-          <thead><tr><th>Item</th><th>Type</th><th className="num">Price</th><th><span className="sr-only">Remove</span></th></tr></thead>
+        <table className="table table-compact">
+          <thead><tr><th>Item</th><th className="num">Price</th><th><span className="sr-only">Remove</span></th></tr></thead>
           <tbody>
             {a.items.map((it) => (
               <tr key={it.id} style={{ cursor: 'default' }}>
-                <td><strong>{it.name}</strong>{it.detail && <span className="cell-sub">{it.detail}</span>}</td>
-                <td data-label="Type">{it.kind === 'product' ? 'Product' : 'Service'}{it.qty !== 1 && ` × ${it.qty}`}</td>
+                <td><strong>{it.name}</strong>
+                  <span className="cell-sub">{[it.detail, it.kind === 'product' ? `Product${it.qty !== 1 ? ` × ${it.qty}` : ''}` : it.qty !== 1 ? `× ${it.qty}` : null].filter(Boolean).join(' · ')}</span></td>
                 <td data-label="Price" className="num">{it.price != null ? peso(it.price * (it.qty || 1)) : '—'}</td>
-                <td style={{ textAlign: 'right' }}>{a.status !== 'cancelled' && <button type="button" className="icon-btn" onClick={() => remove(it)} aria-label={`Remove ${it.name}`} title="Remove"><Trash2 /></button>}</td>
+                <td className="row-action">{a.status !== 'cancelled' && <button type="button" className="icon-btn" onClick={() => remove(it)} aria-label={`Remove ${it.name}`} title="Remove"><Trash2 /></button>}</td>
               </tr>
             ))}
           </tbody>
-          <tfoot><tr className="no-hover"><td colSpan={2}><strong>Total</strong></td><td className="num" data-label="Total"><strong>{peso(a.due)}</strong></td><td /></tr></tfoot>
+          <tfoot><tr className="no-hover"><td><strong>Total</strong></td><td className="num" data-label="Total"><strong>{peso(a.due)}</strong></td><td /></tr></tfoot>
         </table>
       ) : <p className="card-pad muted" style={{ margin: 0 }}>No services yet. Add what was done during the visit.</p>}
       {adding && (
@@ -390,34 +437,6 @@ function VoidPanel({ a, onClose, onDone }) {
   )
 }
 
-function PetProfile({ a }) {
-  const p = a.pet
-  return (
-    <section className="card">
-      <div className="card-head"><div><h2>Pet Profile</h2><p>Appointment patient</p></div></div>
-      <div className="card-pad pet-profile">
-        <PetAvatar species={p.species} large />
-        <Link to={`/pets/${p.id}`}><strong className="pet-profile-name">{p.name}</strong></Link>
-        <span className="chip">{SPECIES_LABEL[p.species]}{p.breed ? ` · ${p.breed}` : ''}</span>
-        <span className="profile-meta"><span><User aria-hidden /> <Link to={`/clients/${a.owner.id}`}>{a.owner.name}</Link></span>
-          {a.owner.mobileLocal && <span><a href={`tel:${a.owner.mobile}`}>{a.owner.mobileLocal}</a></span>}</span>
-        <div className="facts" style={{ padding: 0, width: '100%' }}>
-          <div className="fact"><span className="label">Age</span><span className="fact-value">{age(p.birthdate) || '—'}</span></div>
-          <div className="fact"><span className="label">Sex</span><span className="fact-value">{SEX_LABEL[p.sex]}</span></div>
-        </div>
-        <div style={{ width: '100%' }}>
-          <span className="label">Allergies</span>
-          <p style={{ margin: '2px 0 10px' }}>{p.allergies || 'No known allergies'}</p>
-          <span className="label">Notes</span>
-          <p style={{ margin: '2px 0 10px', whiteSpace: 'pre-line' }}>{p.notes || 'No special notes.'}</p>
-          <span className="label">NFC Tag</span>
-          <p style={{ margin: '2px 0 0' }}>{p.tag ? <span className="badge"><Nfc aria-hidden /> {p.tag}</span> : <>No tag yet. <Link to={`/pets/${p.id}`}>Assign one</Link> on the pet’s page.</>}</p>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 function Timeline({ a }) {
   const times = [['Booked', a.createdAt], ['Checked In', a.checkedInAt], ['Started', a.startedAt], ['Admitted', a.admittedAt], ['Dispense', a.dispenseAt], ['Checked Out', a.checkedOutAt], ['Cancelled', a.cancelledAt]].filter(([, t]) => t)
   return (
@@ -441,6 +460,42 @@ function Timeline({ a }) {
         )}
       </div>
     </section>
+  )
+}
+
+// The page in two stacked columns under one header row: the visit's progress, bill and payment on the
+// left; actions, the medical record, notes and history on the right; the pet's Medical History below.
+function AppointmentBody({ a, changed, reload, toast, setPanel, banners }) {
+  const med = useVisitMedical({ a, onVisitChanged: reload, toast })
+  return (
+    <div className="stack">
+      <VisitBar a={a} onChange={changed} />
+      {banners.length > 0 && (
+        <section className="card banners">
+          {banners.map((b) => {
+            const inner = <><b.icon aria-hidden /><span>{b.no && <span className="badge badge-soft">#{b.no}</span>} <strong>{b.title}</strong><span className="cell-sub">{b.text}</span></span>{b.link && <ArrowRight aria-hidden />}</>
+            return b.link ? <Link key={b.title} to={b.link} className="banner">{inner}</Link>
+              : b.onClick ? <button key={b.title} type="button" className="banner banner-action" onClick={b.onClick}>{inner}<ArrowRight aria-hidden /></button>
+              : <div key={b.title} className="banner">{inner}</div>
+          })}
+        </section>
+      )}
+      <div className="appt-bento">
+        <div className="stack">
+          <StatusControl a={a} onChange={changed} setPanel={setPanel} />
+          <Items a={a} onChange={changed} />
+          <Payment a={a} setPanel={setPanel} />
+        </div>
+        <div className="stack">
+          <Actions a={a} onChange={changed} setPanel={setPanel} />
+          {med.card}
+          <Notes a={a} onChange={changed} />
+          <Timeline a={a} />
+        </div>
+      </div>
+      {med.history}
+      {med.overlays}
+    </div>
   )
 }
 
@@ -473,53 +528,7 @@ export default function AppointmentPage() {
   return (
     <>
       <PageHead crumbs={crumbs} title={`${a.pet.name} · ${prettyDay(a.day)}`} />
-      <div className="appt-layout">
-        <div className="stack">
-          <section className="card">
-            <div className="card-head"><div><h2>Appointment</h2><p>#{a.no}</p></div></div>
-            <div className="card-pad stack" style={{ gap: 10 }}>
-              <div className="fact">
-                <span className="appt-when"><CalendarDays aria-hidden /> {longDay(a.day)}</span>
-                <span className="appt-when"><Clock aria-hidden /> {prettyTime(a.time)}</span>
-              </div>
-              <div className="chips">
-                {a.kind === 'walk_in' && <span className="chip"><UserRound aria-hidden /> Walk-In</span>}
-                {a.from && <span className="chip"><CalendarClock aria-hidden /> Rescheduled Appointment</span>}
-                {a.source === 'legacy' && <span className="chip">From the Old System</span>}
-                {a.bookedBy && <span className="chip">Booked by {a.bookedBy}</span>}
-              </div>
-              {a.checkedInAt && <p style={{ margin: 0 }}>In {clockTime(a.checkedInAt)}{a.checkedOutAt ? ` · Out ${clockTime(a.checkedOutAt)}` : ''}</p>}
-              {!['cancelled', 'no_show'].includes(a.status) && <WeightToday a={a} onChange={changed} />}
-            </div>
-          </section>
-          <PetProfile a={a} />
-        </div>
-
-        <div className="stack">
-          {banners.length > 0 && (
-            <section className="card banners">
-              {banners.map((b) => {
-                const inner = <><b.icon aria-hidden /><span>{b.no && <span className="badge badge-soft">#{b.no}</span>} <strong>{b.title}</strong><span className="cell-sub">{b.text}</span></span>{b.link && <ArrowRight aria-hidden />}</>
-                return b.link ? <Link key={b.title} to={b.link} className="banner">{inner}</Link>
-                  : b.onClick ? <button key={b.title} type="button" className="banner banner-action" onClick={b.onClick}>{inner}<ArrowRight aria-hidden /></button>
-                  : <div key={b.title} className="banner">{inner}</div>
-              })}
-            </section>
-          )}
-          <div className="appt-top">
-            <StatusControl a={a} onChange={changed} setPanel={setPanel} />
-            <Actions a={a} onChange={changed} setPanel={setPanel} />
-          </div>
-          <div className="grid grid-2">
-            <StaffCard key={a.staff.map((s) => s.id).join()} a={a} onChange={changed} />
-            <Notes a={a} onChange={changed} />
-          </div>
-          <Items a={a} onChange={changed} />
-          <Payment a={a} setPanel={setPanel} />
-          <VisitMedical a={a} onVisitChanged={reload} toast={toast} />
-          <Timeline a={a} />
-        </div>
-      </div>
+      <AppointmentBody a={a} changed={changed} reload={reload} toast={toast} setPanel={setPanel} banners={banners} />
 
       {panel === 'reschedule' && (
         <ReschedulePanel appointment={a} onClose={() => setPanel(null)}
