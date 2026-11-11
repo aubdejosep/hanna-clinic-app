@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { CalendarDays, CalendarPlus, FileHeart, LogIn, Nfc, Pencil, Syringe, Trash2, TriangleAlert, User } from 'lucide-react'
+import { CalendarDays, CalendarPlus, LogIn, Nfc, Pencil, Trash2, TriangleAlert, User } from 'lucide-react'
 import { Empty, ErrorNote, PageHead, PetAvatar, ReviewBadge, useToast } from '../components/ui.jsx'
 import { PetPanel } from '../components/ClientForms.jsx'
 import { RemovePetPanel } from '../components/RemovePanels.jsx'
@@ -11,6 +11,7 @@ import { api } from '../lib/api.js'
 import { BookPanel, StatusBadge, WalkInPanel } from '../components/AppointmentPanels.jsx'
 import { AssignTagPanel, appointmentsChanged, useAppointmentsChanged } from '../components/TagCheckIn.jsx'
 import { prettyTime } from '../lib/appointments.js'
+import { MedicalHistory, VaccinationsCard } from '../components/MedicalRecords.jsx'
 
 function PetAppointments({ pet, onBook }) {
   const { data, error, reload } = useApi(`appointments?petId=${pet.id}&size=10`)
@@ -49,6 +50,7 @@ export default function PetPage() {
   const staff = useStaff()
   const [removing, setRemoving] = useState(false)
   const [panel, setPanel] = useState(null)
+  const records = useApi(`pets/${id}/records`)
   const p = data?.pet
   const crumbs = [
     { label: 'Client Portal' },
@@ -131,10 +133,7 @@ export default function PetPage() {
 
           <PetAppointments pet={p} onBook={() => setPanel('book')} />
 
-          <section className="card placeholder">
-            <div className="card-head"><div><h2>Medical History</h2><p>Notes, diagnoses, treatment plans and prescriptions</p></div></div>
-            <Empty icon={FileHeart} title="Arrives in Phase 3" text="Records from the old system will be matched to this pet once the scraped export is in." />
-          </section>
+          <MedicalHistory pet={p} data={records.data} error={records.error} />
         </div>
 
         <div className="stack">
@@ -154,10 +153,7 @@ export default function PetPage() {
               )}
             </div>
           </section>
-          <section className="card placeholder">
-            <div className="card-head"><div><h2>Vaccinations</h2></div></div>
-            <Empty icon={Syringe} title="Arrives in Phase 3" text="The vaccination card, with due dates for the next shots." />
-          </section>
+          <VaccinationsCard data={records.data} />
         </div>
       </div>
 

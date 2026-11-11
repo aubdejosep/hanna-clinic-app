@@ -13,6 +13,7 @@
     "import:legacy": "node scripts/import-legacy.mjs",
     "import:appointments": "node scripts/import-appointments.mjs",
     "import:services": "node scripts/import-services.mjs",
+    "import:records": "node scripts/import-records.mjs",
     "set-password": "node scripts/set-password.mjs"
   },
   "dependencies": {

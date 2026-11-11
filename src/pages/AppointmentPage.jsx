@@ -9,6 +9,7 @@ import { useApi } from '../lib/useApi.js'
 import { age, prettyDay, SEX_LABEL, SPECIES_LABEL } from '../lib/format.js'
 import { ACTIONS, STATUS, clockTime, longDay, prettyTime } from '../lib/appointments.js'
 import { canManage, useStaff } from '../lib/staff.js'
+import { VisitRecord } from '../components/MedicalRecords.jsx'
 
 const PATH = [
   ['accepted', 'Accepted'], ['arrived', 'Arrived'], ['started', 'Started'],
@@ -378,6 +379,7 @@ export default function AppointmentPage() {
             <Notes a={a} onChange={changed} />
           </div>
           <Items a={a} onChange={changed} />
+          <VisitRecord petId={a.pet.id} day={a.day} showEmpty={['arrived', 'started', 'inpatient', 'dispense', 'completed'].includes(a.status)} />
           <Timeline a={a} />
         </div>
       </div>

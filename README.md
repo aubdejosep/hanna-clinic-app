@@ -4,7 +4,7 @@ The staff app for Hanna Pet Wellness Center at **app.hannapetwellnesscenter.com*
 
 Built with React + Vite and hosted on Cloudflare Pages with a D1 database. Staff log in on the app's own page with email and password; **Remember me** keeps a device logged in for 30 days.
 
-## What's built (phases 0–2)
+## What's built (phases 0–3)
 
 - **Masterlist:** search owners by name, mobile, customer number or pet; search pets by name, breed, microchip or owner; register an owner with their pets (warns when the mobile is already on file); edit owners and pets; allergies highlighted.
 - **Records to check:** the 115 imported owners with a missing, odd or shared mobile, or a duplicate name, each with **Mark as checked**.
@@ -18,6 +18,7 @@ Built with React + Vite and hosted on Cloudflare Pages with a D1 database. Staff
 - **Appointments:** the old system's table (tabs per status with counts, search, dates, staff filter, rows per page) and calendar (day, week, month); **Book Appointment** in the old 3 steps (Pet → Services → Schedule); **Walk In**; the appointment page with Status Control, Mark as Emergency, Reschedule (linked both ways), Cancel with a reason, Staff Assignment, Staff Notes, Services & Products and the visit history. **In Clinic Now** lists every pet tapped in, with how long they've been there.
 - **The visit loop:** Accepted → tap in (Arrived) → Start Consultation (Started) → Admit as Inpatient or Send to Dispense if needed → tap out (Completed). Bookings nobody tapped in for become **No Show** after their day; visits never tapped out are listed under **Not Checked Out** the next day. **Undo Last Step** for mistakes.
 - **NFC tags:** one tag per pet (**Assign Tag** on the pet's page). The front-desk PC runs the gym's tag bridge; turn on **Tag Reader** on the Appointments page of that PC once. A tap checks the pet in or out, offers **Walk In** when there's no booking today, and **Assign Tag** for a new tag. A second tap within 5 minutes is ignored.
+- **Medical records (read-only):** the history from the old system on each pet's page (**Medical History** with a filter by Notes, Vaccinations, Diagnoses and Treatment Plans; **Vaccinations**), the visit's record on its appointment page, and **Medical Records → Records List** with search. Staff don't write new records in the app yet. Photos come with a later upload.
 - **Dashboard:** owner and pet totals and new this month, and today's appointments; the other cards are placeholders.
 - **Legacy import:** `scripts/import-legacy.mjs` loads the old system's owner and pet exports, cleaning up phone numbers, placeholder emails, microchips and breed spellings (536 spellings → 293 breeds). `scripts/import-appointments.mjs` loads the scraped appointments list (see step 7).
 
@@ -94,6 +95,18 @@ Then print the QR code from **Clinic operations → Clinic profile → Kiosk QR 
    Read `data\import-appointments-report.md` for the few rows it couldn't match. Running it again replaces the earlier import and never touches appointments booked in the app.
 3. **Tag reader on the front-desk PC.** Install the gym's fob bridge there the same way as at the gym (its README: download, unzip to e.g. `C:\HannaClinic\bridge\`, run `install-startup.bat`). Next to `bridge.exe`, create `allowed_origins.txt` with this one line: `https://app.hannapetwellnesscenter.com`, then restart the bridge. In the app on that PC: **Appointments → Tag Reader Off** (turns it on; the button then says **Tag Reader Ready**).
 4. Give each pet its tag: pet's page → **NFC Tag → Assign Tag** → tap the tag.
+
+### 8. Medical records (phase 3)
+
+Run after step 7 (the appointments import). In PowerShell, in the `hanna-clinic-app` folder:
+
+1. `git pull`, then `npm run db:migrate:remote` (adds the medical records tables).
+2. Put `records.jsonl.gz` (from `tools\medical-records-download\output-records`) and both masterlist CSVs in `data\`, then:
+   ```
+   npm run import:records -- --records data\records.jsonl.gz --owners data\masterlist_owners_2026-11-06.csv --pets data\masterlist_pets_2026-11-06.csv
+   npx wrangler d1 execute hanna-clinic --remote --file data/import-records.sql
+   ```
+   Read `data\import-records-report.md`. It also settles the bookings the old system left open (Completed when the pet has a record that day, otherwise No Show) and fills in missing birthdates and owner addresses.
 
 ## Working on it locally
 

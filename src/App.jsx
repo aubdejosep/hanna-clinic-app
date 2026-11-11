@@ -15,6 +15,7 @@ import ServicesPage from './pages/ServicesPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import AppointmentsPage from './pages/AppointmentsPage.jsx'
 import AppointmentPage from './pages/AppointmentPage.jsx'
+import RecordsPage from './pages/RecordsPage.jsx'
 import { StaffContext } from './lib/staff.js'
 
 export default function App() {
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="pets/:id" element={<PetPage />} />
         <Route path="appointments" element={<AppointmentsPage />} />
         <Route path="appointments/:id" element={<AppointmentPage />} />
+        <Route path="records" element={<RecordsPage />} />
         <Route path="records/*" element={<ComingSoon module="records" />} />
         <Route path="clinic/staff" element={<StaffPage />} />
         <Route path="clinic/profile" element={<ClinicProfilePage />} />

@@ -20,8 +20,8 @@ const NAV = [
   { label: 'Client Portal', icon: UserRound, children: [
     { to: '/clients', label: 'Masterlist' },
   ] },
-  { label: 'Medical Records', icon: FolderOpen, soon: true, children: [
-    { to: '/records', label: 'Records List', soon: true },
+  { label: 'Medical Records', icon: FolderOpen, children: [
+    { to: '/records', label: 'Records List' },
     { to: '/records/templates', label: 'Templates', soon: true },
   ] },
   { to: '/inbox', label: 'Inbox', icon: Inbox, soon: true },
