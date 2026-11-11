@@ -32,10 +32,12 @@ export function PetPicker({ value, onPick }) {
         <h3>Pet Information</h3>
         <Link className="btn btn-dark" to="/clients?new=1"><UserPlus aria-hidden /> New Client?</Link>
       </div>
-      <div className="search" style={{ maxWidth: 'none' }}>
-        <Search aria-hidden />
-        <label className="sr-only" htmlFor="pet-search">Search Pets</label>
-        <input id="pet-search" type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search pets, owners or mobile" autoComplete="off" />
+      <div className="sticky-search">
+        <div className="search" style={{ maxWidth: 'none' }}>
+          <Search aria-hidden />
+          <label className="sr-only" htmlFor="pet-search">Search Pets</label>
+          <input id="pet-search" type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search pets, owners or mobile" autoComplete="off" />
+        </div>
       </div>
       <ErrorNote error={error} />
       {data && !data.pets.length && <p className="field-hint" style={{ margin: 0 }}>No pet matches “{text}”. Try the owner’s name, or register them with <strong>New Client?</strong></p>}
@@ -80,6 +82,12 @@ export function ServicePicker({ items, setItems, products }) {
   const [other, setOther] = useState('')
   const [otherDetail, setOtherDetail] = useState('')
   const [find, setFind] = useState('')
+  // The 3 services used most on visits lately (from the server), shown above the full list.
+  const popular = useMemo(() => (data?.popular || []).map((p) => {
+    const s = (data.services || []).find((x) => x.id === p.serviceId)
+    const v = s && p.variationId ? s.variations.find((x) => x.id === p.variationId) : null
+    return s && (!p.variationId || v) ? [s, v] : null
+  }).filter(Boolean), [data])
   const groups = useMemo(() => {
     const words = find.toLowerCase().split(/\s+/).filter(Boolean)
     const hit = (...texts) => words.every((w) => texts.some((t) => String(t || '').toLowerCase().includes(w)))
@@ -103,6 +111,7 @@ export function ServicePicker({ items, setItems, products }) {
   }
   return (
     <div className="stack" style={{ gap: 14 }}>
+      <div className="sticky-search">
       {items.length > 0 && (
         <div className="chips" aria-label="Chosen services">
           {items.map((i, n) => (
@@ -118,6 +127,20 @@ export function ServicePicker({ items, setItems, products }) {
           <label className="sr-only" htmlFor="svc-search">Search Services</label>
           <input id="svc-search" type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Search services, e.g. rabies or dental" autoComplete="off" />
         </div>
+      )}
+      </div>
+      {!find && popular.length > 0 && (
+        <section className="form-section popular">
+          <h3 className="label">Most Popular</h3>
+          <div className="choice-grid">
+            {popular.map(([s, v]) => (
+              <button key={`p-${s.id}-${v?.id || 0}`} type="button" className="choice" aria-pressed={has(s, v)} onClick={() => toggle(s, v)}>
+                <strong>{v ? v.name : s.name}</strong>
+                <span className="cell-sub">{v ? s.name : s.variations.length ? 'Base price' : null} {peso(v ? v.price : s.price)}</span>
+              </button>
+            ))}
+          </div>
+        </section>
       )}
       {find && !groups.length && <p className="field-hint" style={{ margin: 0 }}>No service matches “{find}”. Type it under Other Service below.</p>}
       {groups.map(([category, options]) => (
