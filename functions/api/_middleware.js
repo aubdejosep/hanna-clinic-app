@@ -5,6 +5,7 @@
 
 import { currentStaff, AUTH_ERRORS } from '../../lib/auth.js'
 import { fail } from '../../lib/http.js'
+import { forget } from '../../lib/cache.js'
 
 const OPEN = new Set(['/api/auth/login', '/api/kiosk/config', '/api/kiosk/register'])
 
@@ -33,6 +34,10 @@ export async function onRequest(context) {
   context.data.staff = result.staff
   context.data.sessionId = result.sessionId
   const response = await runRoute(context)
+  // A change (booking, step, edit) clears the shared, briefly cached lists so everyone sees it.
+  if (request.method !== 'GET' && response.ok) {
+    await forget(context.env, 'reminders', 'appt_tabs', 'stats').catch(() => {})
+  }
   if (result.setCookie) {
     const copy = new Response(response.body, response)
     copy.headers.append('Set-Cookie', result.setCookie)

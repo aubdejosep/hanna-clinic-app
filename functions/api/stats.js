@@ -1,8 +1,10 @@
 // GET /api/stats -> numbers for the dashboard cards.
 // "New" counts use the date the record was first added (old-system date for imported rows).
 import { json, manilaToday } from '../../lib/http.js'
+import { cached } from '../../lib/cache.js'
 
 export async function onRequestGet({ env }) {
+  return json(await cached(env, 'stats', 5 * 60 * 1000, async () => {
   const today = manilaToday()
   const monthStart = `${today.slice(0, 7)}-01`
   const prev = new Date(`${monthStart}T00:00:00Z`)
@@ -25,12 +27,13 @@ export async function onRequestGet({ env }) {
       (SELECT COUNT(*) FROM pets p JOIN owners o ON o.id = p.owner_id WHERE p.deleted_at IS NULL AND o.deleted_at IS NULL AND p.deceased_on IS NOT NULL) AS pets_deceased
   `).bind(monthStart, prevStart, prevSameDay).first()
 
-  return json({
+  return {
     today,
     owners: { total: row.owners, monthToDate: row.owners_mtd, previous: row.owners_prev },
     pets: { total: row.pets, monthToDate: row.pets_mtd, previous: row.pets_prev },
     ownersToReview: row.owners_to_review,
     petsActive: row.pets_active,
     petsDeceased: row.pets_deceased,
-  })
+  }
+  }))
 }

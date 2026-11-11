@@ -9,6 +9,7 @@
 import { json, fail, readJson, isoDay, likePattern, manilaToday, cleanMultiline, audit } from '../../../lib/http.js'
 import { sweep, LIST_SELECT, apptOut, manilaNow, startsAt, isTime, itemRows, insertItems, loadAppointment } from '../../../lib/appointments.js'
 import { pullWebsiteBookings } from '../../../lib/website.js'
+import { cached } from '../../../lib/cache.js'
 
 const TABS = {
   accepted: "a.status IN ('pending', 'accepted') AND a.legacy_unclosed = 0",
@@ -28,7 +29,7 @@ export async function onRequestGet({ request, env }) {
   await pullWebsiteBookings(env).catch((err) => console.log('Website bookings', String(err).slice(0, 300)))
   const url = new URL(request.url)
   const p = url.searchParams
-  const where = ['a.deleted_at IS NULL']
+  const where = ['+a.deleted_at IS NULL'] // the + keeps the list on the date index (reads only the page shown)
   const binds = []
   const like = likePattern(p.get('q'))
   if (like) {
@@ -54,21 +55,27 @@ export async function onRequestGet({ request, env }) {
   const size = Math.min(cal ? 3000 : 100, Math.max(1, Number(p.get('size')) || 25))
   const page = Math.max(1, Number(p.get('page')) || 1)
   const order = p.get('order') === 'asc' ? 'ASC' : 'DESC'
-  const from_ = 'FROM appointments a JOIN pets p ON p.id = a.pet_id JOIN owners o ON o.id = a.owner_id'
-
-  const [counts, total, rows] = await env.DB.batch([
-    env.DB.prepare(`SELECT a.status, a.emergency, a.legacy_unclosed AS unclosed, COUNT(*) AS n ${from_} WHERE ${base} GROUP BY a.status, a.emergency, a.legacy_unclosed`).bind(...binds),
-    env.DB.prepare(`SELECT COUNT(*) AS n ${from_} WHERE ${listWhere}`).bind(...binds),
+  // The owner and pet tables are only joined when searching by name.
+  const from_ = like ? 'FROM appointments a JOIN pets p ON p.id = a.pet_id JOIN owners o ON o.id = a.owner_id' : 'FROM appointments a'
+  const filtered = where.length > 1
+  const countTabs = async () => {
+    const { results } = await env.DB.prepare(`SELECT a.status, a.emergency, a.legacy_unclosed AS unclosed, COUNT(*) AS n ${from_} WHERE ${base.replace('+a.deleted_at', 'a.deleted_at')} GROUP BY a.status, a.emergency, a.legacy_unclosed`).bind(...binds).all()
+    const t = { all: 0, accepted: 0, arrived: 0, started: 0, inpatient: 0, dispense: 0, completed: 0, cancelled: 0, no_show: 0, emergency: 0, unclosed: 0 }
+    for (const c of results) {
+      t.all += c.n
+      if (c.unclosed) t.unclosed += c.n
+      else t[c.status === 'pending' ? 'accepted' : c.status] += c.n
+      if (c.emergency) t.emergency += c.n
+    }
+    return t
+  }
+  // Without filters, the tab counts are worked out once a minute for everyone (any change clears them).
+  const tabs = filtered ? await countTabs() : await cached(env, 'appt_tabs', 60 * 1000, countTabs)
+  const [total, rows] = await env.DB.batch([
+    filtered ? env.DB.prepare(`SELECT COUNT(*) AS n ${from_} WHERE ${listWhere}`).bind(...binds) : env.DB.prepare('SELECT ? AS n').bind(tabs[tab] ?? tabs.all),
     env.DB.prepare(`${LIST_SELECT} WHERE ${listWhere} ORDER BY a.day ${order}, a.time ${order}, a.id ${order} LIMIT ? OFFSET ?`)
       .bind(...binds, size, (page - 1) * size),
   ])
-  const tabs = { all: 0, accepted: 0, arrived: 0, started: 0, inpatient: 0, dispense: 0, completed: 0, cancelled: 0, no_show: 0, emergency: 0, unclosed: 0 }
-  for (const c of counts.results) {
-    tabs.all += c.n
-    if (c.unclosed) tabs.unclosed += c.n
-    else tabs[c.status === 'pending' ? 'accepted' : c.status] += c.n
-    if (c.emergency) tabs.emergency += c.n
-  }
   return json({ page, pageSize: size, total: total.results[0].n, tabs, today: manilaToday(), appointments: rows.results.map(apptOut) })
 }
 

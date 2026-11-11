@@ -4,11 +4,16 @@
 import { json, fail, readJson, clean, audit } from '../../../lib/http.js'
 import { computeReminders, forStaff } from '../../../lib/reminders.js'
 import { pullWebsiteBookings } from '../../../lib/website.js'
+import { cached } from '../../../lib/cache.js'
 
-export async function onRequestGet({ env, data }) {
-  await pullWebsiteBookings(env).catch((err) => console.log('Website bookings', String(err).slice(0, 300)))
-  const reminders = forStaff(await computeReminders(env), data.staff)
-  return json({ reminders })
+// Worked out at most every 2 minutes for everyone (?fresh=1 when the bell is opened).
+export async function onRequestGet({ request, env, data }) {
+  const fresh = new URL(request.url).searchParams.get('fresh') === '1'
+  const all = await cached(env, 'reminders', 2 * 60 * 1000, async () => {
+    await pullWebsiteBookings(env).catch((err) => console.log('Website bookings', String(err).slice(0, 300)))
+    return computeReminders(env)
+  }, { fresh })
+  return json({ reminders: forStaff(all, data.staff) })
 }
 
 export async function onRequestPost({ request, env, data }) {

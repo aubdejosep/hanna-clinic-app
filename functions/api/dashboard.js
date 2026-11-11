@@ -5,6 +5,7 @@
 // same-length period before it.
 
 import { json, fail, canManage, manilaToday } from '../../lib/http.js'
+import { cached } from '../../lib/cache.js'
 
 function addDays(day, n) {
   const d = new Date(`${day}T00:00:00Z`)
@@ -39,6 +40,8 @@ export async function onRequestGet({ request, env, data }) {
   if (!canManage(data.staff)) return fail(403, 'The overview is for the clinic owners.')
   const today = manilaToday()
   const r = ranges(new URL(request.url).searchParams.get('range'), today)
+  // Worked out at most every 10 minutes per period (these read the whole history).
+  return json(await cached(env, `dash:${today}:${new URL(request.url).searchParams.get('range') || 'mtd'}`, 10 * 60 * 1000, async () => {
   const added = 'COALESCE(legacy_added_on, substr(created_at, 1, 10))'
   const both = [r.from, r.to, r.prevFrom, r.prevTo]
   const period = (col) => `CASE WHEN ${col} BETWEEN ?1 AND ?2 THEN 'cur' WHEN ${col} BETWEEN ?3 AND ?4 THEN 'prev' END`
@@ -76,7 +79,7 @@ export async function onRequestGet({ request, env, data }) {
   const counts = Object.fromEntries(perDay.results.map((x) => [x.day, x.n]))
   const cats = categories.results
   const outcome = Object.fromEntries(outcomes.results.map((x) => [x.s, x.n]))
-  return json({
+  return {
     range: r,
     today,
     totals: Object.fromEntries(['visits', 'services', 'owners', 'pets', 'vaccinations'].map((k) => [k, t[k] || { cur: 0, prev: 0 }])),
@@ -86,5 +89,6 @@ export async function onRequestGet({ request, env, data }) {
     weekdays: [1, 2, 3, 4, 5, 6, 0].map((d) => ({ d, n: weekdays.results.find((x) => x.d === d)?.n || 0 })),
     hours: hours.results.filter((x) => x.h != null),
     clients: { new: clients.results.find((x) => x.k === 'new')?.n || 0, returning: clients.results.find((x) => x.k === 'returning')?.n || 0 },
-  })
+  }
+  }))
 }

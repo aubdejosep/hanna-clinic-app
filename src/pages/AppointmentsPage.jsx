@@ -26,7 +26,7 @@ function InClinic() {
   const toast = useToast()
   useAppointmentsChanged(reload)
   useEffect(() => {
-    const t = setInterval(reload, 60000) // keeps "how long" fresh and picks up taps on another PC
+    const t = setInterval(() => { if (!document.hidden) reload() }, 60000) // "how long" and taps on another PC; not while hidden
     return () => clearInterval(t)
   }, [reload])
   async function checkOut(a) {

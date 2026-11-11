@@ -20,16 +20,20 @@ const linkOf = (r) => (r.kind === 'pet_info' ? `/pets/${r.pet.id}` : ['owner_inf
 
 // The bell: workflow steps still to finish. Each one clears itself once the step is done.
 export default function ReminderBell({ align = 'right' }) {
-  const { data, reload } = useApi('reminders')
+  const { data, reload, setData } = useApi('reminders')
+  // Opening the bell asks for the latest (the server otherwise shares results for 2 minutes).
+  const refresh = () => api('reminders?fresh=1').then(setData).catch(() => {})
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(null)
   const box = useRef(null)
   const toast = useToast()
   useAppointmentsChanged(reload)
   useEffect(() => {
-    const t = setInterval(reload, 60000)
-    window.addEventListener('focus', reload)
-    return () => { clearInterval(t); window.removeEventListener('focus', reload) }
+    // Every 2 minutes, and only while this tab is visible (saves database reads).
+    const t = setInterval(() => { if (!document.hidden) reload() }, 2 * 60000)
+    const onVisible = () => { if (!document.hidden) reload() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible) }
   }, [reload])
   useEffect(() => {
     if (!open) return undefined
@@ -45,7 +49,7 @@ export default function ReminderBell({ align = 'right' }) {
     try {
       await api('reminders', { method: 'POST', body: { key: r.key } })
       toast('Reminder cleared')
-      reload()
+      refresh()
     } catch (err) {
       toast(err.message)
     } finally {
@@ -55,7 +59,7 @@ export default function ReminderBell({ align = 'right' }) {
   const list = data?.reminders || []
   return (
     <div className="bell" ref={box}>
-      <button type="button" className="icon-btn bell-btn" onClick={() => { setOpen(!open); if (!open) reload() }} aria-expanded={open}
+      <button type="button" className="icon-btn bell-btn" onClick={() => { setOpen(!open); if (!open) refresh() }} aria-expanded={open}
         aria-label={list.length ? `${list.length} reminders` : 'Reminders'} title="Reminders">
         <Bell />
         {list.length > 0 && <span className="bell-count">{list.length > 99 ? '99+' : list.length}</span>}

@@ -57,7 +57,7 @@ export default function ClinicBoard() {
   const toast = useToast()
   useAppointmentsChanged(reload)
   useEffect(() => {
-    const t = setInterval(reload, 30000) // taps on another PC and waiting times
+    const t = setInterval(() => { if (!document.hidden) reload() }, 60000) // taps on another PC and waiting times; not while hidden
     return () => clearInterval(t)
   }, [reload])
 
