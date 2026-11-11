@@ -1,4 +1,4 @@
-// GET  /api/appointments?tab=&q=&from=&to=&petId=&ownerId=&staffId=&page=&size=&order=asc|desc
+// GET  /api/appointments?tab=&q=&from=&to=&petId=&ownerId=&staffId=&source=website|staff|walk_in|legacy&bookedDays=&page=&size=&order=asc|desc
 //      -> appointments with pet and owner, plus a count per tab for the same filters.
 //      tab: all | accepted (also the old Pending) | arrived | started | inpatient | dispense |
 //      completed | cancelled | no_show | emergency | unclosed (left open in the old system). size up to 100 (calendar: up to 3000 with cal=1).
@@ -51,6 +51,13 @@ export async function onRequestGet({ request, env }) {
   }
   const staffId = Number(p.get('staffId'))
   if (staffId) { where.push('EXISTS (SELECT 1 FROM appointment_staff x WHERE x.appointment_id = a.id AND x.staff_id = ?)'); binds.push(staffId) }
+  // Where the booking came from: website (online), staff (front desk), walk_in, legacy (old system).
+  const source = p.get('source')
+  if (['website', 'staff', 'legacy'].includes(source)) { where.push(source === 'staff' ? "a.source = 'staff' AND a.kind <> 'walk_in'" : 'a.source = ?'); if (source !== 'staff') binds.push(source) }
+  if (source === 'walk_in') where.push("a.kind = 'walk_in'")
+  // Recently booked: made in the last N days (by when it was booked, not the visit day), newest first.
+  const bookedDays = Math.min(90, Number(p.get('bookedDays')) || 0)
+  if (bookedDays) { where.push("a.created_at >= ? AND a.source <> 'legacy'"); binds.push(new Date(Date.now() - bookedDays * 864e5).toISOString()) }
 
   const base = where.join(' AND ')
   const tab = TABS[p.get('tab')] ? p.get('tab') : 'all'
@@ -76,7 +83,7 @@ export async function onRequestGet({ request, env }) {
   const tabs = filtered ? await countTabs() : await cached(env, 'appt_tabs', 60 * 1000, countTabs)
   const [total, rows] = await env.DB.batch([
     filtered ? env.DB.prepare(`SELECT COUNT(*) AS n ${from_} WHERE ${listWhere}`).bind(...binds) : env.DB.prepare('SELECT ? AS n').bind(tabs[tab] ?? tabs.all),
-    env.DB.prepare(`${LIST_SELECT} WHERE ${listWhere} ORDER BY a.day ${order}, a.time ${order}, a.id ${order} LIMIT ? OFFSET ?`)
+    env.DB.prepare(`${LIST_SELECT} WHERE ${listWhere} ORDER BY ${bookedDays ? `a.created_at DESC, a.id DESC` : `a.day ${order}, a.time ${order}, a.id ${order}`} LIMIT ? OFFSET ?`)
       .bind(...binds, size, (page - 1) * size),
   ])
   return json({ page, pageSize: size, total: total.results[0].n, tabs, today: manilaToday(), appointments: rows.results.map(apptOut) })

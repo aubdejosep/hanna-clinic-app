@@ -105,6 +105,10 @@ Then print the QR code from **Clinic operations → Clinic profile → Kiosk QR 
 3. **Tag reader on the front-desk PC.** Install the gym's fob bridge there the same way as at the gym (its README: download, unzip to e.g. `C:\HannaClinic\bridge\`, run `install-startup.bat`). Next to `bridge.exe`, create `allowed_origins.txt` with this one line: `https://app.hannapetwellnesscenter.com`, then restart the bridge. In the app on that PC: **Appointments → Tag Reader Off** (turns it on; the button then says **Tag Reader Ready**).
 4. Give each pet its tag: pet's page → **NFC Tag → Assign Tag** → tap the tag.
 
+### 19. Appointment list: Upcoming first, Recently Booked, Online filter
+
+`git pull`, then `npm run db:migrate:remote` (an index for Recently Booked). The list opens on **Upcoming** (today first, soonest first); **Recently Booked** shows bookings made in the last 7 days, newest first; the **Source** filter shows Online, Front Desk, Walk-In or Old System bookings.
+
 ### 18. UAT fixes
 
 `git pull`, then `npm run db:migrate:remote` (moves what owners ticked on the website, e.g. "Grooming", from unpriced items into the visit notes for visits not yet checked out).

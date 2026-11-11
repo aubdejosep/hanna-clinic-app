@@ -86,14 +86,18 @@ function InClinic() {
 }
 
 // ---------- Table ----------
-const WHEN = [['', 'All Dates'], ['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Next 7 Days'], ['upcoming', 'Upcoming'], ['past', 'Past']]
+// Which appointments the list shows. The default is Upcoming: today first, then the days after.
+const WHEN = [['upcoming', 'Upcoming'], ['today', 'Today'], ['tomorrow', 'Tomorrow'], ['week', 'Next 7 Days'], ['booked', 'Recently Booked'], ['past', 'Past'], ['all', 'All Dates']]
+const SOURCES = [['', 'All Sources'], ['website', 'Online'], ['staff', 'Front Desk'], ['walk_in', 'Walk-In'], ['legacy', 'Old System']]
 function whenRange(when) {
   const t = manilaToday()
   return {
     today: { from: t, to: t }, tomorrow: { from: addDays(t, 1), to: addDays(t, 1) }, week: { from: t, to: addDays(t, 6) },
-    upcoming: { from: t }, past: { to: addDays(t, -1) },
+    upcoming: { from: t }, past: { to: addDays(t, -1) }, booked: { bookedDays: 7 },
   }[when] || {}
 }
+// Days ahead read soonest first; the past and everything else newest first.
+const naturalOrder = (when) => (['upcoming', 'today', 'tomorrow', 'week'].includes(when) ? 'asc' : 'desc')
 
 function Row({ a, navigate }) {
   const extra = a.legacyInfo || (a.rescheduledFrom ? 'Rescheduled appointment' : a.rescheduledTo ? 'Has a new schedule' : a.reason)
@@ -108,7 +112,8 @@ function Row({ a, navigate }) {
           </span>
         </div>
       </td>
-      <td data-label="Booked By" className="hide-sm">{a.bookedBy || '—'}{a.kind === 'walk_in' && <span className="cell-sub">Walk-in</span>}</td>
+      <td data-label="Booked By" className="hide-sm">{a.source === 'website' ? <span className="badge badge-soft">Online</span> : a.bookedBy || '—'}{a.kind === 'walk_in' && <span className="cell-sub">Walk-in</span>}
+        {a.source !== 'legacy' && a.createdAt && <span className="cell-sub">on {prettyDay(new Date(Date.parse(a.createdAt) + 8 * 3600e3).toISOString().slice(0, 10))} {clockTime(a.createdAt)}</span>}</td>
       <td data-label="Date & Time">{prettyDay(a.day)}<span className="cell-sub">{prettyTime(a.time)}</span></td>
       <td data-label="Status"><StatusBadge status={a.status} emergency={a.emergency} />{a.legacyUnclosed && <span className="cell-sub">Left open in the old system</span>}</td>
       <td data-label="Services">
@@ -122,22 +127,23 @@ function Row({ a, navigate }) {
 function TableView({ params, update }) {
   const navigate = useNavigate()
   const tab = params.get('tab') || 'all'
-  const when = params.get('when') || ''
+  const when = WHEN.some(([k]) => k === params.get('when')) ? params.get('when') : 'upcoming'
+  const source = params.get('source') || ''
   const page = Number(params.get('page')) || 1
   const size = Number(params.get('size')) || 25
   const staffId = params.get('staff') || ''
-  const order = params.get('order') === 'asc' ? 'asc' : ''
+  const order = ['asc', 'desc'].includes(params.get('order')) ? params.get('order') : naturalOrder(when)
   const [text, setText] = useState(params.get('q') || '')
   const q = useDebounced(text.trim())
   useEffect(() => { if (q !== (params.get('q') || '')) update({ q, page: '' }) }, [q]) // eslint-disable-line react-hooks/exhaustive-deps
   const staff = useApi('staff/directory').data?.staff || []
-  const { data, error, loading, reload } = useApi(`appointments${query({ tab, q: params.get('q') || '', page, size, staffId, order, ...whenRange(when) })}`)
+  const { data, error, loading, reload } = useApi(`appointments${query({ tab, q: params.get('q') || '', page, size, staffId, source, order, ...whenRange(when) })}`)
   useAppointmentsChanged(reload)
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
   return (
     <section className="card">
       <div className="card-head">
-        <div><h2>Appointment List</h2><p>{data ? `${data.total.toLocaleString()} appointment${data.total === 1 ? '' : 's'}` : '…'}</p></div>
+        <div><h2>Appointment List</h2><p>{data ? `${data.total.toLocaleString()} appointment${data.total === 1 ? '' : 's'} · ${when === 'booked' ? 'booked in the last 7 days, newest booking first' : `${WHEN.find(([k]) => k === when)[1]}, ${order === 'asc' ? 'soonest' : 'latest'} first`}` : '…'}</p></div>
         <button type="button" className="icon-btn" onClick={() => { if (!loading) reload() }} aria-busy={loading} aria-label="Refresh" title="Refresh">{loading ? <PawLoader small label="Refreshing…" /> : <RefreshCw />}</button>
       </div>
       <div className="toolbar">
@@ -147,8 +153,12 @@ function TableView({ params, update }) {
           <input id="appt-search" type="search" value={text} onChange={(e) => setText(e.target.value)} placeholder="Search pets, owners or services" autoComplete="off" />
         </div>
         <label className="sr-only" htmlFor="appt-when">Dates</label>
-        <select id="appt-when" className="select" value={when} onChange={(e) => update({ when: e.target.value, page: '' })}>
+        <select id="appt-when" className="select" value={when} onChange={(e) => update({ when: e.target.value === 'upcoming' ? '' : e.target.value, order: '', page: '' })}>
           {WHEN.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+        <label className="sr-only" htmlFor="appt-source">Booked Through</label>
+        <select id="appt-source" className="select" value={source} onChange={(e) => update({ source: e.target.value, page: '' })}>
+          {SOURCES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
         <label className="sr-only" htmlFor="appt-staff">Filter by Staff</label>
         <select id="appt-staff" className="select" value={staffId} onChange={(e) => update({ staff: e.target.value, page: '' })}>
@@ -184,7 +194,7 @@ function TableView({ params, update }) {
             <thead>
               <tr>
                 <th>Pet &amp; Owner</th><th className="hide-sm">Booked By</th>
-                <th><button type="button" className="th-sort" onClick={() => update({ order: order ? '' : 'asc', page: '' })} title={order ? 'Oldest first' : 'Newest first'}>Date &amp; Time <ArrowDownUp aria-hidden /></button></th>
+                <th>{when === 'booked' ? 'Date & Time' : <button type="button" className="th-sort" onClick={() => update({ order: order === 'asc' ? 'desc' : 'asc', page: '' })} title={order === 'asc' ? 'Soonest first: tap for latest first' : 'Latest first: tap for soonest first'}>Date &amp; Time <ArrowDownUp aria-hidden /></button>}</th>
                 <th>Status</th><th>Services</th><th className="hide-sm"><span className="sr-only">Notes</span></th>
               </tr>
             </thead>
