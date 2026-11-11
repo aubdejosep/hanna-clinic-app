@@ -1136,3 +1136,13 @@ body:has(.omni-sheet) .fab-wrap { display: none; }
 .vb-side, .vb-side > *, .vb-pet, .vb-when { min-width: 0; }
 .vb-side .inline-row { min-width: 0; }
 .vb-side .inline-row input { min-width: 0; width: 100%; }
+.appt-top-row { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr); gap: 16px; align-items: start; }
+.appt-top-row .visit-bar { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.appt-bento { grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr); }
+.bill-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.bill-row > * { flex: 1 1 280px; min-width: 0; }
+.bill-row > :first-child { flex: 1.5 1 340px; }
+@media (max-width: 1100px) { .appt-top-row { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .appt-bento { grid-template-columns: 1fr; } }
+.appt-bento .inline-row input { flex: 1; min-width: 0; }
+.appt-bento .inline-row .btn { flex: none; }

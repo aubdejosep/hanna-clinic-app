@@ -463,28 +463,32 @@ function Timeline({ a }) {
   )
 }
 
-// The page in two stacked columns under one header row: the visit's progress, bill and payment on the
-// left; actions, the medical record, notes and history on the right; the pet's Medical History below.
+// The page in two columns that stack on their own (no gaps between rows). Left: the header, notes for
+// the visit, progress, the bill and payment side by side, the pet's Medical History. Right: Appointment
+// Actions, the visit's record, staff notes and the visit history.
 function AppointmentBody({ a, changed, reload, toast, setPanel, banners }) {
   const med = useVisitMedical({ a, onVisitChanged: reload, toast })
   return (
     <div className="stack">
-      <VisitBar a={a} onChange={changed} />
-      {banners.length > 0 && (
-        <section className="card banners">
-          {banners.map((b) => {
-            const inner = <><b.icon aria-hidden /><span>{b.no && <span className="badge badge-soft">#{b.no}</span>} <strong>{b.title}</strong><span className="cell-sub">{b.text}</span></span>{b.link && <ArrowRight aria-hidden />}</>
-            return b.link ? <Link key={b.title} to={b.link} className="banner">{inner}</Link>
-              : b.onClick ? <button key={b.title} type="button" className="banner banner-action" onClick={b.onClick}>{inner}<ArrowRight aria-hidden /></button>
-              : <div key={b.title} className="banner">{inner}</div>
-          })}
-        </section>
-      )}
       <div className="appt-bento">
         <div className="stack">
+          <VisitBar a={a} onChange={changed} />
+          {banners.length > 0 && (
+            <section className="card banners">
+              {banners.map((b) => {
+                const inner = <><b.icon aria-hidden /><span>{b.no && <span className="badge badge-soft">#{b.no}</span>} <strong>{b.title}</strong><span className="cell-sub">{b.text}</span></span>{b.link && <ArrowRight aria-hidden />}</>
+                return b.link ? <Link key={b.title} to={b.link} className="banner">{inner}</Link>
+                  : b.onClick ? <button key={b.title} type="button" className="banner banner-action" onClick={b.onClick}>{inner}<ArrowRight aria-hidden /></button>
+                  : <div key={b.title} className="banner">{inner}</div>
+              })}
+            </section>
+          )}
           <StatusControl a={a} onChange={changed} setPanel={setPanel} />
-          <Items a={a} onChange={changed} />
-          <Payment a={a} setPanel={setPanel} />
+          <div className="bill-row">
+            <Items a={a} onChange={changed} />
+            <Payment a={a} setPanel={setPanel} />
+          </div>
+          {med.history}
         </div>
         <div className="stack">
           <Actions a={a} onChange={changed} setPanel={setPanel} />
@@ -493,7 +497,6 @@ function AppointmentBody({ a, changed, reload, toast, setPanel, banners }) {
           <Timeline a={a} />
         </div>
       </div>
-      {med.history}
       {med.overlays}
     </div>
   )
