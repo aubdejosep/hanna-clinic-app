@@ -18,6 +18,7 @@ import AppointmentPage from './pages/AppointmentPage.jsx'
 import RecordsPage from './pages/RecordsPage.jsx'
 import InventoryPage from './pages/InventoryPage.jsx'
 import CustomerAnalyticsPage from './pages/CustomerAnalyticsPage.jsx'
+import ContentPage from './pages/ContentPage.jsx'
 import { CountPage, CountsPage, MovementsPage } from './pages/StockPages.jsx'
 import { StaffContext } from './lib/staff.js'
 
@@ -67,6 +68,7 @@ export default function App() {
         <Route path="inventory/movements" element={<MovementsPage />} />
         <Route path="inventory/counts" element={<CountsPage />} />
         <Route path="inventory/counts/:id" element={<CountPage />} />
+        <Route path="content" element={<ContentPage />} />
         <Route path="inbox/*" element={<ComingSoon module="inbox" />} />
         <Route path="*" element={<ComingSoon module="missing" />} />
       </Route>

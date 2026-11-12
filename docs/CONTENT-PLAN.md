@@ -4,7 +4,7 @@ A **Content** menu in the clinic app that shows the clinic's social media calend
 ready, what still needs filming or info, and what's posted. It replaces passing the weekly plan page around
 (the "This week's posts" page with captions, slides, reels and Posted ticks) with one place inside the app.
 
-Status: **plan only, not built.**
+Status: **phase 1 built** (calendar, post window, Import Week from the app, Team Notes and comments, promos and events, Mark as Posted). Week folder format: `docs/CONTENT-IMPORT-FORMAT.md`.
 
 ## What a post is (from the weekly plan page)
 
@@ -47,11 +47,9 @@ Status: **plan only, not built.**
 Phase 1 keeps today's way of working: content is made in a Claude session, as now. Instead of a separate page,
 the session produces a **week folder** (posts JSON + images + videos) and the owner loads it with one command:
 
-```
-npm run import:content -- --week path/to/week-folder
-```
-
-The script uploads media to R2 and the posts to D1. Re-running it for the same week updates those posts
+An owner or admin opens **Content ▸ Import Week**, picks the unzipped folder and confirms the preview;
+the app uploads the slides and reels to R2 and the posts to D1. The content session never gets access
+to the app. Re-running it for the same week updates those posts
 (matched by post id, e.g. s04) without touching Posted ticks.
 
 Phase 2 adds editing in the app (owners): new post, edit caption/status/date (drag to another day),
@@ -73,9 +71,11 @@ upload or reorder slides.
 - Stock photos and footage are never presented as patients, clients or staff.
 - No prices in posts; pet travel / Blood Titer only named, questions to Viber.
 
-## Who sees what (to confirm)
+## Who sees what (decided)
 
-- Proposed: every staff member can view the calendar and posts; owners and admins create, edit and mark as posted.
+- Every staff member sees the calendar and posts, and can comment on a post or in **Team Notes**.
+- Owners and admins import weeks, add promos and events, and tick Posted.
+- Clinic closed dates and special hours (Clinic Profile) show on the calendar.
 
 ## Phases
 
@@ -88,9 +88,9 @@ upload or reorder slides.
 Out of scope for now: posting or scheduling to Facebook/Instagram from the app (needs a Meta app review);
 the Copy/Save buttons cover Meta Business Suite by hand.
 
-## Questions for the owners
+## Decisions (Nov 2026)
 
-1. Who should see Content: all staff, or owners/admins only?
-2. Phase 1 import from Claude sessions (as now), or start with typing posts in the app?
-3. Keep the shared weekly plan page as well, or move fully into the app?
-4. Should the clinic's own events (closed dates, promos like the November 50% off) show on the content calendar?
+1. All staff see Content; anyone can comment (post comments and Team Notes).
+2. Phase 1 imports week folders from the content session, uploaded in the app (Import Week).
+3. The content session gets no access to the app; it hands over a zip in the format sheet.
+4. Promos/events and closed dates show on the content calendar.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, FolderOpen, Inbox, LayoutDashboard, LogOut, Menu, UserRound, X } from 'lucide-react'
+import { Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, UserRound, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 import { initials } from '../lib/format.js'
 import { canManage, ROLE_LABEL } from '../lib/staff.js'
@@ -33,6 +33,7 @@ const NAV = [
     { to: '/inventory/movements', label: 'Stock Movements' },
     { to: '/inventory/counts', label: 'Stock Count' },
   ] },
+  { to: '/content', label: 'Content', icon: Megaphone },
   { to: '/inbox', label: 'Inbox', icon: Inbox, soon: true },
 ]
 
