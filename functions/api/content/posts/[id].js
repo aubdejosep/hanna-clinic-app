@@ -4,7 +4,7 @@
 // DELETE /api/content/posts/:id -> owners and admins; hidden, never erased
 
 import { json, fail, readJson, clean, canManage, audit } from '../../../../lib/http.js'
-import { DAY, STATUSES, commentOut, loadMedia, postOut } from '../../../../lib/content.js'
+import { DAY, STATUSES, commentsOut, loadMedia, postOut } from '../../../../lib/content.js'
 
 export async function loadPost(env, id, staff) {
   const p = await env.DB.prepare('SELECT * FROM content_posts WHERE id = ? AND deleted_at IS NULL').bind(id).first()
@@ -13,7 +13,7 @@ export async function loadPost(env, id, staff) {
     loadMedia(env, [id]),
     env.DB.prepare('SELECT * FROM content_comments WHERE post_id = ? AND deleted_at IS NULL ORDER BY created_at, id').bind(id).all(),
   ])
-  return postOut(p, media[id] || [], { comments: comments.results.map((c) => commentOut(c, staff)) })
+  return postOut(p, media[id] || [], { comments: await commentsOut(env, comments.results, staff) })
 }
 
 export async function onRequestGet({ env, params, data }) {

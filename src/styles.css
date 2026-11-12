@@ -1323,3 +1323,16 @@ button.content-flag:disabled { cursor: default; }
 }
 .content-flag.is-band { height: 6px; padding: 0; }
 @media (max-width: 640px) { .content-flag.is-band { display: none; } }
+
+/* Content comments: images and the post's Replace buttons */
+.comment-actions { display: flex; align-items: center; gap: 8px; }
+.comment-images { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.comment-thumb { position: relative; display: block; width: 72px; height: 72px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-field); background: var(--surface-alt); overflow: hidden; cursor: zoom-in; }
+.comment-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.is-draft .comment-thumb { cursor: default; }
+.comment-thumb-x { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: rgba(19, 42, 110, .78); color: #fff; cursor: pointer; }
+.comment-thumb-x svg { width: 13px; height: 13px; }
+.content-replace { position: relative; display: inline-flex; align-items: center; gap: 4px; justify-self: start; font-size: var(--fs-small); cursor: pointer; }
+.content-replace.is-busy { opacity: .6; cursor: progress; }
+@media (max-width: 640px) { .comment-actions { justify-content: space-between; } }
+.content-comments h3 { display: flex; align-items: baseline; gap: 6px; }

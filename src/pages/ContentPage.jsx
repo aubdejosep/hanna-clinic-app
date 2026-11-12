@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   CalendarOff, Check, ChevronLeft, ChevronRight, Clapperboard, Copy, Download, FolderUp, Images, MessageSquare,
-  Megaphone, Pencil, Play, Send, Tag, Trash2, X,
+  ImagePlus, Megaphone, Pencil, Play, RefreshCw, Send, Tag, Trash2, X,
 } from 'lucide-react'
 import { Empty, ErrorNote, Field, PageHead, Panel, PawLoader, useToast } from '../components/ui.jsx'
 import { api, ApiError } from '../lib/api.js'
@@ -151,32 +151,98 @@ function Summary({ data, onOpen }) {
 }
 
 // ---------- Comments (a post's, or Team Notes) ----------
-function Comments({ list, onAdd, onRemove, placeholder, label }) {
+// Screenshots: big ones are scaled to 2000 px and saved as JPG, so they upload fast on mobile data.
+async function shrink(file) {
+  if (file.type === 'image/gif' || (file.size < 1.5 * 1024 * 1024 && /^image\/(jpeg|png|webp)$/.test(file.type))) return file
+  try {
+    const bmp = await createImageBitmap(file)
+    const k = Math.min(1, 2000 / Math.max(bmp.width, bmp.height))
+    const c = document.createElement('canvas')
+    c.width = Math.round(bmp.width * k)
+    c.height = Math.round(bmp.height * k)
+    const g = c.getContext('2d')
+    g.fillStyle = '#fff'
+    g.fillRect(0, 0, c.width, c.height)
+    g.drawImage(bmp, 0, 0, c.width, c.height)
+    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.88))
+    return blob || file
+  } catch {
+    return file
+  }
+}
+
+// A comment box (a post's comments, or Team Notes): text and up to 4 images, attached or pasted.
+function Comments({ list, postPath, onAdded, onRemove, placeholder, label }) {
   const [text, setText] = useState('')
+  const [files, setFiles] = useState([]) // [{file, url}]
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [view, setView] = useState(null) // image id shown large
+  const pick = useRef(null)
+  useEffect(() => () => files.forEach((f) => URL.revokeObjectURL(f.url)), []) // eslint-disable-line react-hooks/exhaustive-deps
+  function addFiles(list) {
+    const imgs = [...list].filter((f) => /^image\//.test(f.type))
+    if (!imgs.length) return
+    setError(null)
+    setFiles((prev) => {
+      const next = [...prev, ...imgs.map((file) => ({ file, url: URL.createObjectURL(file) }))]
+      if (next.length > 4) setError(new ApiError(400, { error: 'A comment can have up to 4 images.' }))
+      return next.slice(0, 4)
+    })
+  }
+  function onPaste(e) {
+    const imgs = [...(e.clipboardData?.files || [])].filter((f) => /^image\//.test(f.type))
+    if (imgs.length) { e.preventDefault(); addFiles(imgs) }
+  }
   async function add(e) {
     e.preventDefault()
-    if (!text.trim()) return
+    if (!text.trim() && !files.length) return
     setBusy(true)
     setError(null)
     try {
-      await onAdd(text)
+      const { comment } = await api(postPath, { method: 'POST', body: { body: text, images: files.length } })
+      for (const [n, f] of files.entries()) {
+        const blob = await shrink(f.file)
+        const r = await fetch(`/api/content/comments/${comment.id}/images?n=${n}`, { method: 'PUT', body: blob, headers: { 'Content-Type': blob.type || 'image/jpeg' }, credentials: 'same-origin' })
+        if (!r.ok) {
+          const b = await r.json().catch(() => null)
+          throw new ApiError(r.status, { error: `The comment was added, but an image didn’t upload: ${b?.error || 'please try again.'}` })
+        }
+      }
       setText('')
+      files.forEach((f) => URL.revokeObjectURL(f.url))
+      setFiles([])
+      onAdded()
     } catch (err) {
       setError(err)
+      onAdded()
     } finally {
       setBusy(false)
     }
   }
   return (
-    <div className="comments" data-no-dirty>
+    <div className="comments" data-no-dirty onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files) }}>
       <form className="comment-form" onSubmit={add}>
         <label className="sr-only" htmlFor={`c-${label}`}>{label}</label>
-        <textarea id={`c-${label}`} rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} maxLength={2000}
+        <textarea id={`c-${label}`} rows={2} value={text} onChange={(e) => setText(e.target.value)} onPaste={onPaste} placeholder={placeholder} maxLength={2000}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) add(e) }} />
-        <button type="submit" className="btn" disabled={busy || !text.trim()}><Send aria-hidden /> {busy ? 'Adding…' : 'Add'}</button>
+        <div className="comment-actions">
+          <button type="button" className="icon-btn" onClick={() => pick.current?.click()} disabled={busy || files.length >= 4} aria-label="Attach Image" title="Attach Image (or paste a screenshot)"><ImagePlus /></button>
+          <input ref={pick} type="file" accept="image/*" multiple className="sr-only" tabIndex={-1} onChange={(e) => { addFiles(e.target.files); e.target.value = '' }} />
+          <button type="submit" className="btn" disabled={busy || (!text.trim() && !files.length)}><Send aria-hidden /> {busy ? 'Adding…' : 'Add'}</button>
+        </div>
       </form>
+      {files.length > 0 && (
+        <div className="comment-images is-draft">
+          {files.map((f, i) => (
+            <span key={f.url} className="comment-thumb">
+              <img src={f.url} alt={`Image ${i + 1} to add`} />
+              <button type="button" className="comment-thumb-x" onClick={() => { URL.revokeObjectURL(f.url); setFiles(files.filter((x) => x !== f)) }} aria-label={`Remove image ${i + 1}`}><X /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <p className="field-hint" style={{ margin: 0 }}>Attach up to 4 images, or paste a screenshot into the box.</p>
       <ErrorNote error={error} />
       {list.length > 0 && (
         <ul className="comment-list">
@@ -185,10 +251,29 @@ function Comments({ list, onAdd, onRemove, placeholder, label }) {
               <div className="comment-head"><strong>{c.author || 'Staff'}</strong><span className="cell-sub">{ago(c.at)}</span>
                 {c.canRemove && <button type="button" className="icon-btn comment-x" onClick={() => onRemove(c)} aria-label="Remove Comment" title="Remove Comment"><Trash2 /></button>}
               </div>
-              <p>{c.body}</p>
+              {c.body && <p>{c.body}</p>}
+              {c.images?.length > 0 && (
+                <div className="comment-images">
+                  {c.images.map((imgId, i) => (
+                    <button key={imgId} type="button" className="comment-thumb" onClick={() => setView(imgId)} aria-label={`View image ${i + 1} from ${c.author || 'staff'}`}>
+                      <img src={`/api/content/comment-images/${imgId}`} alt="" loading="lazy" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </li>
           ))}
         </ul>
+      )}
+      {view && (
+        <div className="lightbox" role="dialog" aria-modal="true" aria-label="Comment image" onClick={() => setView(null)}
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setView(null) } }}>
+          <img src={`/api/content/comment-images/${view}`} alt="Comment image" onClick={(e) => e.stopPropagation()} />
+          <div className="lightbox-bar" onClick={(e) => e.stopPropagation()}>
+            <a className="btn btn-quiet" href={`/api/content/comment-images/${view}`} target="_blank" rel="noreferrer">Open Full Size</a>
+            <button type="button" className="icon-btn" onClick={() => setView(null)} aria-label="Close" autoFocus><X /></button>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -204,7 +289,7 @@ function TeamNotes({ owner }) {
       <div className="card-pad">
         <ErrorNote error={error} />
         <Comments label="Team Note" list={list} placeholder="An idea, a client story, or feedback like “Wed, slide 2: …”"
-          onAdd={async (body) => { await api('content/comments', { method: 'POST', body: { body } }); reload() }}
+          postPath="content/comments" onAdded={reload}
           onRemove={async (c) => { try { await api(`content/comments/${c.id}`, { method: 'DELETE' }); reload() } catch (err) { toast(err.message) } }} />
       </div>
     </section>
@@ -251,8 +336,8 @@ function PostWindow({ id, owner, onClose, onChanged }) {
   const [showAll, setShowAll] = useState(false)
   const p = data?.post
   const items = p ? [
-    ...(p.reel ? [{ id: p.reel.id, kind: 'reel', poster: p.poster?.id, label: p.reel.silent ? 'Reel · add sound' : 'Reel', saveAs: p.reel.saveAs }] : []),
-    ...p.slides.map((s, i) => ({ id: s.id, kind: 'slide', label: p.slides.length > 1 ? `Slide ${i + 1}` : 'Image', saveAs: s.saveAs })),
+    ...(p.reel ? [{ id: p.reel.id, kind: 'reel', sort: p.reel.sort, silent: p.reel.silent, poster: p.poster?.id, label: p.reel.silent ? 'Reel · add sound' : 'Reel', saveAs: p.reel.saveAs }] : []),
+    ...p.slides.map((s, i) => ({ id: s.id, kind: 'slide', sort: s.sort, label: p.slides.length > 1 ? `Slide ${i + 1}` : 'Image', saveAs: s.saveAs })),
   ] : []
   async function patch(body, msg) {
     setBusy(true)
@@ -265,6 +350,28 @@ function PostWindow({ id, owner, onClose, onChanged }) {
       toast(err.message)
     } finally {
       setBusy(false)
+    }
+  }
+  // Owners: upload a new slide or reel in place of the one shown (e.g. after the content session fixed it).
+  const [replacing, setReplacing] = useState(null)
+  async function replace(it, file) {
+    const type = typeOf(file)
+    setReplacing(it.id)
+    try {
+      const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm' }[type] || ''
+      const saveAs = (it.saveAs || file.name).replace(/\.[a-z0-9]+$/i, ext ? `.${ext}` : '')
+      const q = new URLSearchParams({ post: id, kind: it.kind, sort: it.sort, saveAs })
+      if (it.silent) q.set('silent', '1')
+      const r = await fetch(`/api/content/media?${q}`, { method: 'PUT', body: file, headers: { 'Content-Type': type }, credentials: 'same-origin' })
+      if (!r.ok) throw new Error((await r.json().catch(() => null))?.error || 'The upload didn’t go through. Please try again.')
+      await api('content/import', { method: 'POST', body: { finish: true } }).catch(() => {}) // tidy the old file if its name changed
+      toast(`${it.label} replaced`)
+      reload()
+      onChanged()
+    } catch (err) {
+      toast(err.message)
+    } finally {
+      setReplacing(null)
     }
   }
   function saveAll() { // one download per file; the browser may ask once to allow several
@@ -294,6 +401,13 @@ function PostWindow({ id, owner, onClose, onChanged }) {
                     {it.kind === 'reel' && <span className="content-play"><Play aria-hidden /></span>}
                   </button>
                   <figcaption><span>{it.label}</span><a className="text-btn" href={media(it.id, true)} download title={it.saveAs || undefined}><Download size={13} aria-hidden /> Save</a></figcaption>
+                  {owner && (
+                    <label className={`text-btn content-replace ${replacing === it.id ? 'is-busy' : ''}`} title={`Upload a new ${it.kind === 'reel' ? 'reel' : 'image'} in place of this one`}>
+                      <RefreshCw size={13} aria-hidden /> {replacing === it.id ? 'Replacing…' : 'Replace'}
+                      <input type="file" className="sr-only" accept={it.kind === 'reel' ? 'video/mp4,video/quicktime,video/webm' : 'image/jpeg,image/png,image/webp'} disabled={!!replacing}
+                        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) replace(it, f) }} />
+                    </label>
+                  )}
                 </figure>
               ))}
             </div>
@@ -339,7 +453,7 @@ function PostWindow({ id, owner, onClose, onChanged }) {
           <section className="content-comments">
             <h3>Comments <span className="cell-sub">{comments.length || ''}</span></h3>
             <Comments label="Comment" list={comments} placeholder="Feedback or inputs for this post, e.g. “Slide 2: change the photo”"
-              onAdd={async (body) => { await api(`content/posts/${id}/comments`, { method: 'POST', body: { body } }); reload(); onChanged() }}
+              postPath={`content/posts/${id}/comments`} onAdded={() => { reload(); onChanged() }}
               onRemove={async (c) => { try { await api(`content/comments/${c.id}`, { method: 'DELETE' }); reload(); onChanged() } catch (err) { toast(err.message) } }} />
           </section>
         </div>
