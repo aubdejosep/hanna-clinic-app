@@ -17,7 +17,7 @@ function ServicePanel({ service, categories, onClose, onDone }) {
   const [v, setV] = useState({
     name: service?.name || '', description: service?.description || '', price: service ? String(service.price) : '',
     category: service?.category || '', active: service ? service.active : true, featuredOnline: service?.featuredOnline || false,
-    variations: (service?.variations || []).map((x) => ({ ...x, price: String(x.price) })),
+    variations: (service?.variations || []).map((x) => ({ ...x, price: String(x.price), minKg: x.minKg == null ? '' : String(x.minKg), maxKg: x.maxKg == null ? '' : String(x.maxKg) })),
   })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -96,7 +96,7 @@ function ServicePanel({ service, categories, onClose, onDone }) {
 
       <section className="form-section">
         <div className="form-section-head"><h3 className="label">Variations <small>(optional)</small></h3></div>
-        <p className="field-hint" style={{ margin: 0 }}>For prices that depend on size or type, e.g. “1–3 kg” and “3–5 kg”.</p>
+        <p className="field-hint" style={{ margin: 0 }}>For prices that depend on size or type, e.g. “1–3 kg” and “3–5 kg”. Add a weight to a size (e.g. Small Dog, 0 to 10 kg) and Quick Add picks it from the pet’s weight. Leave the weight blank for choices that aren’t sizes, like Haircut.</p>
         {v.variations.map((x, i) => (
           <div className="variation-row" key={x.id || `new-${i}`}>
             <Field label="Name" error={errors[`variations.${i}.name`]}>
@@ -106,9 +106,17 @@ function ServicePanel({ service, categories, onClose, onDone }) {
               {(a) => <input {...a} value={x.price} onChange={(e) => set({ variations: v.variations.map((y, j) => (j === i ? { ...y, price: e.target.value } : y)) })} inputMode="decimal" />}
             </Field>
             <button type="button" className="icon-btn" onClick={() => set({ variations: v.variations.filter((_, j) => j !== i) })} aria-label={`Remove variation ${x.name || i + 1}`} title="Remove Variation"><Trash2 /></button>
+            <div className="variation-kg">
+              <Field label="From (kg)" error={errors[`variations.${i}.minKg`]}>
+                {(a) => <input {...a} value={x.minKg ?? ''} onChange={(e) => set({ variations: v.variations.map((y, j) => (j === i ? { ...y, minKg: e.target.value } : y)) })} inputMode="decimal" placeholder="0" />}
+              </Field>
+              <Field label="To (kg)" error={errors[`variations.${i}.maxKg`]}>
+                {(a) => <input {...a} value={x.maxKg ?? ''} onChange={(e) => set({ variations: v.variations.map((y, j) => (j === i ? { ...y, maxKg: e.target.value } : y)) })} inputMode="decimal" placeholder="and up" />}
+              </Field>
+            </div>
           </div>
         ))}
-        <button type="button" className="btn btn-quiet" style={{ justifySelf: 'start' }} onClick={() => set({ variations: [...v.variations, { name: '', price: v.price }] })}><Plus aria-hidden /> New Variation</button>
+        <button type="button" className="btn btn-quiet" style={{ justifySelf: 'start' }} onClick={() => set({ variations: [...v.variations, { name: '', price: v.price, minKg: '', maxKg: '' }] })}><Plus aria-hidden /> New Variation</button>
       </section>
     </Panel>
   )

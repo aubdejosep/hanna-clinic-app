@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, History, ListChecks, Pill, Plus, Scale, Search, Sparkles, Stethoscope, X } from 'lucide-react'
+import { Check, ChevronDown, Globe, History, ListChecks, Pill, Plus, Scale, Search, Sparkles, Stethoscope, X } from 'lucide-react'
 import { ErrorNote, Field, Pager, Panel, PawLoader } from './ui.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { prettyDay } from '../lib/format.js'
-import { sizeFor, sizeOptions } from '../../lib/sizing.js'
+import { isSize, sizeFor, sizeOptions } from '../../lib/sizing.js'
 
 // Quick Add: one search for services and medicines, suggestions learned from the clinic's own
 // visits ("usually goes with"), Same as Last Visit, and sizes picked from the pet's weight.
@@ -51,7 +51,7 @@ function labelOf(c, it) {
 
 // A service item, sized from the weight when the service goes by weight.
 function serviceItem(c, s, variationId, weight, species) {
-  if (c.sized.has(s.id)) {
+  if (c.sized.has(s.id) && !(variationId != null && !isSize(s, variationId))) { // Haircut, Bath and Dry: not a size
     const auto = sizeFor(s, weight, species)
     if (auto !== undefined) return { serviceId: s.id, variationId: auto, auto: true }
     return { serviceId: s.id, variationId: variationId ?? null, needsSize: variationId == null }
@@ -72,8 +72,8 @@ function keyOf(c, it) {
   if (it.productId) return `p:${it.productId}`
   const s = it.serviceId ? c.sById[it.serviceId] : c.sByName[norm(it.name)]
   if (!s) return it.kind === 'product' && c.pByName[norm(it.name)] ? `p:${c.pByName[norm(it.name)].id}` : null
-  if (c.sized.has(s.id)) return `s:${s.id}`
   const vid = it.serviceId ? it.variationId : s.variations.find((v) => norm(v.name) === norm(it.detail))?.id
+  if (c.sized.has(s.id)) return vid && !isSize(s, vid) ? `v:${vid}` : `s:${s.id}`
   return vid ? `v:${vid}` : `s:${s.id}`
 }
 function fromKey(c, key, weight, species) {
@@ -99,13 +99,18 @@ function fromPast(c, it, weight, species) {
   return { name: it.name, detail: it.detail || '', kind: it.kind === 'product' ? 'product' : 'custom', qty: it.qty || 1 }
 }
 
-// Search rows: a sized service is one row (size from weight); other services list each variation.
+// Search rows: a sized service is one row (size from weight) plus its variations that aren't sizes
+// (Grooming: Haircut, Bath and Dry); other services list each variation.
 function searchRows(c, find, species, rank) {
   const words = norm(find).split(/\s+/).filter(Boolean)
   if (!words.length) return []
   const rows = []
   for (const s of c.services) {
-    if (c.sized.has(s.id) || !s.variations.length) rows.push({ type: 'service', s, v: null, text: [s.name, s.category, s.description, ...s.variations.map((v) => v.name)].join(' ') })
+    if (c.sized.has(s.id)) {
+      const sizes = s.variations.filter((v) => isSize(s, v.id))
+      rows.push({ type: 'service', s, v: null, text: [s.name, s.category, s.description, ...sizes.map((v) => v.name)].join(' ') })
+      for (const v of s.variations) if (!isSize(s, v.id)) rows.push({ type: 'service', s, v, text: [s.name, v.name, s.category].join(' ') })
+    } else if (!s.variations.length) rows.push({ type: 'service', s, v: null, text: [s.name, s.category, s.description].join(' ') })
     else for (const v of s.variations) rows.push({ type: 'service', s, v, text: [s.name, v.name, s.category].join(' ') })
   }
   for (const p of c.products) rows.push({ type: 'product', p, text: [p.name, p.category].join(' ') })
@@ -167,6 +172,9 @@ export function ServicePicker({ items, setItems, products, petId, appointmentId,
     return { title, list }
   }, [c, cohort, items, existing, weight, species, products, data])
 
+  // What the owner ticked when booking online, as price-list services sized for this pet.
+  const askedItems = useMemo(() => (c ? (data?.askedFor || []).filter((id) => c.sById[id]).map((id) => serviceItem(c, c.sById[id], null, weight, species))
+    .filter((it) => !existing.some((x) => x.serviceId === it.serviceId)) : []), [c, data, weight, species, existing])
   const lastItems = useMemo(() => (c && pet?.lastVisit ? pet.lastVisit.items.map((it) => fromPast(c, it, weight, species)).filter((it) => products || !(it.productId || it.kind === 'product')) : []), [c, pet, weight, species, products])
   const lastMissing = lastItems.filter((it) => !has(it))
   const rows = useMemo(() => (c ? searchRows(c, find, species, rank).filter((r) => products || r.type !== 'product') : []), [c, find, species, rank, products])
@@ -256,7 +264,7 @@ export function ServicePicker({ items, setItems, products, petId, appointmentId,
               {pageRows.map((r) => {
                 const it = r.type === 'product' ? { productId: r.p.id } : serviceItem(c, r.s, r.v?.id ?? null, weight, species)
                 const on = r.type === 'product' ? items.some((x) => x.productId === r.p.id) : items.some((x) => x.serviceId === r.s.id && (!r.v || x.variationId === r.v.id))
-                const sizedHint = r.type === 'service' && c.sized.has(r.s.id) ? (it.variationId ? c.vById[it.variationId]?.v.name : it.auto ? 'Base size' : 'Size from weight') : null
+                const sizedHint = r.type === 'service' && !r.v && c.sized.has(r.s.id) ? (it.variationId ? c.vById[it.variationId]?.v.name : it.auto ? 'Base size' : 'Size from weight') : null
                 return (
                   <li key={r.key}>
                     <button type="button" className="qa-row" aria-pressed={on} onClick={() => pickRow(r)}>
@@ -281,6 +289,20 @@ export function ServicePicker({ items, setItems, products, petId, appointmentId,
         </section>
       ) : (
         <>
+          {askedItems.length > 0 && (
+            <section className="form-section popular">
+              <h3 className="label"><Globe size={13} aria-hidden /> Asked for When Booking Online</h3>
+              <div className="choice-grid">
+                {askedItems.map((item) => (
+                  <button key={item.serviceId} type="button" className="choice" aria-pressed={items.some((x) => x.serviceId === item.serviceId)}
+                    onClick={() => setItems((prev) => (prev.some((x) => x.serviceId === item.serviceId) ? prev.filter((x) => x.serviceId !== item.serviceId) : [...prev, item]))}>
+                    <strong>{labelOf(c, item)}</strong>
+                    <span className="cell-sub">{item.needsSize ? 'Weigh the pet to pick the size' : [item.auto && weight > 0 && `For ${weight} kg`, peso(priceOf(c, item))].filter(Boolean).join(' · ')}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
           {lastMissing.length > 0 && (
             <button type="button" className="qa-repeat" onClick={() => add(lastItems)}>
               <History aria-hidden />
@@ -298,7 +320,7 @@ export function ServicePicker({ items, setItems, products, petId, appointmentId,
                 {suggestions.list.map(({ key, item, pct }) => (
                   <button key={key} type="button" className="choice" aria-pressed={items.some((x) => sameItem(x, item))} onClick={() => toggle(item)}>
                     <strong>{labelOf(c, item)}</strong>
-                    <span className="cell-sub">{item.productId ? c.pById[item.productId]?.category : pct ? `On ${pct}% of these visits` : item.auto ? `Sized for ${weight} kg` : peso(item.variationId ? c.vById[item.variationId]?.v.price : c.sById[item.serviceId]?.price)}</span>
+                    <span className="cell-sub">{item.productId ? c.pById[item.productId]?.category : pct ? `On ${pct}% of these visits` : item.auto && weight > 0 ? `Sized for ${weight} kg` : peso(item.variationId ? c.vById[item.variationId]?.v.price : c.sById[item.serviceId]?.price)}</span>
                   </button>
                 ))}
               </div>

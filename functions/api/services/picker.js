@@ -5,9 +5,14 @@
 //              with each (lib/catalog.js, worked out once a day)
 //   pet        with petId or appointmentId: species, today's or latest weight, and the items on the
 //              pet's last checked-out visit (for Same as Last Visit)
+//   askedFor   with appointmentId of a website booking: the price-list services matching what the
+//              owner ticked ("Asked for: Grooming" in the notes), for a one-tap pick sized by weight
 
 import { json, manilaToday } from '../../../lib/http.js'
 import { cohorts } from '../../../lib/catalog.js'
+
+// "Check-up" and "CHECK UP" match; only exact names, so a vague tick suggests nothing.
+const key = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '')
 
 export async function onRequestGet({ env, request }) {
   const url = new URL(request.url)
@@ -15,15 +20,20 @@ export async function onRequestGet({ env, request }) {
   let petId = Number(url.searchParams.get('petId')) || 0
   let visitWeight = null
   let day = manilaToday()
+  let asked = []
   if (appointmentId) {
-    const a = await env.DB.prepare('SELECT pet_id, weight_kg, day FROM appointments WHERE id = ?').bind(appointmentId).first()
-    if (a) { petId = a.pet_id; visitWeight = a.weight_kg; if (a.day > day) day = a.day }
+    const a = await env.DB.prepare('SELECT pet_id, weight_kg, day, reason FROM appointments WHERE id = ?').bind(appointmentId).first()
+    if (a) {
+      petId = a.pet_id; visitWeight = a.weight_kg; if (a.day > day) day = a.day
+      const line = String(a.reason || '').match(/^Asked for: (.+?)\.?$/m)
+      if (line) asked = line[1].split(',').map(key)
+    }
   }
   const [services, variations, products] = await env.DB.batch([
     env.DB.prepare(`SELECT s.id, s.name, s.description, s.price_cents, c.name AS category FROM services s
       LEFT JOIN service_categories c ON c.id = s.category_id
       WHERE s.deleted_at IS NULL AND s.active = 1 ORDER BY c.name COLLATE NOCASE, s.name COLLATE NOCASE`),
-    env.DB.prepare(`SELECT v.id, v.service_id, v.name, v.price_cents FROM service_variations v
+    env.DB.prepare(`SELECT v.id, v.service_id, v.name, v.price_cents, v.min_kg, v.max_kg FROM service_variations v
       JOIN services s ON s.id = v.service_id WHERE v.active = 1 AND s.deleted_at IS NULL ORDER BY v.sort, v.id`),
     env.DB.prepare('SELECT id, name, category, unit, price_cents, on_hand, counted_at FROM products WHERE deleted_at IS NULL AND active = 1 ORDER BY name COLLATE NOCASE'),
   ])
@@ -46,11 +56,12 @@ export async function onRequestGet({ env, request }) {
     }
   }
   const byService = {}
-  for (const v of variations.results) (byService[v.service_id] ||= []).push({ id: v.id, name: v.name, price: v.price_cents / 100 })
+  for (const v of variations.results) (byService[v.service_id] ||= []).push({ id: v.id, name: v.name, price: v.price_cents / 100, minKg: v.min_kg, maxKg: v.max_kg })
   return json({
     services: services.results.map((s) => ({ id: s.id, name: s.name, description: s.description, category: s.category || 'Other', price: s.price_cents / 100, variations: byService[s.id] || [] })),
     products: products.results.map((p) => ({ id: p.id, name: p.name, category: p.category, unit: p.unit, price: p.price_cents == null ? null : p.price_cents / 100, onHand: p.counted_at ? p.on_hand : null })),
     cohorts: await cohorts(env),
+    askedFor: asked.length ? services.results.filter((s) => asked.includes(key(s.name))).map((s) => s.id) : [],
     pet,
   })
 }
