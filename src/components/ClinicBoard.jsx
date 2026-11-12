@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, BedDouble, CalendarClock, Globe, Wallet, CircleCheck, Hourglass, LogOut, Megaphone, Pill, Siren, Stethoscope, TriangleAlert } from 'lucide-react'
+import { ArrowRight, BedDouble, CalendarClock, Wallet, CircleCheck, Hourglass, LogOut, Megaphone, Pill, Siren, Stethoscope, TriangleAlert } from 'lucide-react'
 import { ErrorNote, PetAvatar, useToast, PawLoader } from './ui.jsx'
 import { appointmentsChanged, useAppointmentsChanged } from './TagCheckIn.jsx'
 import { PaymentPanel } from './QuickAdd.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
-import { addDays, clockTime, prettyTime, shortDay, since } from '../lib/appointments.js'
+import { STATUS, addDays, clockTime, prettyTime, shortDay, since } from '../lib/appointments.js'
 
 // The stations a visit moves through, left to right, with what happens next at each.
 const STATIONS = [
@@ -53,8 +53,8 @@ function Card({ a, station, position, onMove, onCheckOut, busy }) {
   )
 }
 
-// Bookings not yet here: later today, then the next 5 days. A day shows its first 6; the rest open
-// in that day's calendar.
+// Bookings not yet here: later today, then the next 5 days, as calendar pills. A day shows its
+// first 3; "+N more" opens that day in the calendar.
 const DAY_WORD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 function ComingUp({ today, list }) {
   const days = Array.from({ length: 6 }, (_, i) => addDays(today, i))
@@ -77,16 +77,16 @@ function ComingUp({ today, list }) {
               </Link>
               {mine.length ? (
                 <ul className="coming-list">
-                  {mine.slice(0, 6).map((a) => (
+                  {mine.slice(0, 3).map((a) => (
                     <li key={a.id}>
-                      <Link to={`/appointments/${a.id}`} className="coming-item">
-                        <span className="coming-time">{prettyTime(a.time)}{a.source === 'website' && <Globe size={11} aria-label="Booked online" />}</span>
-                        <strong>{a.emergency && <Siren size={12} aria-label="Emergency" />} {a.pet.name}</strong>
-                        <span className="cell-sub">{a.owner.name}</span>
+                      <Link to={`/appointments/${a.id}`} className={`cal-pill tone-${STATUS[a.status]?.tone || 'booked'} ${a.emergency ? 'is-urgent' : ''}`}
+                        title={`${a.pet.name} · ${a.owner.name}${a.source === 'website' ? ' · Booked online' : ''}${a.items.length ? ` · ${a.items.join(', ')}` : ''}`}>
+                        <span className="cal-pill-name">{a.pet.name} <span className="cal-pill-owner">· {a.owner.name}</span></span>
+                        <span className="cal-pill-time">{prettyTime(a.time)}</span>
                       </Link>
                     </li>
                   ))}
-                  {mine.length > 6 && <li><Link className="text-btn" to={`/appointments?view=calendar&cal=day&date=${day}`}>+{mine.length - 6} more</Link></li>}
+                  {mine.length > 3 && <li><Link className="text-btn coming-more" to={`/appointments?view=calendar&cal=day&date=${day}`}>+{mine.length - 3} more</Link></li>}
                 </ul>
               ) : <p className="station-empty">None.</p>}
             </section>
