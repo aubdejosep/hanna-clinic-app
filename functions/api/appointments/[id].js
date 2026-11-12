@@ -5,7 +5,7 @@
 
 import { json, fail, readJson, clean, cleanMultiline, audit } from '../../../lib/http.js'
 import { petOut } from '../../../lib/clients.js'
-import { loadAppointment, apptNo, NEXT } from '../../../lib/appointments.js'
+import { loadAppointment, apptNo, NEXT, fillBlankItems } from '../../../lib/appointments.js'
 import { syncVisitRecord, visitRecordId } from '../../../lib/visitRecord.js'
 
 export async function loadFull(env, id) {
@@ -51,15 +51,7 @@ export async function onRequestGet({ env, params, data }) {
   const row = await env.DB.prepare('SELECT id, status, source, payment_status FROM appointments WHERE id = ?').bind(id).first()
   // Not paid yet: items added while their price was still blank take today's price from the price list
   // or the Product List. A paid bill is never changed.
-  if (row && row.payment_status === 'unpaid' && !['cancelled', 'no_show'].includes(row.status)) {
-    await env.DB.batch([
-      env.DB.prepare(`UPDATE appointment_items SET price_cents = (SELECT p.price_cents FROM products p WHERE p.id = appointment_items.product_id)
-        WHERE appointment_id = ? AND deleted_at IS NULL AND price_cents IS NULL AND product_id IS NOT NULL`).bind(id),
-      env.DB.prepare(`UPDATE appointment_items SET price_cents = COALESCE((SELECT v.price_cents FROM service_variations v WHERE v.id = appointment_items.variation_id),
-          (SELECT s.price_cents FROM services s WHERE s.id = appointment_items.service_id))
-        WHERE appointment_id = ? AND deleted_at IS NULL AND price_cents IS NULL AND service_id IS NOT NULL`).bind(id),
-    ])
-  }
+  if (row && row.payment_status === 'unpaid' && !['cancelled', 'no_show'].includes(row.status)) await fillBlankItems(env, id)
   if (row?.status === 'completed' && row.source !== 'legacy' && !(await visitRecordId(env, row, false))) await syncVisitRecord(env, id, data.staff)
   const appt = await loadFull(env, id)
   return appt ? json({ appointment: appt }) : fail(404, 'This appointment was not found.')
