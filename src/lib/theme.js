@@ -3,7 +3,7 @@
 export const THEMES = [
   { key: 'brand', label: 'Hanna Pet - Brand Colors', text: 'The clinic’s cream, navy and teal. Soft and calm.' },
   { key: 'contrast', label: 'High Contrast', text: 'White and light grey with darker text and stronger outlines. Easier to read on bright screens.' },
-  { key: 'clear', label: 'Large & Clear', text: 'High Contrast with bigger text everywhere, including small labels.' },
+  { key: 'classic', label: 'Classic Navy', text: 'Like the old system: a deep navy sidebar with white text, a white page and navy buttons.' },
 ]
 export const TEXT_SIZES = [
   { key: 'standard', label: 'Standard' },

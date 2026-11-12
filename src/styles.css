@@ -65,10 +65,11 @@
   --ease: 150ms ease-out;
 }
 
-/* Themes (Settings ▸ Theme). "Hanna Pet - Brand Colors" is :root above. The other two keep the brand
-   navy and teal but raise contrast: darker text, stronger outlines, a cool light page instead of cream.
-   Large & Clear also raises the type scale. Text Size (Settings) scales everything on top. */
-:root[data-theme="contrast"], :root[data-theme="clear"] {
+/* Themes (Settings ▸ Theme). "Hanna Pet - Brand Colors" is :root above.
+   High Contrast keeps the brand navy and teal with darker text, stronger outlines and a cool light page.
+   Classic Navy looks like the old system the staff know: a deep royal-navy sidebar with white text, a white
+   page, navy buttons and squarer corners. Text Size (Settings) scales everything on top. */
+:root[data-theme="contrast"] {
   --heading: #0A1A4F;
   --text: #1E2740;
   --page: #F1F3F6;
@@ -82,18 +83,47 @@
   --shadow: 0 1px 2px rgba(10, 26, 79, .08), 0 4px 14px rgba(10, 26, 79, .08);
   --focus: 0 0 0 3px rgba(10, 106, 102, .45);
 }
-:root[data-theme="clear"] {
-  --fs-h1: 2rem;
-  --fs-h2: 1.375rem;
-  --fs-stat: 2.25rem;
-  --fs-body: 1.0625rem;
-  --fs-small: .9375rem;
-  --fs-label: .8125rem;
+:root[data-theme="classic"] {
+  --navy: #0A0A86;
+  --heading: #111827;
+  --text: #374151;
+  --teal: #2B3FD6;
+  --teal-deep: #0A0A86;
+  --teal-deeper: #06065F;
+  --teal-tint: #E8EBFB;
+  --page: #FFFFFF;
+  --surface-alt: #F4F6FB;
+  --border: rgba(17, 24, 39, .10);
+  --border-strong: rgba(17, 24, 39, .22);
+  --shadow-sm: none;
+  --shadow: 0 1px 3px rgba(17, 24, 39, .06);
+  --focus: 0 0 0 3px rgba(43, 63, 214, .30);
+  --radius-card: 12px;
+  --radius-sm: 8px;
+  --radius-field: 6px;
 }
 :root[data-text="large"] { font-size: 112.5%; }
 :root[data-text="larger"] { font-size: 125%; }
-:root[data-theme="contrast"] .label, :root[data-theme="clear"] .label { letter-spacing: .06em; }
-:root[data-theme="contrast"] .cal-cell.is-outside, :root[data-theme="clear"] .cal-cell.is-outside { background: #F6F7F9; }
+:root[data-theme="contrast"] .label { letter-spacing: .06em; }
+:root[data-theme="contrast"] .cal-cell.is-outside, :root[data-theme="classic"] .cal-cell.is-outside { background: #F7F8FA; }
+/* Classic Navy: the dark sidebar */
+:root[data-theme="classic"] .sidebar { background: #0A0A86; border-right-color: #0A0A86; color: #fff; }
+:root[data-theme="classic"] .sidebar .brand img { padding: 6px; border-radius: 14px; background: #fff; }
+:root[data-theme="classic"] .sidebar .nav-link { color: #F1F2FF; }
+:root[data-theme="classic"] .sidebar .nav-link svg, :root[data-theme="classic"] .sidebar .nav-chevron { color: #fff !important; }
+:root[data-theme="classic"] .sidebar .nav-link:hover { background: rgba(255, 255, 255, .10); }
+:root[data-theme="classic"] .sidebar .nav-link.active, :root[data-theme="classic"] .sidebar .nav-parent.inside { background: rgba(255, 255, 255, .16); color: #fff; }
+:root[data-theme="classic"] .sidebar .nav-children { border-left-color: rgba(255, 255, 255, .25); }
+:root[data-theme="classic"] .sidebar .soon { background: rgba(255, 255, 255, .16); color: #fff; }
+:root[data-theme="classic"] .sidebar .icon-btn { color: #fff; border-color: rgba(255, 255, 255, .3); background: transparent; }
+:root[data-theme="classic"] .sidebar-foot { border-top-color: rgba(255, 255, 255, .18); }
+:root[data-theme="classic"] .sidebar-foot .account-btn, :root[data-theme="classic"] .sidebar-foot .account-btn .who strong { color: #fff; }
+:root[data-theme="classic"] .sidebar-foot .account-btn .who span, :root[data-theme="classic"] .sidebar-foot .account-chev { color: #D6D9FF; }
+:root[data-theme="classic"] .sidebar-foot .account-btn:hover { background: rgba(255, 255, 255, .10); }
+:root[data-theme="classic"] .sidebar .account-menu { color: var(--text); }
+:root[data-theme="classic"] .topbar { background: #0A0A86; }
+:root[data-theme="classic"] .topbar .icon-btn { color: #fff; border-color: rgba(255, 255, 255, .3); background: transparent; }
+:root[data-theme="classic"] .topbar .brand img { padding: 3px; border-radius: 10px; background: #fff; }
 
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -1407,13 +1437,17 @@ button.content-flag:disabled { cursor: default; }
 .swatch-brand .sw-title { background: #132A6E; }
 .swatch-brand .sw-line { background: #B9BFD0; }
 .swatch-brand .sw-card { border: 1px solid rgba(19, 42, 110, .08); }
-.swatch-contrast .sw-main, .swatch-clear .sw-main { background: #F1F3F6; }
-.swatch-contrast .sw-title, .swatch-clear .sw-title { background: #0A1A4F; }
-.swatch-contrast .sw-line, .swatch-clear .sw-line { background: #4A5370; }
-.swatch-contrast .sw-card, .swatch-clear .sw-card { border: 1px solid rgba(10, 26, 79, .35); }
-.swatch-contrast .sw-btn, .swatch-clear .sw-btn { background: #0A6A66; }
-.swatch-clear .sw-title { height: 11px; }
-.swatch-clear .sw-line { height: 8px; }
+.swatch-contrast .sw-main { background: #F1F3F6; }
+.swatch-contrast .sw-title { background: #0A1A4F; }
+.swatch-contrast .sw-line { background: #4A5370; }
+.swatch-contrast .sw-card { border: 1px solid rgba(10, 26, 79, .35); }
+.swatch-contrast .sw-btn { background: #0A6A66; }
+.swatch-classic .sw-side { background: #0A0A86; border-right-color: #0A0A86; }
+.swatch-classic .sw-main { background: #fff; }
+.swatch-classic .sw-card { border: 1px solid rgba(17, 24, 39, .14); border-radius: 5px; }
+.swatch-classic .sw-title { background: #111827; }
+.swatch-classic .sw-line { background: #9CA3AF; }
+.swatch-classic .sw-btn { background: #0A0A86; border-radius: 4px; }
 .device-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
 .device { display: grid; align-content: start; overflow: hidden; }
 .device.is-current { border-color: var(--teal-deep); box-shadow: var(--focus); }

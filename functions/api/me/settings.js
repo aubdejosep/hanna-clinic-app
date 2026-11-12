@@ -2,7 +2,7 @@
 
 import { json, fail, readJson, audit } from '../../../lib/http.js'
 
-export const THEMES = ['brand', 'contrast', 'clear']
+export const THEMES = ['brand', 'contrast', 'classic']
 export const TEXT_SIZES = ['standard', 'large', 'larger']
 
 export async function onRequestPatch({ request, env, data }) {
