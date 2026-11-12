@@ -67,6 +67,16 @@ A settings screen for the clinic owners, built when it's needed. Parked here so 
 - Merge duplicate owners (like the gym app's Merge Members), for the "Same mobile as another owner" checks.
 - Change history viewer (the audit log already records who changed what).
 
+## Still to test on site
+
+- **NFC tag reader** (not tested with real hardware yet; tested with a simulated bridge). When the reader arrives, with a test pet booked today:
+  1. First tap: "checked in", visit goes to Arrived.
+  2. Same tag again within 5 minutes: "already checked in", nothing changes.
+  3. Tap after 5 minutes while Waiting / With Vet / Inpatient: "can't check out yet", nothing changes.
+  4. Tap at Dispense, not paid: "payment not taken yet" with Take Payment, nothing changes.
+  5. Tap at Dispense, paid: "checked out", visit goes to Completed.
+  6. Also: assign a tag from a pet's page, and tap an unassigned tag (Assign Tag).
+
 ## Out of scope for now
 
 Inventory, finances/billing, quotations, suppliers, client portal, certificates, smart prescription, tasks, kiosk QR registration, staff attendance, device management. The inventory export (109 products) is kept for later.
