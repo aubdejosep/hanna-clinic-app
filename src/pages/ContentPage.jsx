@@ -441,6 +441,8 @@ function ImportPanel({ onClose, onDone }) {
           n += 1
         }
       }
+      setProgress({ n, of: files.length, step: 'Tidying up replaced files…' })
+      await api('content/import', { method: 'POST', body: { finish: true } }).catch(() => {}) // only saves space; the import is done
       setProgress(null)
       onDone(`${res.posts.length} post${res.posts.length === 1 ? '' : 's'} imported`, days[0])
     } catch (err) {

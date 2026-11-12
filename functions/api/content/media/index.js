@@ -1,6 +1,7 @@
 // PUT /api/content/media?post=ID&kind=slide|reel|poster&sort=N&saveAs=NAME&silent=1  (body: the file)
 //   -> owners and admins; stores one slide, reel or reel cover for a post (used by Import Week).
-// Files go to R2 under content/; up to 95 MB each (Cloudflare's request limit is 100 MB).
+// Files go to R2 under content/<post id>/<kind>-<n>.<ext>: the same name every time, so re-importing a
+// week overwrites its files instead of adding copies. Up to 95 MB each (Cloudflare's request limit is 100 MB).
 
 import { json, fail, canManage, clean } from '../../../../lib/http.js'
 
@@ -22,7 +23,7 @@ export async function onRequestPut({ request, env, data }) {
   if (size > MAX) return fail(413, 'This file is over 95 MB. Export it smaller, then import again.')
   const post = await env.DB.prepare('SELECT id, ref FROM content_posts WHERE id = ? AND deleted_at IS NULL').bind(postId).first()
   if (!post) return fail(404, 'This post was not found. Import the week again.')
-  const key = `content/${post.ref}/${kind}-${sort}-${crypto.randomUUID().slice(0, 8)}.${EXT[type]}`
+  const key = `content/${post.ref}/${kind}-${sort}.${EXT[type]}`
   const obj = await env.PHOTOS.put(key, request.body, { httpMetadata: { contentType: type } })
   const saveAs = clean(url.searchParams.get('saveAs'), 120).replace(/[^\w.() -]/g, '') || null
   // One file per place: a new upload for the same slide or reel replaces the old one.

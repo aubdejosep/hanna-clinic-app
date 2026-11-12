@@ -3,6 +3,8 @@
 // POST /api/content/import {posts: [...]} -> adds or updates each post by its ref (e.g. s04). A post
 //      already ticked Posted keeps its tick. Its old slides and reel are replaced: the screen then
 //      uploads the new files one by one (PUT /api/content/media).
+// POST /api/content/import {finish: true} -> after the uploads: removes from R2 the files no post uses
+//      any more (a slide dropped from a post, or a file saved under an older name). Their records stay.
 // A post: {id, date, time, pillar, format, title, caption, tags, note, status, shots} as in the
 // weekly plan page's data. Format sheet: docs/CONTENT-IMPORT-FORMAT.md.
 
@@ -44,6 +46,7 @@ export function postInput(p, i) {
 export async function onRequestPost({ request, env, data }) {
   if (!canManage(data.staff)) return fail(403, 'Only an owner or admin can import posts.')
   const body = await readJson(request)
+  if (body?.finish === true) return json({ removed: await removeUnused(env) })
   const list = Array.isArray(body?.posts) ? body.posts : null
   if (!list?.length) return fail(400, 'The week folder has no posts in it.')
   if (list.length > 60) return fail(400, 'Import up to 60 posts at a time.')
@@ -69,4 +72,15 @@ export async function onRequestPost({ request, env, data }) {
   }
   await audit(env, data.staff.email, 'import', 'content_posts', null, { posts: rows.map((r) => r.ref) })
   return json({ posts: out }, 201)
+}
+
+// R2 files that only replaced (hidden) media point to. A file still used by any post stays, whatever
+// state the post is in; the media records are never erased.
+export async function removeUnused(env) {
+  if (!env.PHOTOS) return 0
+  const { results } = await env.DB.prepare(`SELECT DISTINCT r2_key FROM content_media WHERE deleted_at IS NOT NULL
+    AND r2_key NOT IN (SELECT r2_key FROM content_media WHERE deleted_at IS NULL)`).all()
+  const keys = results.map((r) => r.r2_key).filter((k) => k.startsWith('content/'))
+  for (let i = 0; i < keys.length; i += 1000) await env.PHOTOS.delete(keys.slice(i, i + 1000))
+  return keys.length
 }
