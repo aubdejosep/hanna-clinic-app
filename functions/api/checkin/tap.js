@@ -1,12 +1,14 @@
 // POST /api/checkin/tap {uid}  -> what an NFC tag tap at the front desk did
 //
 // One reader for both directions:
-//   * the pet has a visit open today (or is an inpatient) -> tap out: Completed
-//       (unless it was tapped in less than 5 minutes ago: a double tap, ignored)
+//   * the pet has a visit open today (or is an inpatient) -> tap out: Completed, but only from
+//       Dispense with the payment taken (a checked-out visit is final). Otherwise nothing changes:
+//       not_ready (still Waiting, With Vet or Inpatient) or not_paid (at Dispense, Take Payment first).
+//       A tap less than 5 minutes after check-in is a double tap: ignored.
 //   * the pet has a booking today -> tap in: Arrived
 //   * neither -> no_booking: the screen offers a one-tap Walk In
 //   * the tag isn't assigned -> unknown_tag: the screen offers Assign Tag
-// result: checked_in | checked_out | ignored | no_booking | unknown_tag | pet_unavailable
+// result: checked_in | checked_out | ignored | not_ready | not_paid | no_booking | unknown_tag | pet_unavailable
 
 import { json, fail, readJson, clean, manilaToday, audit } from '../../../lib/http.js'
 import { moveTo, loadAppointment } from '../../../lib/appointments.js'
@@ -34,6 +36,8 @@ export async function onRequestPost({ request, env, data }) {
     if (open.checked_in_at && Date.now() - Date.parse(open.checked_in_at) < DOUBLE_TAP_MS) {
       return json({ result: 'ignored', uid, pet: petInfo, appointment: await loadAppointment(env, open.id) })
     }
+    if (open.status !== 'dispense') return json({ result: 'not_ready', uid, pet: petInfo, appointment: await loadAppointment(env, open.id) })
+    if (!['paid', 'not_tracked'].includes(open.payment_status)) return json({ result: 'not_paid', uid, pet: petInfo, appointment: await loadAppointment(env, open.id) })
     const res = await moveTo(env, open, 'completed', { via: 'tag', actor, staffId: data.staff.id })
     if (res.error) return fail(400, res.error)
     await audit(env, data.staff.email, 'tap_out', 'appointment', open.id, { uid })

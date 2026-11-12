@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CalendarPlus, LogIn, LogOut, Nfc, TriangleAlert, UserCheck, X } from 'lucide-react'
+import { CalendarPlus, LogIn, LogOut, Nfc, TriangleAlert, UserCheck, Wallet, X } from 'lucide-react'
 import { ErrorNote, Field, Panel, useToast } from './ui.jsx'
 import { WalkInPanel, PetPicker } from './AppointmentPanels.jsx'
 import { api } from '../lib/api.js'
@@ -29,12 +29,14 @@ export function ReaderSwitch() {
   )
 }
 
+const STEP_WORD = { arrived: 'Still waiting to be seen', started: 'Still with the vet', inpatient: 'Still confined (Inpatient)' }
+
 // What a tap did, shown in the corner of any screen for a few seconds.
 function TapNotice({ tap, onClose, onWalkIn, onAssign }) {
   const navigate = useNavigate()
   const { result, pet, appointment: a } = tap
   useEffect(() => {
-    if (['no_booking', 'unknown_tag', 'error'].includes(result)) return undefined
+    if (['no_booking', 'unknown_tag', 'error', 'not_paid', 'not_ready'].includes(result)) return undefined
     const t = setTimeout(onClose, 12000)
     return () => clearTimeout(t)
   }, [tap, result, onClose])
@@ -42,7 +44,12 @@ function TapNotice({ tap, onClose, onWalkIn, onAssign }) {
   const body = {
     checked_in: { icon: LogIn, title: `${pet?.name} checked in`, text: `${pet?.ownerName} · Arrived ${clockTime(a?.checkedInAt)}`, actions: open },
     checked_out: { icon: LogOut, title: `${pet?.name} checked out`, text: `Visit closed. In ${clockTime(a?.checkedInAt)}, out ${clockTime(a?.checkedOutAt)}.`, actions: open },
-    ignored: { icon: UserCheck, title: `${pet?.name} is already checked in`, text: `Checked in ${since(a?.checkedInAt)} ago. To check out, tap again after 5 minutes.`, actions: open },
+    not_ready: { icon: TriangleAlert, title: `${pet?.name} can’t check out yet`, text: `${STEP_WORD[a?.status] || 'Still in the clinic'}. Nothing was changed. Send the visit to Dispense and take the payment, then tap again.`, actions: open },
+    not_paid: {
+      icon: Wallet, title: `${pet?.name}: payment not taken yet`, text: 'Nothing was changed. Take the payment first, then tap again to check out.',
+      actions: a && <button type="button" className="btn" onClick={() => { navigate(`/appointments/${a.id}?pay=1`); onClose() }}><Wallet aria-hidden /> Take Payment</button>,
+    },
+    ignored: { icon: UserCheck, title: `${pet?.name} is already checked in`, text: `Checked in ${since(a?.checkedInAt) === '0 min' ? 'just now' : `${since(a?.checkedInAt)} ago`}. Nothing was changed.`, actions: open },
     no_booking: {
       icon: CalendarPlus, title: `${pet?.name} has no booking today`, text: tap.completedToday ? 'Their visit today is already closed. Check in again as a walk-in?' : 'Check them in as a walk-in?',
       actions: <button type="button" className="btn" onClick={onWalkIn}><LogIn aria-hidden /> Walk In</button>,
