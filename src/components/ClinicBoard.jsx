@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, BedDouble, Wallet, CircleCheck, Hourglass, LogOut, Megaphone, Pill, Siren, Stethoscope, TriangleAlert } from 'lucide-react'
+import { ArrowRight, BedDouble, CalendarClock, Globe, Wallet, CircleCheck, Hourglass, LogOut, Megaphone, Pill, Siren, Stethoscope, TriangleAlert } from 'lucide-react'
 import { ErrorNote, PetAvatar, useToast, PawLoader } from './ui.jsx'
 import { appointmentsChanged, useAppointmentsChanged } from './TagCheckIn.jsx'
 import { PaymentPanel } from './QuickAdd.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
-import { clockTime, since } from '../lib/appointments.js'
+import { addDays, clockTime, prettyTime, shortDay, since } from '../lib/appointments.js'
 
 // The stations a visit moves through, left to right, with what happens next at each.
 const STATIONS = [
@@ -50,6 +50,50 @@ function Card({ a, station, position, onMove, onCheckOut, busy }) {
         </button>
       )}
     </li>
+  )
+}
+
+// Bookings not yet here: later today, then the next 5 days. A day shows its first 6; the rest open
+// in that day's calendar.
+const DAY_WORD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+function ComingUp({ today, list }) {
+  const days = Array.from({ length: 6 }, (_, i) => addDays(today, i))
+  const total = list.length
+  return (
+    <div className="coming-up">
+      <div className="coming-head">
+        <CalendarClock aria-hidden />
+        <strong>Coming Up</strong>
+        <span className="cell-sub">{total ? `${total} booking${total === 1 ? '' : 's'} not yet here, later today and the next 5 days` : 'No bookings for today or the next 5 days'}</span>
+      </div>
+      <div className="coming-days">
+        {days.map((day, i) => {
+          const mine = list.filter((a) => a.day === day)
+          const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : DAY_WORD[new Date(`${day}T00:00:00Z`).getUTCDay()]
+          return (
+            <section key={day} className="coming-day" aria-label={`${label}, ${shortDay(day)}`}>
+              <Link className="coming-day-head" to={`/appointments?view=calendar&cal=day&date=${day}`} title="Open this day in the calendar">
+                <strong>{label}</strong><span className="cell-sub">{shortDay(day)}</span><span className="tab-count">{mine.length}</span>
+              </Link>
+              {mine.length ? (
+                <ul className="coming-list">
+                  {mine.slice(0, 6).map((a) => (
+                    <li key={a.id}>
+                      <Link to={`/appointments/${a.id}`} className="coming-item">
+                        <span className="coming-time">{prettyTime(a.time)}{a.source === 'website' && <Globe size={11} aria-label="Booked online" />}</span>
+                        <strong>{a.emergency && <Siren size={12} aria-label="Emergency" />} {a.pet.name}</strong>
+                        <span className="cell-sub">{a.owner.name}</span>
+                      </Link>
+                    </li>
+                  ))}
+                  {mine.length > 6 && <li><Link className="text-btn" to={`/appointments?view=calendar&cal=day&date=${day}`}>+{mine.length - 6} more</Link></li>}
+                </ul>
+              ) : <p className="station-empty">None.</p>}
+            </section>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -113,6 +157,7 @@ export default function ClinicBoard() {
           )
         })}
       </div>}
+      {data?.upcoming && <ComingUp today={data.today} list={data.upcoming} />}
       {checkOut && <PaymentPanel appointmentId={checkOut.id} onClose={() => setCheckOut(null)} onDone={(n, msg) => { setCheckOut(null); toast(msg); appointmentsChanged() }} />}
     </section>
   )
