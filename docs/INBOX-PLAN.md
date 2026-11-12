@@ -6,6 +6,18 @@ see who the client is (Masterlist), and mark conversations done.
 
 Status: **planning.** SMS provider still to choose (Semaphore or Promotexter).
 
+## Decisions (Nov 2026)
+
+1. hello@ is on **Cloudflare Email Routing**, forwarding to the clinic's private mailbox
+   (hannapetwellnesscenter@atomicmail.io). The app taps in at Cloudflare: **only mail addressed to
+   hello@** is saved, and it is still forwarded to the mailbox exactly as now (backup copy: yes).
+2. **All staff** read the Inbox.
+3. **The private mailbox is never connected to the app.** It receives confidential and finance mail,
+   so nothing sent from or received only by it appears in the app: no mailbox login, no syncing,
+   no Bcc. Replies to clients are written in the app.
+4. SMS: one-to-one replies first, then **reminders and promos soon after**.
+5. Keep forwarding every hello@ email to the mailbox as a backup.
+
 ## What the Inbox does
 
 - **One list of conversations**, newest first, email and SMS together, with an envelope or SMS mark.
@@ -26,9 +38,10 @@ You already send and receive at hello@. To show mail **in the app**, it has to r
 
 | Need | How | Notes |
 |---|---|---|
-| Receive into the app | **Cloudflare Email Routing** for the domain, with an **Email Worker** that saves each message (text, HTML, attachments) and **also forwards it** to your current mailbox | Only works if hello@'s mail goes through Cloudflare Email Routing. If hello@ lives in Google Workspace / Zoho / another host, the options are different (see questions). |
+| Receive into the app | The **hello@** route in Cloudflare Email Routing points to an **Email Worker** that saves the message (text, HTML, attachments) and **forwards it** to the atomicmail mailbox, as today | Other addresses on the domain keep their current routes and never reach the app. If the Worker ever fails, the mail is still forwarded. |
 | Send from the app | **Resend** (already set up for the domain) | Replies get `In-Reply-To` / `References` headers so they thread in Gmail and Outlook. |
-| Your own replies sent from Gmail/Outlook | Bcc or forward a copy to an app address, or accept they won't show in the app | Decide which. |
+| Replies sent from the private mailbox | **Never shown in the app** (owners' decision: that mailbox holds confidential and finance mail) | Staff reply to clients from the app. |
+| Confidential mail sent to hello@ | A **Private Senders** list (owners only): mail from those addresses or domains (bank, accountant, suppliers) is forwarded to the mailbox but **not saved** in the app | Needs the owners' list. |
 | Attachments | Saved in R2 (like medical photos), up to ~25 MB each | Images preview in the thread. |
 | Spam | Cloudflare's checks plus a "Not spam / Spam" button | Spam never matched to owners. |
 
@@ -85,11 +98,9 @@ You already send and receive at hello@. To show mail **in the app**, it has to r
 3. **Reminders and broadcasts** (later): vaccine and follow-up reminders by email/SMS from the
    reminders the app already computes, with consent and opt-out.
 
-## Questions for the owners
+## Still to decide
 
-1. **Where does hello@ live today?** (Cloudflare Email Routing forwarding to Gmail? Google Workspace?
-   Zoho? Something else?) This decides how mail gets into the app.
-2. Who reads the Inbox: all staff, or front desk and owners only?
-3. Should replies sent from your normal mailbox also appear in the app?
-4. SMS: replies and one-to-one messages only, or also reminders and promos later?
-5. Keep a copy of every email in your current mailbox as a backup? (Recommended at first.)
+1. The **Private Senders** list: addresses or domains whose mail to hello@ should stay out of the app.
+2. SMS provider (questions above), and whether reminders and promos go out under a sender name.
+3. Reminders/promos: which ones first (vaccine due, follow-up, birthday?), and the consent wording
+   (the website already records "Send me pet care tips and promos" as `marketing_consent`).
