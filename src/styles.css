@@ -1239,3 +1239,6 @@ body:has(.omni-sheet) .fab-wrap { display: none; }
   .coming-day + .coming-day { border-top: 1px solid var(--border); }
 }
 
+
+/* Screen error (components/ErrorBoundary.jsx) */
+.error-detail { margin: 0; padding: 12px; background: var(--surface-alt); border-radius: var(--radius-field); font-size: var(--fs-small); white-space: pre-wrap; word-break: break-word; }
