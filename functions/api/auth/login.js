@@ -6,7 +6,7 @@
 
 import { json, fail, readJson, clean, audit } from '../../../lib/http.js'
 import { checkPassword } from '../../../lib/password.js'
-import { sha256, startSession } from '../../../lib/auth.js'
+import { ipOf, sha256, startSession } from '../../../lib/auth.js'
 
 const MAX_TRIES = 5
 const LOCK_MINUTES = 15
@@ -58,7 +58,7 @@ export async function onRequestPost({ request, env }) {
 
   await env.DB.prepare('UPDATE staff SET failed_logins = 0, locked_until = NULL, last_login_at = ? WHERE id = ?')
     .bind(now.toISOString(), staff.id).run()
-  const cookie = await startSession(env, staff.id, !!body.remember, request.headers.get('User-Agent'))
+  const cookie = await startSession(env, staff.id, !!body.remember, request.headers.get('User-Agent'), ipOf(request))
   await audit(env, staff.email, 'login', 'staff', staff.id, { remember: !!body.remember })
 
   const res = json({ staff: { id: staff.id, email: staff.email, name: `${staff.first_name} ${staff.last_name}`.trim(), role: staff.role } })

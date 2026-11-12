@@ -39,15 +39,18 @@ export default function AccountPanel({ staff, onClose, onLogOut }) {
 
   return (
     <Panel
-      title="My Account"
+      title="Change Password"
       intro={`${staff.name} · ${staff.title || ROLE_LABEL[staff.role] || staff.role}`}
       onClose={onClose}
       busy={busy}
       footer={(
         <>
-          <button type="button" className="btn btn-quiet" onClick={onLogOut} disabled={busy} style={{ marginRight: 'auto' }}>
-            <LogOut aria-hidden /> Log Out
-          </button>
+          {onLogOut && (
+            <button type="button" className="btn btn-quiet" onClick={onLogOut} disabled={busy} style={{ marginRight: 'auto' }}>
+              <LogOut aria-hidden /> Log Out
+            </button>
+          )}
+          <button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy} style={onLogOut ? undefined : { marginRight: 'auto' }}>Cancel</button>
           <button type="button" className="btn" onClick={save} disabled={busy || !form.current || !form.next || !form.again}>
             {busy ? 'Saving…' : 'Change Password'}
           </button>

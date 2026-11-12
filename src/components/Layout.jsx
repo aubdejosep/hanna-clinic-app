@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, UserRound, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Activity, Bell, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Settings, UserRound, X } from 'lucide-react'
 import { api } from '../lib/api.js'
+import { useApi } from '../lib/useApi.js'
 import { initials } from '../lib/format.js'
 import { canManage, ROLE_LABEL } from '../lib/staff.js'
-import AccountPanel from './AccountPanel.jsx'
 import TagCheckIn from './TagCheckIn.jsx'
 import ReminderBell from './ReminderBell.jsx'
 import OmniSearch from './OmniSearch.jsx'
@@ -85,6 +85,51 @@ function useMobile() {
   return m
 }
 
+// The account button at the foot of the sidebar opens: Notifications, Settings, Device Management, Log Out.
+function AccountMenu({ staff }) {
+  const [open, setOpen] = useState(false)
+  const box = useRef(null)
+  const { pathname } = useLocation()
+  const { data } = useApi('reminders')
+  const count = data?.reminders?.length || 0
+  useEffect(() => setOpen(false), [pathname])
+  useEffect(() => {
+    if (!open) return undefined
+    const onDown = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false) }
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    box.current?.querySelector('.account-menu a, .account-menu button')?.focus()
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [open])
+  const badge = count > 0 && <span className="menu-count">{count > 99 ? '99+' : count}</span>
+  return (
+    <div className="account" ref={box}>
+      {open && (
+        <div className="account-menu card" role="menu" aria-label="Account">
+          <div className="account-menu-head">
+            <span className="avatar">{initials(staff.name)}</span>
+            <span className="who"><strong>{staff.name}</strong><span>{staff.email}</span></span>
+          </div>
+          <Link role="menuitem" to="/notifications" className="account-item"><Bell aria-hidden /> Notifications {badge}</Link>
+          <Link role="menuitem" to="/settings" className="account-item"><Settings aria-hidden /> Settings</Link>
+          <Link role="menuitem" to="/devices" className="account-item"><MonitorSmartphone aria-hidden /> Device Management</Link>
+          <button role="menuitem" type="button" className="account-item account-out" onClick={logOut}><LogOut aria-hidden /> Log Out</button>
+        </div>
+      )}
+      <button type="button" className="account-btn" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu" title="Account">
+        <span className="avatar">{initials(staff.name)}</span>
+        <span className="who">
+          <strong>{staff.name}</strong>
+          <span>{staff.title || ROLE_LABEL[staff.role] || staff.role}</span>
+        </span>
+        {badge}
+        <ChevronsUpDown className="account-chev" aria-hidden />
+      </button>
+    </div>
+  )
+}
+
 async function logOut() {
   try {
     await api('auth/logout', { method: 'POST' })
@@ -95,7 +140,6 @@ async function logOut() {
 
 export default function Layout({ staff }) {
   const [open, setOpen] = useState(false)
-  const [account, setAccount] = useState(false)
   const { pathname } = useLocation()
   const mobile = useMobile()
   useEffect(() => setOpen(false), [pathname])
@@ -128,16 +172,7 @@ export default function Layout({ staff }) {
           </NavLink>
         ))}
         <div className="sidebar-foot">
-          <button type="button" className="account-btn" onClick={() => setAccount(true)} title="My Account and Password">
-            <span className="avatar">{initials(staff.name)}</span>
-            <span className="who">
-              <strong>{staff.name}</strong>
-              <span>{staff.title || ROLE_LABEL[staff.role] || staff.role}</span>
-            </span>
-          </button>
-          <button type="button" className="icon-btn" onClick={logOut} aria-label="Log Out" title="Log Out">
-            <LogOut />
-          </button>
+          <AccountMenu staff={staff} />
         </div>
       </nav>
 
@@ -154,7 +189,6 @@ export default function Layout({ staff }) {
       </div>
       <TagCheckIn />
       <QuickActions />
-      {account && <AccountPanel staff={staff} onClose={() => setAccount(false)} onLogOut={logOut} />}
     </div>
   )
 }

@@ -19,11 +19,17 @@ import RecordsPage from './pages/RecordsPage.jsx'
 import InventoryPage from './pages/InventoryPage.jsx'
 import CustomerAnalyticsPage from './pages/CustomerAnalyticsPage.jsx'
 import ContentPage from './pages/ContentPage.jsx'
+import NotificationsPage from './pages/NotificationsPage.jsx'
+import SettingsPage from './pages/SettingsPage.jsx'
+import DevicesPage from './pages/DevicesPage.jsx'
+import { applyDisplay } from './lib/theme.js'
 import { CountPage, CountsPage, MovementsPage } from './pages/StockPages.jsx'
 import { StaffContext } from './lib/staff.js'
 
 export default function App() {
-  const { data, error, reload } = useApi('me')
+  const { data, error, reload, setData } = useApi('me')
+  // The person's theme and text size (Settings) follow their login to any device.
+  useEffect(() => { if (data?.staff) applyDisplay(data.staff) }, [data?.staff?.theme, data?.staff?.textSize]) // eslint-disable-line react-hooks/exhaustive-deps
   const [loggedOut, setLoggedOut] = useState(false)
   useEffect(() => {
     const onLoggedOut = () => setLoggedOut(true)
@@ -69,6 +75,9 @@ export default function App() {
         <Route path="inventory/counts" element={<CountsPage />} />
         <Route path="inventory/counts/:id" element={<CountPage />} />
         <Route path="content" element={<ContentPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="settings" element={<SettingsPage onStaff={(staff) => setData({ ...data, staff })} />} />
+        <Route path="devices" element={<DevicesPage />} />
         <Route path="inbox/*" element={<ComingSoon module="inbox" />} />
         <Route path="*" element={<ComingSoon module="missing" />} />
       </Route>

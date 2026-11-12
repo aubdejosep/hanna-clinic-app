@@ -65,6 +65,36 @@
   --ease: 150ms ease-out;
 }
 
+/* Themes (Settings ▸ Theme). "Hanna Pet - Brand Colors" is :root above. The other two keep the brand
+   navy and teal but raise contrast: darker text, stronger outlines, a cool light page instead of cream.
+   Large & Clear also raises the type scale. Text Size (Settings) scales everything on top. */
+:root[data-theme="contrast"], :root[data-theme="clear"] {
+  --heading: #0A1A4F;
+  --text: #1E2740;
+  --page: #F1F3F6;
+  --surface-alt: #E7EAF0;
+  --border: rgba(10, 26, 79, .20);
+  --border-strong: rgba(10, 26, 79, .40);
+  --teal-deep: #0A6A66;
+  --teal-tint: #D7EEEB;
+  --apricot-tint: #FCE6CF;
+  --shadow-sm: 0 1px 2px rgba(10, 26, 79, .08);
+  --shadow: 0 1px 2px rgba(10, 26, 79, .08), 0 4px 14px rgba(10, 26, 79, .08);
+  --focus: 0 0 0 3px rgba(10, 106, 102, .45);
+}
+:root[data-theme="clear"] {
+  --fs-h1: 2rem;
+  --fs-h2: 1.375rem;
+  --fs-stat: 2.25rem;
+  --fs-body: 1.0625rem;
+  --fs-small: .9375rem;
+  --fs-label: .8125rem;
+}
+:root[data-text="large"] { font-size: 112.5%; }
+:root[data-text="larger"] { font-size: 125%; }
+:root[data-theme="contrast"] .label, :root[data-theme="clear"] .label { letter-spacing: .06em; }
+:root[data-theme="contrast"] .cal-cell.is-outside, :root[data-theme="clear"] .cal-cell.is-outside { background: #F6F7F9; }
+
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; min-height: 100vh; color: var(--text); background: var(--page); font: 400 var(--fs-body)/1.55 var(--font-body); }
@@ -1336,3 +1366,70 @@ button.content-flag:disabled { cursor: default; }
 .content-replace.is-busy { opacity: .6; cursor: progress; }
 @media (max-width: 640px) { .comment-actions { justify-content: space-between; } }
 .content-comments h3 { display: flex; align-items: baseline; gap: 6px; }
+
+/* ---------- Account menu, Settings, Device Management, Notifications ---------- */
+.account { position: relative; flex: 1; min-width: 0; }
+.sidebar-foot .account-btn { width: 100%; margin: 0; }
+.account-chev { width: 16px; height: 16px; flex: none; margin-left: auto; color: var(--text); }
+.menu-count { flex: none; min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--red); color: #fff; font: 700 var(--fs-label)/20px var(--font-body); text-align: center; }
+.account-btn .menu-count { margin-left: auto; }
+.account-btn .menu-count + .account-chev { margin-left: 4px; }
+.account-menu { position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 40; width: max(100%, 260px); padding: 6px; display: grid; gap: 2px; box-shadow: var(--shadow-lg); }
+.account-menu-head { display: flex; align-items: center; gap: 10px; padding: 8px 8px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+.account-menu-head .who { min-width: 0; }
+.account-menu-head .who strong, .account-menu-head .who span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-small); }
+.account-menu-head .who strong { color: var(--heading); }
+.account-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 8px 10px; border: 0; border-radius: var(--radius-field); background: none; color: var(--text); font: 400 var(--fs-body)/1.3 var(--font-body); text-decoration: none; text-align: left; cursor: pointer; }
+.account-item svg { width: 18px; height: 18px; flex: none; color: var(--teal-deep); }
+.account-item:hover, .account-item:focus-visible { background: var(--surface-alt); outline: none; }
+.account-item .menu-count { margin-left: auto; }
+.account-out { margin-top: 4px; border-top: 1px solid var(--border); border-radius: 0 0 var(--radius-field) var(--radius-field); }
+.settings { max-width: 900px; }
+.settings-head { display: flex; align-items: flex-start; gap: 12px; }
+.settings-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: var(--radius-field); background: var(--teal-tint); }
+.settings-icon svg { width: 18px; height: 18px; color: var(--teal-deep); }
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.theme-option { display: grid; gap: 6px; align-content: start; padding: 10px; border: 1.5px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.theme-option:hover { border-color: var(--teal); }
+.theme-option[aria-checked="true"] { border-color: var(--teal-deep); box-shadow: var(--focus); }
+.theme-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.theme-name strong { color: var(--heading); }
+.theme-name svg { width: 18px; height: 18px; color: var(--teal-deep); }
+.theme-swatch { display: grid; grid-template-columns: 28% 1fr; height: 92px; border-radius: var(--radius-field); overflow: hidden; border: 1px solid rgba(10, 26, 79, .15); }
+.theme-swatch .sw-side { background: #fff; border-right: 1px solid rgba(10, 26, 79, .1); }
+.theme-swatch .sw-main { display: grid; place-items: center; padding: 10px; }
+.theme-swatch .sw-card { display: grid; gap: 5px; width: 100%; padding: 8px; border-radius: 8px; background: #fff; }
+.theme-swatch i { display: block; height: 6px; border-radius: 4px; }
+.theme-swatch .sw-title { width: 60%; height: 8px; }
+.theme-swatch .sw-line.short { width: 70%; }
+.theme-swatch .sw-btn { width: 40%; height: 10px; border-radius: 99px; background: #0E7C78; }
+.swatch-brand .sw-main { background: #FBF7F0; }
+.swatch-brand .sw-title { background: #132A6E; }
+.swatch-brand .sw-line { background: #B9BFD0; }
+.swatch-brand .sw-card { border: 1px solid rgba(19, 42, 110, .08); }
+.swatch-contrast .sw-main, .swatch-clear .sw-main { background: #F1F3F6; }
+.swatch-contrast .sw-title, .swatch-clear .sw-title { background: #0A1A4F; }
+.swatch-contrast .sw-line, .swatch-clear .sw-line { background: #4A5370; }
+.swatch-contrast .sw-card, .swatch-clear .sw-card { border: 1px solid rgba(10, 26, 79, .35); }
+.swatch-contrast .sw-btn, .swatch-clear .sw-btn { background: #0A6A66; }
+.swatch-clear .sw-title { height: 11px; }
+.swatch-clear .sw-line { height: 8px; }
+.device-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.device { display: grid; align-content: start; overflow: hidden; }
+.device.is-current { border-color: var(--teal-deep); box-shadow: var(--focus); }
+.device-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); background: var(--surface-alt); }
+.device-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 50%; background: var(--surface); }
+.device-icon svg { width: 18px; height: 18px; color: var(--teal-deep); }
+.device-title { display: grid; min-width: 0; }
+.device-title strong { color: var(--heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.device-current { margin-left: auto; flex: none; }
+.device-facts { margin: 0; padding: 14px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+.device-facts dt { display: flex; align-items: center; gap: 6px; font: 700 var(--fs-label)/1.4 var(--font-body); letter-spacing: .08em; text-transform: uppercase; }
+.device-facts dt svg { width: 14px; height: 14px; color: var(--teal-deep); }
+.device-facts dd { margin: 4px 0 0; color: var(--heading); }
+.device-facts .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: var(--fs-small); }
+.device-rename { padding: 14px 16px; display: grid; gap: 10px; }
+.device-actions { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--border); }
+.device-actions .text-btn { display: inline-flex; align-items: center; gap: 6px; }
+.notif-list { padding: 6px 22px 12px; max-height: none; }
+@media (max-width: 640px) { .device-grid { grid-template-columns: 1fr; } .device-facts { grid-template-columns: 1fr 1fr; } }
