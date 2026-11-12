@@ -77,7 +77,7 @@ function StatusControl({ a, onChange, setPanel }) {
                 {busy === to ? 'Saving…' : label} {i === 0 && <ArrowRight aria-hidden />}
               </button>
             ))}
-            {a.status === 'completed' && <span className="cell-sub">Visit closed{a.checkedOutAt ? ` at ${clockTime(a.checkedOutAt)}` : ''}.</span>}
+            {a.status === 'completed' && <span className="cell-sub">Visit closed{a.checkedOutAt ? ` at ${clockTime(a.checkedOutAt)}` : ''}. To correct anything, add a Staff Note.</span>}
             {a.canUndo && (
               <button type="button" className="text-btn" onClick={() => go({ undo: true }, 'undo')} disabled={!!busy}>
                 <Undo2 size={14} aria-hidden /> {busy === 'undo' ? 'Undoing…' : 'Undo Last Step'}

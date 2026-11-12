@@ -15,6 +15,7 @@ export async function onRequestPost({ request, env, params, data }) {
   if (!appt) return fail(404, 'This appointment was not found.')
 
   if (body.undo) {
+    if (appt.status === 'completed') return fail(400, 'This visit is checked out and the client has left, so its steps can’t be undone. Add a Staff Note to record any correction.')
     const { results: events } = await env.DB.prepare('SELECT from_status AS "from", to_status AS "to", via, actor FROM appointment_events WHERE appointment_id = ? ORDER BY at, id').bind(id).all()
     const step = undoTarget(events, appt.status)
     if (!step) return fail(400, 'There is no step to undo.')

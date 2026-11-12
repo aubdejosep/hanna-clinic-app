@@ -37,7 +37,7 @@ export async function loadFull(env, id) {
     staff: staff.results.map((s) => ({ id: s.id, name: `${s.first_name} ${s.last_name}`.trim(), title: s.title, role: s.role })),
     notes: notes.results.map((n) => ({ id: n.id, author: n.author, staffId: n.staff_id, body: n.body, at: n.created_at })),
     history,
-    canUndo: !!undoTarget(history, appt.status) && !to.results.length,
+    canUndo: appt.status !== 'completed' && !!undoTarget(history, appt.status) && !to.results.length, // a checked-out visit is final: corrections go in Staff Notes
     next: NEXT[appt.status] || [],
     from: link(from.results[0]),
     to: link(to.results[0]),
