@@ -5,7 +5,7 @@
 
 import { json, fail, readJson, clean, cleanMultiline, audit } from '../../../lib/http.js'
 import { petOut } from '../../../lib/clients.js'
-import { loadAppointment, apptNo, NEXT, fillBlankItems } from '../../../lib/appointments.js'
+import { loadAppointment, apptNo, NEXT, fillBlankItems, undoTarget } from '../../../lib/appointments.js'
 import { syncVisitRecord, visitRecordId } from '../../../lib/visitRecord.js'
 
 export async function loadFull(env, id) {
@@ -37,7 +37,7 @@ export async function loadFull(env, id) {
     staff: staff.results.map((s) => ({ id: s.id, name: `${s.first_name} ${s.last_name}`.trim(), title: s.title, role: s.role })),
     notes: notes.results.map((n) => ({ id: n.id, author: n.author, staffId: n.staff_id, body: n.body, at: n.created_at })),
     history,
-    canUndo: history.length > 1 && !['booking', 'auto', 'import'].includes(history[history.length - 1].via) && !to.results.length,
+    canUndo: !!undoTarget(history, appt.status) && !to.results.length,
     next: NEXT[appt.status] || [],
     from: link(from.results[0]),
     to: link(to.results[0]),

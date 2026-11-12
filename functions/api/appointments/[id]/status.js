@@ -3,7 +3,7 @@
 // POST /api/appointments/:id/status {undo}  -> back to the step before the latest change
 
 import { json, fail, readJson, audit } from '../../../../lib/http.js'
-import { moveTo, STAMP } from '../../../../lib/appointments.js'
+import { moveTo, STAMP, undoTarget, startsAt } from '../../../../lib/appointments.js'
 import { syncVisit } from '../../../../lib/visitRecord.js'
 import { loadFull } from '../[id].js'
 
@@ -15,16 +15,21 @@ export async function onRequestPost({ request, env, params, data }) {
   if (!appt) return fail(404, 'This appointment was not found.')
 
   if (body.undo) {
-    const last = await env.DB.prepare('SELECT * FROM appointment_events WHERE appointment_id = ? ORDER BY at DESC, id DESC LIMIT 1').bind(id).first()
-    if (!last || !last.from_status || last.to_status !== appt.status || ['auto', 'import', 'booking'].includes(last.via)) return fail(400, 'There is no step to undo.')
+    const { results: events } = await env.DB.prepare('SELECT from_status AS "from", to_status AS "to", via, actor FROM appointment_events WHERE appointment_id = ? ORDER BY at, id').bind(id).all()
+    const step = undoTarget(events, appt.status)
+    if (!step) return fail(400, 'There is no step to undo.')
+    const last = { from_status: step.from }
+    // Undoing a check-in that moved a booking from another day to today puts it back on its day.
+    const moved = (step.actor || '').match(/\(booked for (\d{4}-\d{2}-\d{2})(?: (\d{2}:\d{2}))?, moved to today\)/)
+    const back = moved && step.to === 'arrived' ? { day: moved[1], time: moved[2] || appt.time } : null
     if (await env.DB.prepare('SELECT 1 FROM appointments WHERE rescheduled_from = ? AND deleted_at IS NULL').bind(id).first()) {
       return fail(400, 'This appointment was rescheduled. Open the new appointment instead.')
     }
     const now = new Date().toISOString()
     const stamp = STAMP[appt.status]
     await env.DB.batch([
-      env.DB.prepare(`UPDATE appointments SET status = ?, updated_at = ?${stamp ? `, ${stamp} = NULL` : ''}${appt.status === 'cancelled' ? ', cancel_reason = NULL' : ''}${appt.status === 'completed' ? ', items_confirmed_at = NULL, items_confirmed_by = NULL' : ''} WHERE id = ?`)
-        .bind(last.from_status, now, id),
+      env.DB.prepare(`UPDATE appointments SET status = ?, updated_at = ?${stamp ? `, ${stamp} = NULL` : ''}${appt.status === 'cancelled' ? ', cancel_reason = NULL' : ''}${appt.status === 'completed' ? ', items_confirmed_at = NULL, items_confirmed_by = NULL' : ''} ${back ? ', day = ?, time = ?, starts_at = ?' : ''} WHERE id = ?`)
+        .bind(last.from_status, now, ...(back ? [back.day, back.time, startsAt(back.day, back.time)] : []), id),
       env.DB.prepare('INSERT INTO appointment_events (appointment_id, at, from_status, to_status, via, actor) VALUES (?, ?, ?, ?, ?, ?)')
         .bind(id, now, appt.status, last.from_status, 'button', `${data.staff.name} (undo)`),
     ])
