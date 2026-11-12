@@ -1,10 +1,12 @@
-// GET /api/dashboard?range=mtd|7d|30d|last_month|ytd -> the owners' overview (counts only, no money).
+// GET /api/dashboard?range=mtd|7d|30d|last_month|ytd -> the clinic overview, for every staff member.
+// Counts only, except `money` (payments taken), which is added for owners and admins only and is
+// never in the shared cache, so other staff never receive it.
 //
 // A visit is a pet seen on a day: a checked-out appointment, or a medical record written that day.
 // (Most past visits in the old system exist only as medical records.) Every number comes with the
 // same-length period before it.
 
-import { json, fail, canManage, manilaToday } from '../../lib/http.js'
+import { json, canManage, manilaToday } from '../../lib/http.js'
 import { cached } from '../../lib/cache.js'
 
 export function addDays(day, n) {
@@ -37,11 +39,31 @@ const VISITS = `visits AS (
 const VACCINE_ITEM = "(i.name LIKE '%VACCIN%' OR i.name IN ('ARV', 'KCV') OR i.detail LIKE '%RABIES%')"
 
 export async function onRequestGet({ request, env, data }) {
-  if (!canManage(data.staff)) return fail(403, 'The overview is for the clinic owners.')
   const today = manilaToday()
   const r = ranges(new URL(request.url).searchParams.get('range'), today)
-  // Worked out at most every 10 minutes per period (these read the whole history).
-  return json(await cached(env, `dash:${today}:${new URL(request.url).searchParams.get('range') || 'mtd'}`, 10 * 60 * 1000, async () => {
+  const counts = await overview(env, r, today, new URL(request.url).searchParams.get('range') || 'mtd')
+  return json(canManage(data.staff) ? { ...counts, money: await money(env, r) } : counts)
+}
+
+// Payments taken in the app (visits and quick sales), not voided. Owners and admins only.
+async function money(env, r) {
+  const [byPeriod, byMethod] = await env.DB.batch([
+    env.DB.prepare(`SELECT CASE WHEN day BETWEEN ?1 AND ?2 THEN 'cur' ELSE 'prev' END AS p, SUM(amount_cents) AS cents, COUNT(*) AS n
+      FROM payments WHERE voided_at IS NULL AND day BETWEEN ?3 AND ?2 GROUP BY p`).bind(r.from, r.to, r.prevFrom),
+    env.DB.prepare(`SELECT method, SUM(amount_cents) AS cents, COUNT(*) AS n FROM payments
+      WHERE voided_at IS NULL AND day BETWEEN ?1 AND ?2 GROUP BY method ORDER BY cents DESC`).bind(r.from, r.to),
+  ])
+  const at = (p) => byPeriod.results.find((x) => x.p === p) || { cents: 0, n: 0 }
+  return {
+    taken: { cur: at('cur').cents / 100, prev: at('prev').cents / 100 },
+    payments: at('cur').n,
+    methods: byMethod.results.map((x) => ({ method: x.method, amount: x.cents / 100, n: x.n })),
+  }
+}
+
+// Worked out at most every 10 minutes per period (these read the whole history).
+function overview(env, r, today, key) {
+  return cached(env, `dash:${today}:${key}`, 10 * 60 * 1000, async () => {
   const added = 'COALESCE(legacy_added_on, substr(created_at, 1, 10))'
   const both = [r.from, r.to, r.prevFrom, r.prevTo]
   const period = (col) => `CASE WHEN ${col} BETWEEN ?1 AND ?2 THEN 'cur' WHEN ${col} BETWEEN ?3 AND ?4 THEN 'prev' END`
@@ -90,5 +112,5 @@ export async function onRequestGet({ request, env, data }) {
     hours: hours.results.filter((x) => x.h != null),
     clients: { new: clients.results.find((x) => x.k === 'new')?.n || 0, returning: clients.results.find((x) => x.k === 'returning')?.n || 0 },
   }
-  }))
+  })
 }

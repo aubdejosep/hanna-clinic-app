@@ -8,6 +8,7 @@ import { useApi } from '../lib/useApi.js'
 import { canManage, useStaff } from '../lib/staff.js'
 import { percentChange, prettyDay } from '../lib/format.js'
 import { shortDay } from '../lib/appointments.js'
+import { METHOD_LABEL } from '../components/QuickAdd.jsx'
 
 const RANGES = [['mtd', 'Month to Date'], ['7d', 'Last 7 Days'], ['30d', 'Last 30 Days'], ['last_month', 'Last Month'], ['ytd', 'Year to Date']]
 const DAY_NAMES = { 0: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat' }
@@ -22,6 +23,33 @@ function Stat({ icon: Icon, label, value }) {
         {pct === null ? `${value.prev.toLocaleString()} the period before` : <><span className={pct >= 0 ? 'trend-up' : 'trend-down'}>{pct >= 0 ? '+' : ''}{pct}%</span> vs {value.prev.toLocaleString()} the period before</>}
       </span>
     </div>
+  )
+}
+
+const peso = (n) => `₱${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+// Owners and admins only (the server sends `money` to no one else).
+function Money({ m }) {
+  const pct = percentChange(m.taken.cur, m.taken.prev)
+  return (
+    <section className="card">
+      <div className="card-head"><div><h2>Payments Taken</h2><p>Visits and quick sales paid in the app, voided payments left out. Owners and admins only.</p></div></div>
+      <div className="card-pad money-row">
+        <div>
+          <span className="label">Total</span>
+          <div className="stat-value">{peso(m.taken.cur)}</div>
+          <span className="stat-note">
+            {m.payments.toLocaleString()} payment{m.payments === 1 ? '' : 's'} ·{' '}
+            {pct === null ? `${peso(m.taken.prev)} the period before` : <><span className={pct >= 0 ? 'trend-up' : 'trend-down'}>{pct >= 0 ? '+' : ''}{pct}%</span> vs {peso(m.taken.prev)} the period before</>}
+          </span>
+        </div>
+        <div className="money-methods">
+          {m.methods.length ? m.methods.map((x) => (
+            <div key={x.method}><span className="label">{METHOD_LABEL[x.method] || x.method}</span><strong>{peso(x.amount)}</strong><span className="cell-sub">{x.n} payment{x.n === 1 ? '' : 's'}</span></div>
+          )) : <p className="muted" style={{ margin: 0 }}>No payments in this period.</p>}
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -50,6 +78,7 @@ function Overview({ range, setRange }) {
           </>
         ) : Array.from({ length: 5 }, (_, i) => <div key={i} className="card stat"><span className="skeleton" style={{ width: '60%' }} /></div>)}
       </div>
+      {d?.money && <Money m={d.money} />}
       <div className="overview-row">
         <section className="card overview-main">
           <div className="card-head"><div><h2>Visits per Day</h2><p>A visit is a pet seen that day: a checked-out appointment or a medical record.</p></div></div>
@@ -115,23 +144,21 @@ export default function Dashboard() {
   const staff = useStaff()
   const owner = canManage(staff)
   const [params, setParams] = useSearchParams()
-  const view = owner ? (params.get('view') === 'board' ? 'board' : 'overview') : 'board'
+  const view = params.get('view') === 'overview' ? 'overview' : 'board' // the board first; the overview for everyone
   const range = RANGES.some(([k]) => k === params.get('range')) ? params.get('range') : 'mtd'
   const set = (patch) => setParams((p) => { const n = new URLSearchParams(p); Object.entries(patch).forEach(([k, v]) => (v ? n.set(k, v) : n.delete(k))); return n }, { replace: true })
   return (
     <>
-      <PageHead title="Clinic Dashboard" intro={owner && view === 'overview' ? 'How the clinic is doing. Counts only; billing isn’t in the app yet.' : 'Today in the clinic, station by station.'}>
+      <PageHead title="Clinic Dashboard" intro={view === 'overview' ? `How the clinic is doing${owner ? '' : ', in counts'}.` : 'Today in the clinic, station by station.'}>
         <div className="head-actions">
           {view === 'board' && <ReaderSwitch />}
           <Link className="btn btn-quiet" to="/clients?new=1"><UserPlus aria-hidden /> Register Owner</Link>
         </div>
       </PageHead>
-      {owner && (
-        <div className="tabs" role="group" aria-label="View" style={{ marginBottom: 16 }}>
-          <button type="button" className="tab" aria-pressed={view === 'overview'} onClick={() => set({ view: '' })}>Overview</button>
-          <button type="button" className="tab" aria-pressed={view === 'board'} onClick={() => set({ view: 'board' })}>Clinic Board</button>
-        </div>
-      )}
+      <div className="tabs" role="group" aria-label="View" style={{ marginBottom: 16 }}>
+        <button type="button" className="tab" aria-pressed={view === 'board'} onClick={() => set({ view: '', range: '' })}>Clinic Board</button>
+        <button type="button" className="tab" aria-pressed={view === 'overview'} onClick={() => set({ view: 'overview' })}>Overview</button>
+      </div>
       {view === 'board' ? <ClinicBoard /> : <Overview range={range} setRange={(r) => set({ range: r === 'mtd' ? '' : r })} />}
     </>
   )
