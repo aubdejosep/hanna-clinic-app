@@ -45,21 +45,25 @@ export async function onRequestGet({ request, env, data }) {
   return json(canManage(data.staff) ? { ...counts, money: await money(env, r) } : counts)
 }
 
-// Payments taken in the app (visits, quick sales, balances; not voided) plus paid invoices imported from
-// the old system (Finances ▸ Transactions). Owners and admins only.
+// Payments taken in the app (visits, quick sales, balances; not voided) plus the old system's payments
+// (Finances ▸ Transactions ▸ Payments, by payment date; an imported invoice without payment rows counts
+// on its invoice date). Owners and admins only.
 async function money(env, r) {
   const [byPeriod, byMethod, perDay] = await env.DB.batch([
     env.DB.prepare(`SELECT CASE WHEN day BETWEEN ?1 AND ?2 THEN 'cur' ELSE 'prev' END AS p, SUM(c) AS cents, COUNT(*) AS n FROM (
         SELECT day, amount_cents AS c FROM payments WHERE voided_at IS NULL AND day BETWEEN ?3 AND ?2
-        UNION ALL SELECT day, paid_cents FROM old_invoices WHERE paid_cents > 0 AND day BETWEEN ?3 AND ?2) GROUP BY p`).bind(r.from, r.to, r.prevFrom),
+        UNION ALL SELECT day, c FROM (SELECT day, method, amount_cents AS c FROM old_payments
+          UNION ALL SELECT i.day, i.method, i.paid_cents FROM old_invoices i WHERE i.paid_cents > 0 AND NOT EXISTS (SELECT 1 FROM old_payments op WHERE op.old_invoice_id = i.id)) WHERE day BETWEEN ?3 AND ?2) GROUP BY p`).bind(r.from, r.to, r.prevFrom),
     env.DB.prepare(`SELECT method, SUM(c) AS cents, COUNT(*) AS n FROM (
         SELECT method, amount_cents AS c FROM payments WHERE voided_at IS NULL AND day BETWEEN ?1 AND ?2
-        UNION ALL SELECT CASE lower(replace(method, ' ', '')) WHEN 'banktransfer' THEN 'bank' ELSE lower(replace(method, ' ', '')) END, paid_cents
-          FROM old_invoices WHERE paid_cents > 0 AND day BETWEEN ?1 AND ?2) GROUP BY method ORDER BY cents DESC`).bind(r.from, r.to),
+        UNION ALL SELECT CASE lower(replace(method, ' ', '')) WHEN 'banktransfer' THEN 'bank' ELSE lower(replace(method, ' ', '')) END, c
+          FROM (SELECT day, method, amount_cents AS c FROM old_payments
+          UNION ALL SELECT i.day, i.method, i.paid_cents FROM old_invoices i WHERE i.paid_cents > 0 AND NOT EXISTS (SELECT 1 FROM old_payments op WHERE op.old_invoice_id = i.id)) WHERE day BETWEEN ?1 AND ?2) GROUP BY method ORDER BY cents DESC`).bind(r.from, r.to),
     // Per day: payments in the app, plus paid invoices imported from the old system
     env.DB.prepare(`SELECT day, SUM(c) AS cents FROM (
         SELECT day, amount_cents AS c FROM payments WHERE voided_at IS NULL AND day BETWEEN ?1 AND ?2
-        UNION ALL SELECT day, paid_cents FROM old_invoices WHERE day BETWEEN ?1 AND ?2 AND paid_cents > 0) GROUP BY day`).bind(r.prevFrom, r.to),
+        UNION ALL SELECT day, c FROM (SELECT day, method, amount_cents AS c FROM old_payments
+          UNION ALL SELECT i.day, i.method, i.paid_cents FROM old_invoices i WHERE i.paid_cents > 0 AND NOT EXISTS (SELECT 1 FROM old_payments op WHERE op.old_invoice_id = i.id)) WHERE day BETWEEN ?1 AND ?2) GROUP BY day`).bind(r.prevFrom, r.to),
   ])
   const byDay = Object.fromEntries(perDay.results.map((x) => [x.day, x.cents / 100]))
   const days = (from, to) => { const out = []; for (let d = from; d <= to; d = addDays(d, 1)) out.push({ day: d, n: byDay[d] || 0 }); return out }

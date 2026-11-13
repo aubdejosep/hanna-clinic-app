@@ -1489,3 +1489,4 @@ button.content-flag:disabled { cursor: default; }
 .tx-totals > span { display: inline-flex; align-items: baseline; gap: 8px; }
 .tx-totals strong { color: var(--heading); font-size: var(--fs-h2); }
 @media (max-width: 640px) { .balance-items li { grid-template-columns: 1fr; } }
+.tx-import { margin-left: auto; }
