@@ -136,9 +136,9 @@ export default function StaffPage() {
                         <input type="checkbox" role="switch" checked={s.active} disabled={s.id === me.id || busy === s.id} onChange={(e) => setAccess(s, e.target.checked)} aria-label={`${s.name} can log in`} />
                         <span aria-hidden />
                       </label>
-                      <strong>{!s.active ? 'Switched Off' : s.lockedUntil ? 'Paused' : 'Anytime'}</strong>
+                      <strong>{!s.active ? 'Switched Off' : !s.hasPassword ? 'No Password Yet' : s.lockedUntil ? 'Paused' : 'Anytime'}</strong>
                     </span>
-                    {s.active && <span className="cell-sub">All devices</span>}<span className="cell-sub">{s.lastLoginAt ? `Last login ${prettyDay(s.lastLoginAt.slice(0, 10))}` : 'Never logged in'}</span>
+                    {s.active && (s.hasPassword ? <span className="cell-sub">All devices</span> : <span className="cell-sub">Set one in Edit to let them log in</span>)}<span className="cell-sub">{s.lastLoginAt ? `Last login ${prettyDay(s.lastLoginAt.slice(0, 10))}` : 'Never logged in'}</span>
                   </td>
                   <td className="num">
                     <span className="row-actions">
