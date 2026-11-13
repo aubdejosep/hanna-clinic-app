@@ -13,7 +13,9 @@
     "records-test": "node records.mjs --limit 20",
     "records": "node records.mjs",
     "photos-test": "node photos.mjs --limit 20",
-    "photos": "node photos.mjs"
+    "photos": "node photos.mjs",
+    "medications-test": "node medications.mjs --limit 3",
+    "medications": "node medications.mjs"
   },
   "dependencies": {
     "playwright-core": "1.63.0",

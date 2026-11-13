@@ -186,3 +186,29 @@ npm run records
 ```
 
 Running it again carries on where it stopped. At the end, send Claude `output-records\records.jsonl.gz` (a few MB) and the summary it prints. The file holds medical and client details, so share it privately.
+
+## Smart Prescription ▸ Medication List
+
+Reads every medication: its view window (eye icon) and its Edit page. It never clicks **Update
+Medication** or the delete icon, so nothing changes in the old system. About 36 medications, a few minutes.
+
+```
+cd tools\medical-records-download
+git pull
+npm install
+npm run medications-test
+```
+
+1. Log in in the Chrome window, open **Smart Prescription ▸ Medication List**, wait for the list,
+   then press **Enter** in PowerShell.
+2. The test reads 3 medications. PowerShell shows each one, e.g. `1. Scourvet Oral Anti-diarrheal
+   Suspension · 1 dosage · 0 variations`. Open `output-medications\medications.csv` in Excel to check.
+3. Then the rest (it skips the ones already read):
+
+```
+npm run medications
+```
+
+**Import into the clinic app:** Smart Prescription ▸ Medication List ▸ **Import from Old System** ▸
+pick the `output-medications` folder (it holds `medications.json` and `images`). Re-importing updates
+the same medications. Delete `output-medications\login-state.json` afterwards.

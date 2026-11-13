@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Activity, Bell, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Settings, UserRound, Wallet, X } from 'lucide-react'
+import { Activity, Bell, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Pill, Settings, UserRound, Wallet, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { useLogo } from '../lib/logo.js'
@@ -28,6 +28,10 @@ const NAV = [
   { label: 'Medical Records', icon: FolderOpen, children: [
     { to: '/records', label: 'Records List' },
     { to: '/records/templates', label: 'Templates', soon: true },
+  ] },
+  { label: 'Smart Prescription', icon: Pill, children: [
+    { to: '/prescription/medications', label: 'Medication List' },
+    { to: '/prescription/medications/new', label: 'Add Medication' },
   ] },
   { label: 'Inventory', icon: Boxes, children: [
     { to: '/inventory', label: 'Product List' },
@@ -59,7 +63,7 @@ function NavGroup({ group, pathname, staff }) {
       {open && (
         <div className="nav-children">
           {group.children.filter((c) => !c.owners || canManage(staff)).map((c) => (
-            <NavLink key={c.to} to={c.to} end={c.to === '/records' || c.to === '/inventory'} className={({ isActive }) => `nav-link nav-child ${isActive || (c.to === '/clients' && pathname.startsWith('/pets')) ? 'active' : ''}`}>
+            <NavLink key={c.to} to={c.to} end={c.to === '/records' || c.to === '/inventory' || c.to === '/prescription/medications'} className={({ isActive }) => `nav-link nav-child ${isActive || (c.to === '/clients' && pathname.startsWith('/pets')) ? 'active' : ''}`}>
               {c.label}
             </NavLink>
           ))}

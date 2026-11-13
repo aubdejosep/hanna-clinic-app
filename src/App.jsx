@@ -24,6 +24,8 @@ import SettingsPage from './pages/SettingsPage.jsx'
 import DevicesPage from './pages/DevicesPage.jsx'
 import BalancesPage from './pages/BalancesPage.jsx'
 import TransactionsPage from './pages/TransactionsPage.jsx'
+import MedicationsPage from './pages/MedicationsPage.jsx'
+import MedicationFormPage from './pages/MedicationFormPage.jsx'
 import { applyDisplay } from './lib/theme.js'
 import { setLogoVersion } from './lib/logo.js'
 import { CountPage, CountsPage, MovementsPage } from './pages/StockPages.jsx'
@@ -84,6 +86,9 @@ export default function App() {
         <Route path="devices" element={<DevicesPage />} />
         <Route path="finances/balances" element={<BalancesPage />} />
         <Route path="finances/transactions" element={<TransactionsPage />} />
+        <Route path="prescription/medications" element={<MedicationsPage />} />
+        <Route path="prescription/medications/new" element={<MedicationFormPage key="new" />} />
+        <Route path="prescription/medications/:id/edit" element={<MedicationFormPage />} />
         <Route path="inbox/*" element={<ComingSoon module="inbox" />} />
         <Route path="*" element={<ComingSoon module="missing" />} />
       </Route>
