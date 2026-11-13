@@ -11,18 +11,19 @@ import { oldDay } from '../finances/import.js'
 // A variation from the old Edit page: its name field becomes the name, the rest the details.
 function variationOf(v) {
   const fields = (v?.fields || []).filter((f) => f.value)
-  const nameField = fields.find((f) => /name/i.test(f.label)) || fields[0]
+  const nameField = fields.find((f) => /name|title/i.test(f.label)) || fields[0]
   if (!nameField) return null
-  const dosage = {}
+  const dosages = []
   const rest = []
   for (const f of fields) {
     if (f === nameField) continue
-    if (/amount/i.test(f.label)) dosage.amount = f.value
-    else if (/^unit/i.test(f.label)) dosage.unit = f.value
-    else if (/type/i.test(f.label)) dosage.type = f.value
+    const d = dosages[dosages.length - 1]
+    if (/amount/i.test(f.label)) dosages.push({ amount: f.value, unit: '', type: '' }) // each amount starts a dosage
+    else if (/^unit/i.test(f.label)) { if (d && !d.unit) d.unit = f.value } // the old page lists Unit and Dosage Type twice
+    else if (/type/i.test(f.label)) { if (d && !d.type) d.type = f.value }
     else rest.push(`${f.label}: ${f.value}`)
   }
-  return { name: nameField.value, details: rest.join('; '), dosages: dosage.amount ? [dosage] : [] }
+  return { name: nameField.value, details: rest.join('; '), dosages }
 }
 
 export async function onRequestPost({ request, env, data }) {

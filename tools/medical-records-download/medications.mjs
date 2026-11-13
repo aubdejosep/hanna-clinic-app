@@ -278,7 +278,8 @@ for (const want of rows0) {
     const cancel = page.getByRole('button', { name: /^cancel$/i })
     if (await cancel.count()) await cancel.last().click(); else await page.goBack()
     await page.waitForURL((u) => /\/pharmacology\/?$/.test(new URL(u).pathname), { timeout: 15000 }).catch(() => {})
-    if (!med.dosages.length && /dosage/i.test(row.details + view.text)) { log(`  ${med.name}: no dosages were read from the Edit page.`); await snapshot(page, `dosages-${med.name}`); problems++ }
+    const anyDose = med.dosages.length || med.variations.some((v) => v.fields.some((x) => /amount/i.test(x.label) && x.value))
+    if (!anyDose && /\d+\s*dosage/i.test(row.details)) { log(`  ${med.name}: no dosages were read from the Edit page.`); await snapshot(page, `dosages-${med.name}`); problems++ }
     results.push(med)
     save()
     read++

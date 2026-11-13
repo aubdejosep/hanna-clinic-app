@@ -18,7 +18,7 @@ export async function onRequestGet({ env, request }) {
   const w = where.join(' AND ')
   const [rows, count] = await env.DB.batch([
     env.DB.prepare(`SELECT m.id, m.name, m.description_text, m.image_key, m.legacy_added_on, m.created_at, m.updated_at,
-        (SELECT COUNT(*) FROM medication_dosages d WHERE d.medication_id = m.id AND d.variation_id IS NULL) AS dosages,
+        (SELECT COUNT(*) FROM medication_dosages d WHERE d.medication_id = m.id) AS dosages,
         (SELECT COUNT(*) FROM medication_variations v WHERE v.medication_id = m.id) AS variations
       FROM medications m WHERE ${w} ORDER BY ${order} LIMIT ? OFFSET ?`).bind(...binds, size, (page - 1) * size),
     env.DB.prepare(`SELECT COUNT(*) AS n FROM medications m WHERE ${w}`).bind(...binds),
