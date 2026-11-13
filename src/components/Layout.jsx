@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Activity, Bell, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Settings, UserRound, Wallet, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
+import { useLogo } from '../lib/logo.js'
 import { initials } from '../lib/format.js'
 import { canManage, ROLE_LABEL } from '../lib/staff.js'
 import TagCheckIn from './TagCheckIn.jsx'
@@ -69,9 +70,10 @@ function NavGroup({ group, pathname, staff }) {
 }
 
 function Brand() {
+  const logo = useLogo()
   return (
     <NavLink to="/" className="brand" aria-label="Hanna Pet Wellness Center: Dashboard" title="Dashboard">
-      <img src="/brand/logo-192.png" alt="Hanna Pet Wellness Center" width="96" height="96" />
+      <img src={logo} alt="Hanna Pet Wellness Center" width="96" height="96" />
     </NavLink>
   )
 }

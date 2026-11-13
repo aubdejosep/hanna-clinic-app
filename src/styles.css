@@ -1496,3 +1496,25 @@ button.content-flag:disabled { cursor: default; }
 .btn-danger:hover:not(:disabled) { background: #8F1C13; border-color: #8F1C13; }
 .btn-danger-quiet { color: var(--red); border-color: var(--red-tint); }
 .btn-danger-quiet svg { color: var(--red); }
+
+/* Sidebar logo centred; Settings ▸ Clinic Logo and its square cropper */
+.sidebar .brand { flex: 1; justify-content: center; padding-left: 0; padding-right: 0; }
+.logo-setting { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
+.logo-setting img { width: 96px; height: 96px; object-fit: contain; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #fff; }
+.cropper { display: grid; gap: 14px; justify-items: center; }
+.crop-stage { position: relative; width: 280px; height: 280px; overflow: hidden; border-radius: var(--radius-sm); cursor: grab; touch-action: none; user-select: none;
+  background: repeating-conic-gradient(#E7EAF0 0% 25%, #fff 0% 50%) 50% / 20px 20px; outline: none; }
+.crop-stage:active { cursor: grabbing; }
+.crop-stage:focus-visible { box-shadow: var(--focus); }
+.crop-stage img { position: absolute; left: 50%; top: 50%; max-width: none; pointer-events: none; }
+.crop-guide { position: absolute; inset: 0; border: 2px solid var(--teal-deep); border-radius: var(--radius-sm); pointer-events: none; }
+.crop-guide i { position: absolute; background: rgba(14, 124, 120, .45); }
+.crop-guide i:nth-child(1) { left: 33.33%; top: 0; bottom: 0; width: 1px; }
+.crop-guide i:nth-child(2) { left: 66.66%; top: 0; bottom: 0; width: 1px; }
+.crop-guide i:nth-child(3) { top: 33.33%; left: 0; right: 0; height: 1px; }
+.crop-guide i:nth-child(4) { top: 66.66%; left: 0; right: 0; height: 1px; }
+.crop-zoom { display: flex; align-items: center; gap: 10px; width: 280px; }
+.crop-zoom input[type="range"] { flex: 1; accent-color: var(--teal-deep); }
+.crop-previews { display: flex; align-items: center; gap: 14px; }
+.crop-preview { position: relative; display: block; overflow: hidden; border: 1px solid var(--border-strong); border-radius: 12px; background: #fff; }
+.crop-preview img { position: absolute; left: 50%; top: 50%; max-width: none; }

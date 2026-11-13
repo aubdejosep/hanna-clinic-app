@@ -1,11 +1,13 @@
 // Account ▸ Settings: this person's theme and text size (saved to their login, so they follow them to
 // any device), and their password.
 import { useState } from 'react'
-import { Check, KeyRound, Palette, Type } from 'lucide-react'
+import { Check, ImageUp, KeyRound, Palette, RotateCcw, Type } from 'lucide-react'
 import { PageHead, useToast } from '../components/ui.jsx'
 import AccountPanel from '../components/AccountPanel.jsx'
 import { api } from '../lib/api.js'
-import { useStaff } from '../lib/staff.js'
+import { canManage, useStaff } from '../lib/staff.js'
+import { setLogoVersion, useLogo } from '../lib/logo.js'
+import LogoCropper from '../components/LogoCropper.jsx'
 import { THEMES, TEXT_SIZES, applyDisplay } from '../lib/theme.js'
 
 function Swatch({ theme }) {
@@ -16,6 +18,56 @@ function Swatch({ theme }) {
         <span className="sw-card"><i className="sw-title" /><i className="sw-line" /><i className="sw-line short" /><i className="sw-btn" /></span>
       </span>
     </span>
+  )
+}
+
+// Owners and admins: the clinic logo for everyone (sidebar, top bar, Clinic Profile, login screen).
+function ClinicLogo() {
+  const logo = useLogo()
+  const toast = useToast()
+  const [file, setFile] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const custom = logo !== '/brand/logo-192.png'
+  async function upload(blob) {
+    setBusy(true)
+    try {
+      const r = await fetch('/api/settings/logo', { method: 'PUT', body: blob, headers: { 'Content-Type': 'image/png' }, credentials: 'same-origin' })
+      const res = await r.json().catch(() => null)
+      if (!r.ok) throw new Error(res?.error || 'The logo didn’t upload. Please try again.')
+      setLogoVersion(res.logoVersion)
+      setFile(null)
+      toast('Logo updated for everyone')
+    } catch (err) {
+      toast(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function reset() {
+    try {
+      await api('settings/logo', { method: 'DELETE' })
+      setLogoVersion(null)
+      toast('Back to the original logo')
+    } catch (err) {
+      toast(err.message)
+    }
+  }
+  return (
+    <section className="card">
+      <div className="card-head"><div className="settings-head"><span className="settings-icon"><ImageUp aria-hidden /></span><div><h2>Clinic Logo</h2><p>Shown to everyone in the app: the menu, the top bar on phones and Clinic Profile. Owners and admins only.</p></div></div></div>
+      <div className="card-pad logo-setting">
+        <img src={logo} alt="Current clinic logo" width="96" height="96" />
+        <div className="stack" style={{ gap: 8 }}>
+          <label className="btn btn-quiet" style={{ justifySelf: 'start' }}>
+            <ImageUp aria-hidden /> Upload New Logo
+            <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setFile(f) }} />
+          </label>
+          <span className="field-hint">PNG, JPG, WebP or SVG. A PNG with a see-through background looks best. You’ll crop it to a square next.</span>
+          {custom && <button type="button" className="text-btn" style={{ justifySelf: 'start' }} onClick={reset}><RotateCcw size={14} aria-hidden /> Use the Original Logo</button>}
+        </div>
+      </div>
+      {file && <LogoCropper file={file} busy={busy} onClose={() => setFile(null)} onSave={upload} />}
+    </section>
   )
 }
 
@@ -67,6 +119,7 @@ export default function SettingsPage({ onStaff }) {
             <p className="field-hint" style={{ marginBottom: 0 }}>Example: <span style={{ fontSize: 'var(--fs-body)' }}>Peach · Cat · 4 yrs</span> <span className="cell-sub" style={{ display: 'inline' }}>· Booked online</span></p>
           </div>
         </section>
+        {canManage(staff) && <ClinicLogo />}
         <section className="card">
           <div className="card-head">
             <div className="settings-head"><span className="settings-icon"><KeyRound aria-hidden /></span><div><h2>Password</h2><p>Logged in as {staff.email}.</p></div></div>

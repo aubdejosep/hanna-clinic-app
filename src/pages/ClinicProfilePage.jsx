@@ -2,6 +2,7 @@
 // header, then two tabs. Basic Information: Business Information, Social Media, Branches,
 // Invoice Settings, Notification Settings, Kiosk QR Code. Business Availability: opening hours.
 // Each card shows its fields greyed out until "Edit Info" is clicked.
+import { useLogo } from '../lib/logo.js'
 import { useEffect, useState } from 'react'
 import { Bell, Building2, CalendarOff, Clock, Gauge, Download, ExternalLink, FileText, Info, Mail, MapPin, Pencil, Phone, Plus, QrCode, Receipt, Store, Trash2, Type } from 'lucide-react'
 import QRCode from 'qrcode'
@@ -319,6 +320,7 @@ function LimitsCard({ c, canEdit, save }) {
 }
 
 export default function ClinicProfilePage() {
+  const logo = useLogo()
   const me = useStaff()
   const toast = useToast()
   const { data, error, setData } = useApi('clinic')
@@ -339,7 +341,7 @@ export default function ClinicProfilePage() {
     <div className="profile-page">
       <nav className="crumbs" aria-label="Breadcrumb"><span>Clinic Operations</span> › <span aria-current="page">Clinic Profile</span></nav>
       <header className="clinic-header">
-        <img src="/brand/logo-192.png" alt="" width="64" height="64" />
+        <img src={logo} alt="" width="64" height="64" />
         <div><h1>{c.name}</h1><p>{c.tagline}</p></div>
       </header>
 

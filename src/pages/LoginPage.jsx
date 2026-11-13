@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { useLogo } from '../lib/logo.js'
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
 import { api } from '../lib/api.js'
 import { ErrorNote } from '../components/ui.jsx'
 
 export default function LoginPage({ onLoggedIn }) {
+  const logo = useLogo()
   const [email, setEmail] = useState(() => {
     try { return localStorage.getItem('hpw:last-email') || '' } catch { return '' }
   })
@@ -32,7 +34,7 @@ export default function LoginPage({ onLoggedIn }) {
   return (
     <main className="login">
       <form className="card login-card" onSubmit={submit} noValidate>
-        <img src="/brand/logo-192.png" alt="Hanna Pet Wellness Center" width="96" height="96" />
+        <img src={logo} alt="Hanna Pet Wellness Center" width="96" height="96" />
         <h1>Welcome Back</h1>
         <p className="muted">Log in to the clinic app to continue.</p>
 
