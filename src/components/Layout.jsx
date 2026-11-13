@@ -189,6 +189,7 @@ export default function Layout({ staff }) {
       <div className="content">
         {!mobile && (
           <header className="deskbar">
+            <div id="crumb-slot" className="crumb-slot" />
             <OmniSearch />
             <ReminderBell align="right" />
           </header>

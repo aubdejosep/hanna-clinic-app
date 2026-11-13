@@ -1,21 +1,42 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { Cat, ChevronLeft, ChevronRight, CircleCheck, Dog, PawPrint, TriangleAlert, X } from 'lucide-react'
 import { REVIEW_LABELS } from '../lib/labels.js'
 
+// Where a section's name in the breadcrumb goes: the section's first page, as in the menu.
+const SECTION_LINKS = {
+  Dashboard: '/', 'Clinic Operations': '/clinic/profile', Appointments: '/appointments', 'Client Portal': '/clients',
+  'Medical Records': '/records', 'Smart Prescription': '/prescription/medications', Inventory: '/inventory',
+  Finances: '/finances/balances', Content: '/content', Account: '/settings',
+}
+
+// The clickable trail ("Dashboard > Smart Prescription > Medication List"). On a computer it sits in the
+// top bar (Layout's #crumb-slot), like the old system; on a phone, above the page title.
+function Crumbs({ crumbs, title }) {
+  const [slot, setSlot] = useState(null)
+  useEffect(() => { setSlot(document.getElementById('crumb-slot')) }, [])
+  const base = crumbs?.length ? crumbs : title && title !== 'Clinic Dashboard' && String(title).trim() ? [{ label: title }] : []
+  const list = [...(base[0]?.label === 'Dashboard' ? [] : [{ label: 'Dashboard', to: '/' }]), ...base]
+    .map((c, i, all) => (i < all.length - 1 && !c.to && SECTION_LINKS[c.label] ? { ...c, to: SECTION_LINKS[c.label] } : c))
+  if (!base.length && title !== 'Clinic Dashboard') return null
+  const nav = (
+    <nav className="crumbs" aria-label="Breadcrumb">
+      {list.map((c, i) => (
+        <span key={`${c.label}${i}`} style={{ display: 'contents' }}>
+          {i > 0 && <ChevronRight size={14} aria-hidden />}
+          {c.to && i < list.length - 1 ? <Link to={c.to}>{c.label}</Link> : <span aria-current={i === list.length - 1 ? 'page' : undefined}>{c.label}</span>}
+        </span>
+      ))}
+    </nav>
+  )
+  return slot ? createPortal(nav, slot) : nav
+}
+
 export function PageHead({ crumbs, title, intro, children }) {
   return (
     <header>
-      {crumbs && (
-        <nav className="crumbs" aria-label="Breadcrumb">
-          {crumbs.map((c, i) => (
-            <span key={c.label} style={{ display: 'contents' }}>
-              {i > 0 && <ChevronRight size={14} aria-hidden />}
-              {c.to ? <Link to={c.to}>{c.label}</Link> : <span aria-current="page">{c.label}</span>}
-            </span>
-          ))}
-        </nav>
-      )}
+      <Crumbs crumbs={crumbs} title={title} />
       <div className="page-head">
         <div>
           <h1>{title}</h1>

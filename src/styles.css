@@ -1580,3 +1580,10 @@ th[aria-sort="ascending"] .th-sort svg, th[aria-sort="descending"] .th-sort svg 
 .med-variation .form-row { grid-template-columns: 1fr 1fr auto; }
 .med-actions { position: sticky; bottom: 12px; display: flex; justify-content: center; gap: 10px; padding: 10px; margin: 0 auto; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow-lg); }
 @media (max-width: 640px) { .dose-row { grid-template-columns: 1fr 1fr; } .med-variation .form-row { grid-template-columns: 1fr; } }
+
+/* Breadcrumb in the top bar on computers (PageHead puts it in #crumb-slot), like the old system */
+.crumb-slot { flex: 1; min-width: 0; }
+.crumb-slot .crumbs { margin: 0; flex-wrap: nowrap; overflow: hidden; }
+.crumb-slot .crumbs > span, .crumb-slot .crumbs a { white-space: nowrap; }
+.crumb-slot .crumbs [aria-current="page"] { color: var(--heading); font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.crumbs a { color: var(--text); }
