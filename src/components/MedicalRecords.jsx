@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, ClipboardList, FileHeart, Image, LayoutGrid, List, NotebookPen, Package, Pill, Search, Stethoscope, Syringe, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ClipboardList, Download, FileHeart, Image, LayoutGrid, List, NotebookPen, Package, Pill, Search, Stethoscope, Syringe, X } from 'lucide-react'
 import { Empty, ErrorNote, Pager, Panel, PawLoader } from './ui.jsx'
 import { useApi } from '../lib/useApi.js'
+import { canManage, useStaff } from '../lib/staff.js'
 import { prettyDay } from '../lib/format.js'
 
 export const ENTRY = {
@@ -33,7 +34,7 @@ function Photos({ images }) {
         {images.map((im, i) => (
           <li key={im.id}>
             <button type="button" className="photo-thumb" onClick={() => setOpen(i)} aria-label={`Open image ${i + 1} of ${images.length}`}>
-              <img src={`/api/photos/${im.id}`} alt="" loading="lazy" width={im.width || undefined} height={im.height || undefined} />
+              <img src={`/api/photos/${im.id}`} alt="" loading="lazy" width={im.width || undefined} height={im.height || undefined} draggable={false} onContextMenu={(e) => e.preventDefault()} />
               <span className="photo-tag">Image {i + 1}{im.bytes ? <span className="cell-sub">{kb(im.bytes)}</span> : null}</span>
             </button>
           </li>
@@ -44,8 +45,11 @@ function Photos({ images }) {
   )
 }
 
+// Viewing is for every staff member; downloading a record's photo is for owners and admins only
+// (the server checks too: /api/photos/:id?download=1).
 function Lightbox({ images, at, setAt }) {
   const im = images[at]
+  const mayDownload = canManage(useStaff())
   useEffect(() => {
     const onKey = (e) => {
       if (!['Escape', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return
@@ -60,12 +64,12 @@ function Lightbox({ images, at, setAt }) {
   }, [images.length, setAt])
   return (
     <div className="lightbox" role="dialog" aria-modal="true" aria-label={`Image ${at + 1} of ${images.length}`} onClick={() => setAt(null)}>
-      <img src={`/api/photos/${im.id}`} alt={`Image ${at + 1} of ${images.length}`} onClick={(e) => e.stopPropagation()} />
+      <img src={`/api/photos/${im.id}`} alt={`Image ${at + 1} of ${images.length}`} onClick={(e) => e.stopPropagation()} draggable={mayDownload} onContextMenu={mayDownload ? undefined : (e) => e.preventDefault()} />
       <div className="lightbox-bar" onClick={(e) => e.stopPropagation()}>
         {images.length > 1 && <button type="button" className="icon-btn" onClick={() => setAt((at - 1 + images.length) % images.length)} aria-label="Previous Image"><ChevronLeft /></button>}
         <span>Image {at + 1} of {images.length}</span>
         {images.length > 1 && <button type="button" className="icon-btn" onClick={() => setAt((at + 1) % images.length)} aria-label="Next Image"><ChevronRight /></button>}
-        <a className="btn btn-quiet" href={`/api/photos/${im.id}`} target="_blank" rel="noreferrer">Open Full Size</a>
+        {mayDownload && <a className="btn btn-quiet" href={`/api/photos/${im.id}?download=1`} download><Download aria-hidden /> Download</a>}
         <button type="button" className="icon-btn" onClick={() => setAt(null)} aria-label="Close Image"><X /></button>
       </div>
     </div>

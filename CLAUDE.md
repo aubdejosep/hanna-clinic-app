@@ -18,6 +18,7 @@ Staff-only app at app.hannapetwellnesscenter.com that replaces the clinic's paid
 
 - Client data never goes in git: exports, `data/`, `*.csv` and `.dev.vars` are ignored. Test with the local D1 (`.wrangler/`).
 - Nothing is hard-deleted: set `deleted_at`/`deleted_by`. Log changes with `audit()`.
+- **Downloads and exports of records** (medical record photos, any future CSV/PDF/print export of clients, pets, records or transactions) are for owners and admins only (`canManage`), checked on the server, and logged with `audit()`. Every staff member can still view records in the app.
 - Mobiles are stored as `+639XXXXXXXXX`, shown as `0917 123 4567`. Times are UTC ISO strings; calendar days are Manila `YYYY-MM-DD`.
 - Every location-specific row has `branch_id` (one branch today).
 - Imported owners keep their old customer numbers (`C` + 6 digits); new ones continue from the highest.
