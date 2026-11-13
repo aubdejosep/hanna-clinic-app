@@ -4,7 +4,7 @@
 // keep Private Senders and quick replies. Plan: docs/INBOX-PLAN.md.
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Ban, Check, Inbox as InboxIcon, Link2, Lock, Mail, MessageSquareText, Paperclip, PenLine, Plus, RotateCcw, Search, Send, Settings, StickyNote, Trash2, UserRound, X } from 'lucide-react'
+import { ArrowLeft, Ban, Globe, Check, Inbox as InboxIcon, Link2, Lock, Mail, MessageSquareText, Paperclip, PenLine, Plus, RotateCcw, Search, Send, Settings, StickyNote, Trash2, UserRound, X } from 'lucide-react'
 import { Empty, ErrorNote, Field, PageHead, Pager, Panel, PawLoader, useToast } from '../components/ui.jsx'
 import RichText, { RichView } from '../components/RichText.jsx'
 import { api, ApiError, query } from '../lib/api.js'
@@ -50,7 +50,7 @@ function Message({ m }) {
     <li className={`mail ${out ? 'is-out' : 'is-in'} ${m.status === 'failed' ? 'is-failed' : ''}`}>
       <div className="mail-head">
         <strong>{out ? `Hanna Pet Wellness Center${m.sentBy ? ` (${m.sentBy})` : ''}` : (m.fromName || m.fromEmail)}</strong>
-        <span className="cell-sub">{out ? `to ${m.to}` : m.fromEmail} · {prettyDay(manilaDay(m.at))}, {clockTime(m.at)}</span>
+        <span className="cell-sub">{[out ? `to ${m.to}` : m.fromEmail, `${prettyDay(manilaDay(m.at))}, ${clockTime(m.at)}`].filter(Boolean).join(' · ')}</span>
       </div>
       {m.html ? <RichView html={m.html} /> : <p className="mail-text">{m.text}</p>}
       {m.attachments.length > 0 && (
@@ -348,6 +348,7 @@ export default function InboxPage() {
                       <span className="cell-sub inbox-snippet">{t.lastDirection === 'out' ? 'You: ' : ''}{t.snippet}</span>
                       <span className="inbox-tags">
                         {t.unread && <span className="badge badge-warm">New</span>}
+                        {t.website && <span className="badge badge-soft"><Globe size={11} aria-hidden /> Website Sign-Up</span>}
                         {t.restricted && <span className="badge badge-soft" title="Owners and admins only"><Lock size={11} aria-hidden /> Owners &amp; Admins</span>}
                         {t.owner && <span className="badge badge-soft">Client</span>}
                         {t.assignedTo && <span className="badge badge-soft">{t.assignedTo.name}</span>}

@@ -2,8 +2,10 @@
 
 import { json } from '../../../lib/http.js'
 import { visible } from '../../../lib/inbox.js'
+import { pullFreeConsults } from '../../../lib/website-signups.js'
 
 export async function onRequestGet({ env, request, data }) {
+  await pullFreeConsults(env).catch((err) => console.log('Website sign-ups', String(err).slice(0, 300)))
   const u = new URL(request.url).searchParams
   const tab = ['open', 'mine', 'done', 'spam', 'all'].includes(u.get('tab')) ? u.get('tab') : 'open'
   const q = (u.get('q') || '').trim().slice(0, 60)
@@ -32,6 +34,7 @@ export async function onRequestGet({ env, request, data }) {
       owner: t.owner_id ? { id: t.owner_id, name: t.owner_name } : null, status: t.status, unread: !!t.unread,
       assignedTo: t.assigned_to ? { id: t.assigned_to, name: t.assigned_name } : null, messageCount: t.message_count,
       lastMessageAt: t.last_message_at, lastDirection: t.last_direction, snippet: t.snippet, restricted: !!t.restricted,
+      website: /^Free consult sign-up/.test(t.subject || ''),
     })),
   })
 }
