@@ -60,7 +60,7 @@ export default function NotificationsPage() {
                     <span className="cell-sub">{r.text}{r.day ? ` · Visit ${prettyDay(r.day)}` : ''}</span>
                     <div className="bell-actions">
                       <Link className="text-btn" to={linkOf(r)}>{r.action}</Link>
-                      {r.kind !== 'unpaid' && <button type="button" className="text-btn" onClick={() => notNeeded(r)} disabled={busy === r.key}>{['low_stock', 'expiring'].includes(r.kind) ? 'Hide for Today' : 'Not Needed'}</button>}
+                      {r.kind !== 'unpaid' && <button type="button" className="text-btn" onClick={() => notNeeded(r)} disabled={busy === r.key}>{['low_stock', 'expiring', 'balance'].includes(r.kind) ? 'Hide for Today' : 'Not Needed'}</button>}
                     </div>
                   </div>
                 </li>

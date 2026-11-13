@@ -10,6 +10,7 @@ import { useApi } from '../lib/useApi.js'
 import { REVIEW_LABELS } from '../lib/labels.js'
 import { age, initials, prettyDay, SPECIES_LABEL } from '../lib/format.js'
 import { StatusBadge } from '../components/AppointmentPanels.jsx'
+import { BalanceCallout } from '../components/Balances.jsx'
 import { prettyTime } from '../lib/appointments.js'
 
 function OwnerVisits({ ownerId }) {
@@ -63,6 +64,7 @@ export default function OwnerPage() {
   return (
     <>
       <PageHead crumbs={crumbs} title={o.name} />
+      <div style={{ marginBottom: 16 }}><BalanceCallout ownerId={o.id} /></div>
 
       {o.reviewFlags.length > 0 && (
         <div className="alert" role="note" style={{ marginBottom: 16 }}>

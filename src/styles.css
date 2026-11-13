@@ -1467,3 +1467,25 @@ button.content-flag:disabled { cursor: default; }
 .device-actions .text-btn { display: inline-flex; align-items: center; gap: 6px; }
 .notif-list { padding: 6px 22px 12px; max-height: none; }
 @media (max-width: 640px) { .device-grid { grid-template-columns: 1fr; } .device-facts { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- Finances: balances and transactions ---------- */
+.balance-callout { border-color: var(--apricot); }
+.balance-head { display: flex; align-items: flex-start; gap: 12px; padding: 14px 18px; }
+.balance-head strong { color: var(--heading); display: block; }
+.balance-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 50%; background: var(--apricot-tint); }
+.balance-icon svg { width: 18px; height: 18px; color: #B4610F; }
+.balance-items { list-style: none; margin: 0; padding: 0 18px 12px; display: grid; gap: 8px; }
+.balance-callout .balance-items { border-top: 1px solid var(--border); padding-top: 12px; }
+.balance-items li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.balance-what { display: grid; min-width: 0; }
+.balance-what strong { color: var(--heading); }
+.balance-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.balance-detail { background: var(--surface-alt); padding: 10px 0 !important; }
+.balance-detail .balance-items { padding: 0 12px; }
+.row-click { cursor: pointer; }
+.tx-filters { flex-wrap: wrap; align-items: end; }
+.tx-filters .field { min-width: 150px; }
+.tx-totals { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 28px; padding: 12px 22px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--surface-alt); }
+.tx-totals > span { display: inline-flex; align-items: baseline; gap: 8px; }
+.tx-totals strong { color: var(--heading); font-size: var(--fs-h2); }
+@media (max-width: 640px) { .balance-items li { grid-template-columns: 1fr; } }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Activity, Bell, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Settings, UserRound, X } from 'lucide-react'
+import { Activity, Bell, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Settings, UserRound, Wallet, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { initials } from '../lib/format.js'
@@ -32,6 +32,10 @@ const NAV = [
     { to: '/inventory', label: 'Product List' },
     { to: '/inventory/movements', label: 'Stock Movements' },
     { to: '/inventory/counts', label: 'Stock Count' },
+  ] },
+  { label: 'Finances', icon: Wallet, children: [
+    { to: '/finances/transactions', label: 'Transactions', owners: true },
+    { to: '/finances/balances', label: 'Balances' },
   ] },
   { to: '/content', label: 'Content', icon: Megaphone },
   { to: '/inbox', label: 'Inbox', icon: Inbox, soon: true },

@@ -4,6 +4,7 @@
 import { useId, useState } from 'react'
 
 const fmt = (n) => Number(n || 0).toLocaleString()
+const fmtN = fmt
 function niceMax(v) {
   if (v <= 4) return 4
   const p = 10 ** Math.floor(Math.log10(v))
@@ -11,12 +12,13 @@ function niceMax(v) {
 }
 
 // This period against the last, one point per day.
-export function CompareLine({ current, previous, labelOf }) {
+export function CompareLine({ current, previous, labelOf, money }) {
+  const fmt = money ? (n) => `₱${Number(n || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}` : fmtN
   const [hover, setHover] = useState(null)
   const id = useId()
   const W = 640
   const H = 230
-  const pad = { l: 34, r: 12, t: 12, b: 26 }
+  const pad = { l: money ? 62 : 34, r: 12, t: 12, b: 26 }
   const n = Math.max(current.length, previous.length, 2)
   const max = niceMax(Math.max(1, ...current.map((d) => d.n), ...previous.map((d) => d.n)))
   const x = (i) => pad.l + (i * (W - pad.l - pad.r)) / (n - 1)
@@ -27,7 +29,7 @@ export function CompareLine({ current, previous, labelOf }) {
   return (
     <div className="chart" onMouseLeave={() => setHover(null)}>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-labelledby={`${id}-t`}>
-        <title id={`${id}-t`}>Visits per day: {fmt(current.reduce((s, d) => s + d.n, 0))} this period, {fmt(previous.reduce((s, d) => s + d.n, 0))} the period before</title>
+        <title id={`${id}-t`}>{money ? 'Revenue' : 'Visits'} per day: {fmt(current.reduce((s, d) => s + d.n, 0))} this period, {fmt(previous.reduce((s, d) => s + d.n, 0))} the period before</title>
         {ticks.map((t) => (
           <g key={t}>
             <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} className="chart-grid" />

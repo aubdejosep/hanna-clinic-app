@@ -472,7 +472,7 @@ function ServiceCard({ s, items, existing, toggle, quick, c, weight }) {
 export const toSend = (items) => items.map(({ serviceId, variationId, productId, name, detail, kind, qty }) => (
   serviceId ? { serviceId, variationId } : { productId, name, detail, kind: productId ? 'product' : kind, qty }))
 
-const METHODS = [['cash', 'Cash'], ['gcash', 'GCash'], ['maya', 'Maya'], ['card', 'Card'], ['bank', 'Bank Transfer'], ['no_charge', 'No Charge']]
+export const METHODS = [['cash', 'Cash'], ['gcash', 'GCash'], ['maya', 'Maya'], ['card', 'Card'], ['bank', 'Bank Transfer'], ['no_charge', 'No Charge']]
 export const METHOD_LABEL = Object.fromEntries(METHODS)
 
 // Take Payment at the front desk: "Anything else given?" (the list so far, what usually goes with it,
@@ -488,6 +488,7 @@ export function PaymentPanel({ appointmentId, onClose, onDone }) {
   const [cash, setCash] = useState('')
   const [reference, setReference] = useState('')
   const [note, setNote] = useState('')
+  const [rest, setRest] = useState('') // paid less than the total: 'owed' (balance) or 'discount'
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
   const errors = error?.body?.errors || {}
@@ -495,6 +496,8 @@ export function PaymentPanel({ appointmentId, onClose, onDone }) {
   const total = Math.round(((a?.due || 0) + extra) * 100) / 100
   const shownAmount = method === 'no_charge' ? '0' : amount ?? String(total)
   const differs = method && Number(shownAmount) !== total
+  const short = differs && method !== 'no_charge' && Number(shownAmount) < total
+  const owed = short && rest === 'owed'
   const change = method === 'cash' && Number(cash) > Number(shownAmount) ? Number(cash) - Number(shownAmount) : null
   const canCheckOut = a && a.status !== 'completed'
 
@@ -504,7 +507,7 @@ export function PaymentPanel({ appointmentId, onClose, onDone }) {
     try {
       const res = paid
         ? await api(`appointments/${appointmentId}/status`, { method: 'POST', body: { to: 'completed' } })
-        : await api(`appointments/${appointmentId}/pay`, { method: 'POST', body: { items: toSend(picked), method, amount: shownAmount, reference, note, checkOut } })
+        : await api(`appointments/${appointmentId}/pay`, { method: 'POST', body: { items: toSend(picked), method, amount: shownAmount, reference, note, owed, checkOut } })
       onDone(res.appointment, paid || checkOut ? `${a.pet.name} checked out` : `${a.pet.name}: paid. Tap the tag on the way out.`)
     } catch (err) {
       setError(err)
@@ -521,8 +524,8 @@ export function PaymentPanel({ appointmentId, onClose, onDone }) {
           canCheckOut && <button type="button" className="btn" onClick={() => save(true)} disabled={!!busy}>{busy ? 'Saving…' : 'Check Out'}</button>
         ) : (
           <>
-            <button type="button" className={`btn ${canCheckOut ? 'btn-quiet' : ''}`} onClick={() => save(false)} disabled={!!busy || !a || !total0 || !method}>{busy === 'paid' ? 'Saving…' : 'Mark as Paid'}</button>
-            {canCheckOut && <button type="button" className="btn" onClick={() => save(true)} disabled={!!busy || !total0 || !method}>{busy === 'out' ? 'Saving…' : 'Paid & Check Out'}</button>}
+            <button type="button" className={`btn ${canCheckOut ? 'btn-quiet' : ''}`} onClick={() => save(false)} disabled={!!busy || !a || !total0 || !method || (short && !rest)}>{busy === 'paid' ? 'Saving…' : 'Mark as Paid'}</button>
+            {canCheckOut && <button type="button" className="btn" onClick={() => save(true)} disabled={!!busy || !total0 || !method || (short && !rest)}>{busy === 'out' ? 'Saving…' : 'Paid & Check Out'}</button>}
           </>
         )}</>}>
       <ErrorNote error={loadError || (error && !Object.keys(errors).length ? error : null)} />
@@ -557,7 +560,17 @@ export function PaymentPanel({ appointmentId, onClose, onDone }) {
                     : <Field label="Reference No." optional>{(f) => <input {...f} value={reference} onChange={(e) => setReference(e.target.value)} maxLength={60} />}</Field>}
                 </div>
               )}
-              {(differs || method === 'no_charge') && (
+              {short && (
+                <div>
+                  <span className="field-label">The Rest ({peso(total - Number(shownAmount))}) Is</span>
+                  <div className="chips" role="radiogroup" aria-label="The rest is">
+                    <button type="button" role="radio" aria-checked={rest === 'owed'} className="choice pay-method" onClick={() => setRest('owed')}>Owed (Balance)</button>
+                    <button type="button" role="radio" aria-checked={rest === 'discount'} className="choice pay-method" onClick={() => setRest('discount')}>A Discount</button>
+                  </div>
+                  {owed && <p className="field-hint" style={{ margin: '6px 0 0' }}>It goes on {a.owner?.name || 'the owner'}’s balance (Finances ▸ Balances) and shows on their page until it’s paid.</p>}
+                </div>
+              )}
+              {(differs || method === 'no_charge') && !owed && (
                 <Field label={method === 'no_charge' ? 'Why No Charge' : 'Why the Amount Differs'} error={errors.note}>{(f) => <input {...f} value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} placeholder={method === 'no_charge' ? 'e.g. free first consultation' : 'e.g. senior discount 10%'} />}</Field>
               )}
             </section>

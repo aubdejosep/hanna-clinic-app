@@ -22,6 +22,8 @@ import ContentPage from './pages/ContentPage.jsx'
 import NotificationsPage from './pages/NotificationsPage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
 import DevicesPage from './pages/DevicesPage.jsx'
+import BalancesPage from './pages/BalancesPage.jsx'
+import TransactionsPage from './pages/TransactionsPage.jsx'
 import { applyDisplay } from './lib/theme.js'
 import { CountPage, CountsPage, MovementsPage } from './pages/StockPages.jsx'
 import { StaffContext } from './lib/staff.js'
@@ -78,6 +80,8 @@ export default function App() {
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="settings" element={<SettingsPage onStaff={(staff) => setData({ ...data, staff })} />} />
         <Route path="devices" element={<DevicesPage />} />
+        <Route path="finances/balances" element={<BalancesPage />} />
+        <Route path="finances/transactions" element={<TransactionsPage />} />
         <Route path="inbox/*" element={<ComingSoon module="inbox" />} />
         <Route path="*" element={<ComingSoon module="missing" />} />
       </Route>

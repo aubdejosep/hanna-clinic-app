@@ -10,6 +10,7 @@ import { useApi } from '../lib/useApi.js'
 import { age, prettyDay, SEX_LABEL, SPECIES_LABEL } from '../lib/format.js'
 import { ACTIONS, STATUS, addDays, clockTime, longDay, prettyTime } from '../lib/appointments.js'
 import { canManage, ROLE_LABEL, useStaff } from '../lib/staff.js'
+import { BalanceCallout } from '../components/Balances.jsx'
 import { useVisitMedical } from '../components/VisitRecord.jsx'
 
 const PATH = [
@@ -145,9 +146,14 @@ function FollowUp({ a, onChange, setPanel }) {
         <div className="stack" style={{ gap: 8 }}>
           <div className="inline-row">
             <label className="sr-only" htmlFor="fu-days">In how many days</label>
-            <select id="fu-days" className="select" value={days} onChange={(e) => setDays(Number(e.target.value))}>
+            <select id="fu-days" className="select" value={[3, 5, 7, 10, 14, 21, 30, 60, 90, 180, 365].includes(days) ? days : ''} onChange={(e) => e.target.value && setDays(Number(e.target.value))}>
+              {![3, 5, 7, 10, 14, 21, 30, 60, 90, 180, 365].includes(days) && <option value="">In {days} days</option>}
               {[3, 5, 7, 10, 14, 21, 30, 60, 90, 180, 365].map((d) => <option key={d} value={d}>In {d} days</option>)}
             </select>
+            <span className="cell-sub" style={{ display: 'inline' }}>or on</span>
+            <label className="sr-only" htmlFor="fu-date">Follow-up date</label>
+            <input id="fu-date" type="date" className="input" style={{ width: 'auto' }} value={addDays(a.day, days)} min={addDays(a.day, 1)} max={addDays(a.day, 365)}
+              onChange={(e) => { const d = Math.round((Date.parse(`${e.target.value}T00:00:00Z`) - Date.parse(`${a.day}T00:00:00Z`)) / 864e5); if (d >= 1 && d <= 365) setDays(d) }} />
           </div>
           <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} placeholder="Reason, e.g. recheck wound, 2nd vaccine dose" aria-label="Reason for the follow-up" />
           <div className="inline-row">
@@ -482,6 +488,7 @@ function AppointmentBody({ a, changed, reload, toast, setPanel, banners }) {
     <div className="appt-grid">
       <div className="ag-head stack">
         <VisitBar a={a} onChange={changed} />
+        <BalanceCallout ownerId={a.owner.id} ownerName={a.owner.name} compact />
         {banners.length > 0 && (
           <section className="card banners">
             {banners.map((b) => {

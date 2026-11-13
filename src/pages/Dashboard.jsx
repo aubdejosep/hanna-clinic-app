@@ -33,7 +33,7 @@ function Money({ m }) {
   const pct = percentChange(m.taken.cur, m.taken.prev)
   return (
     <section className="card">
-      <div className="card-head"><div><h2>Payments Taken</h2><p>Visits and quick sales paid in the app, voided payments left out. Owners and admins only.</p></div></div>
+      <div className="card-head"><div><h2>Payments Taken</h2><p>Visits, quick sales and balances paid in the app, plus paid invoices imported from the old system. Voided payments left out. Owners and admins only.</p></div></div>
       <div className="card-pad money-row">
         <div>
           <span className="label">Total</span>
@@ -49,6 +49,12 @@ function Money({ m }) {
           )) : <p className="muted" style={{ margin: 0 }}>No payments in this period.</p>}
         </div>
       </div>
+      {m.perDay && (
+        <div className="card-pad" style={{ borderTop: '1px solid var(--border)' }}>
+          <span className="label">Revenue per Day</span>
+          <CompareLine current={m.perDay.current} previous={m.perDay.previous} labelOf={shortDay} money />
+        </div>
+      )}
     </section>
   )
 }

@@ -42,7 +42,7 @@ export async function onRequestPost({ request, env, data }) {
     .bind(now, day, clean(body.customer, 80) || null, amount, data.staff.id, data.staff.name).first()
   await applyMovements(env, items.map((i) => ({ productId: i.id, qty: -i.qty, kind: 'sale', saleId: sale.id, staff: data.staff })), [
     ...items.map((i) => env.DB.prepare('INSERT INTO sale_items (sale_id, product_id, name, qty, price_cents) VALUES (?, ?, ?, ?, ?)').bind(sale.id, i.id, i.name, i.qty, i.price_cents)),
-    env.DB.prepare(`INSERT INTO payments (sale_id, at, day, due_cents, amount_cents, method, reference, note, staff_id, staff_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    env.DB.prepare(`INSERT INTO payments (sale_id, kind, at, day, due_cents, amount_cents, method, reference, note, staff_id, staff_name) VALUES (?, 'sale', ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(sale.id, now, day, due, amount, body.method, clean(body.reference, 60) || null, note, data.staff.id, data.staff.name),
   ])
   await audit(env, data.staff.email, 'sale', 'sale', sale.id, { due, amount, method: body.method, items: items.map((i) => [i.name, i.qty]) })

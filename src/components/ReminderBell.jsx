@@ -18,8 +18,9 @@ export const KIND = {
   pet_info: { icon: PawPrint, label: 'Pet Details' },
   owner_info: { icon: UserRound, label: 'Owner Details' },
   website_client: { icon: Globe, label: 'Online Clients' },
+  balance: { icon: Wallet, label: 'Balances' },
 }
-export const linkOf = (r) => (r.kind === 'low_stock' ? '/inventory?filter=low' : r.kind === 'expiring' ? '/inventory?filter=expiring' : r.kind === 'pet_info' ? `/pets/${r.pet.id}` : ['owner_info', 'website_client'].includes(r.kind) ? `/clients/${r.owner.id}` : `/appointments/${r.appointmentId}${r.kind === 'unpaid' ? '?pay=1' : r.kind === 'follow_up' ? '?followup=1' : ''}`)
+export const linkOf = (r) => (r.kind === 'low_stock' ? '/inventory?filter=low' : r.kind === 'expiring' ? '/inventory?filter=expiring' : r.kind === 'pet_info' ? `/pets/${r.pet.id}` : ['owner_info', 'website_client', 'balance'].includes(r.kind) ? `/clients/${r.owner.id}` : `/appointments/${r.appointmentId}${r.kind === 'unpaid' ? '?pay=1' : r.kind === 'follow_up' ? '?followup=1' : ''}`)
 
 // The bell: workflow steps still to finish. Each one clears itself once the step is done.
 export default function ReminderBell({ align = 'right' }) {
@@ -59,7 +60,7 @@ export default function ReminderBell({ align = 'right' }) {
       setBusy(null)
     }
   }
-  const list = data?.reminders || []
+  const list = (data?.reminders || []).filter((r) => r.inBell !== false) // balances: Notifications page only
   return (
     <div className="bell" ref={box}>
       <button type="button" className="icon-btn bell-btn" onClick={() => { setOpen(!open); if (!open) refresh() }} aria-expanded={open}
@@ -85,7 +86,7 @@ export default function ReminderBell({ align = 'right' }) {
                       <span className="cell-sub">{r.text}{r.day ? ` · Visit ${prettyDay(r.day)}` : ''}</span>
                       <div className="bell-actions">
                         <Link className="text-btn" to={linkOf(r)} onClick={() => setOpen(false)}>{r.action}</Link>
-                        {r.kind !== 'unpaid' && <button type="button" className="text-btn" onClick={() => notNeeded(r)} disabled={busy === r.key}>{['low_stock', 'expiring'].includes(r.kind) ? 'Hide for Today' : 'Not Needed'}</button>}
+                        {!['unpaid'].includes(r.kind) && <button type="button" className="text-btn" onClick={() => notNeeded(r)} disabled={busy === r.key}>{['low_stock', 'expiring', 'balance'].includes(r.kind) ? 'Hide for Today' : 'Not Needed'}</button>}
                       </div>
                     </div>
                   </li>
