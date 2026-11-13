@@ -1518,3 +1518,23 @@ button.content-flag:disabled { cursor: default; }
 .crop-previews { display: flex; align-items: center; gap: 14px; }
 .crop-preview { position: relative; display: block; overflow: hidden; border: 1px solid var(--border-strong); border-radius: 12px; background: #fff; }
 .crop-preview img { position: absolute; left: 50%; top: 50%; max-width: none; }
+
+/* Clinic Operations ▸ Staff */
+.staff-avatar { width: 40px; height: 40px; flex: none; }
+.th-sort { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.th-sort svg { width: 12px; height: 12px; opacity: .6; }
+th[aria-sort="ascending"] .th-sort svg, th[aria-sort="descending"] .th-sort svg { opacity: 1; }
+.staff-table .staff-title { white-space: normal; text-align: center; }
+.staff-shift { text-align: center; }
+.staff-shift .day-chips { justify-content: center; }
+.access-row { display: inline-flex; align-items: center; gap: 8px; }
+.access-row strong { color: var(--heading); font-size: var(--fs-small); }
+.row-actions { display: inline-flex; gap: 4px; }
+.icon-btn.icon-danger svg { color: var(--red); }
+.staff-table tr.is-off td { opacity: .6; }
+.staff-table td:first-child strong { white-space: nowrap; }
+.staff-table td:first-child { min-width: 220px; }
+.staff-shift { white-space: nowrap; }
+.staff-shift .day-chips { flex-wrap: nowrap; }
+.staff-table .num { white-space: nowrap; }
+@media (max-width: 1200px) { .staff-shift .day-chips { flex-wrap: wrap; max-width: 150px; margin-left: auto; margin-right: auto; } }

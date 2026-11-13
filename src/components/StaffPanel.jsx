@@ -1,5 +1,5 @@
 // Add or edit a staff member: the same sections, in the same order, as the old Edit Staff panel.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Camera, Copy, Trash2, Upload } from 'lucide-react'
 import { api, ApiError } from '../lib/api.js'
 import { resizeImage } from '../lib/images.js'
@@ -16,10 +16,11 @@ function initialForm(s) {
     licenseNo: s?.licenseNo || '', licenseExpiry: s?.licenseExpiry || '', ptrNo: s?.ptrNo || '', s2No: s?.s2No || '',
     street: s?.street || '', city: s?.city || '', province: s?.province || '', postalCode: s?.postalCode || '', country: s?.country || 'Philippines',
     maxLeaveDays: s?.maxLeaveDays ?? '', schedule: s?.schedule || {}, active: s ? s.active : true,
+    birthday: s?.birthday || '', emergencyName: s?.emergencyName || '', emergencyPhone: s?.emergencyPhoneLocal || '',
   }
 }
 
-export default function StaffPanel({ staff, me, onClose, onDone }) {
+export default function StaffPanel({ staff, me, scrollTo, onClose, onDone }) {
   const editing = !!staff
   const [form, setForm] = useState(() => initialForm(staff))
   const [photo, setPhoto] = useState(undefined)        // undefined = unchanged, null = remove, string = new
@@ -31,6 +32,8 @@ export default function StaffPanel({ staff, me, onClose, onDone }) {
   const v = staff?.imagesUpdatedAt ? `?v=${encodeURIComponent(staff.imagesUpdatedAt)}` : ''
   const photoSrc = photo === undefined ? (staff?.hasPhoto ? `/api/staff/${staff.id}/photo${v}` : null) : photo
   const isMe = editing && staff.id === me.id
+  // Opened from the list's Shift Schedule button: go straight to that section.
+  useEffect(() => { if (scrollTo) setTimeout(() => document.getElementById(scrollTo)?.scrollIntoView({ block: 'start' }), 50) }, [scrollTo])
 
   async function pickPhoto(e) {
     const file = e.target.files?.[0]
@@ -155,6 +158,9 @@ export default function StaffPanel({ staff, me, onClose, onDone }) {
             {(a) => <input {...a} type="email" value={form.email} onChange={(e) => set({ email: e.target.value })} autoComplete="off" />}
           </Field>
         </div>
+        <Field label="Birthday" optional error={errors.birthday}>
+          {(a) => <input {...a} type="date" value={form.birthday} onChange={(e) => set({ birthday: e.target.value })} style={{ maxWidth: 220 }} />}
+        </Field>
         <Field
           label={editing ? 'Set a new password' : 'Password'}
           optional={editing}
@@ -181,6 +187,14 @@ export default function StaffPanel({ staff, me, onClose, onDone }) {
       </section>
 
       <section className="form-section">
+        <h3 className="label">Emergency Contact <small>(optional)</small></h3>
+        <div className="form-row">
+          <Field label="Name">{(a) => <input {...a} value={form.emergencyName} onChange={(e) => set({ emergencyName: e.target.value })} maxLength={80} />}</Field>
+          <Field label="Mobile" error={errors.emergencyPhone}>{(a) => <input {...a} value={form.emergencyPhone} onChange={(e) => set({ emergencyPhone: e.target.value })} inputMode="tel" placeholder="0917 123 4567" />}</Field>
+        </div>
+      </section>
+
+      <section className="form-section" id="staff-schedule">
         <div className="form-section-head">
           <h3 className="label">Shift Schedule</h3>
           <button type="button" className="btn btn-quiet" onClick={copyFirstDay} title="Give every working day the first day’s hours"><Copy aria-hidden /> Same Hours Every Day</button>
