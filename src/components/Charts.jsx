@@ -1,7 +1,21 @@
 // Small, quiet charts for the owners' overview. Marks carry colour; text stays in the two text colours.
 // Hover any mark for its exact value. Colours: --chart-1 (teal) and --chart-2 (dark apricot), checked
 // for colour-blind separation and contrast; the previous period is a neutral grey line.
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+
+// The chart's real width on screen, so it's drawn at that size: text and lines stay the same size
+// however wide the card is (a scaled-up drawing made them huge in full-width cards).
+function useWidth(fallback) {
+  const ref = useRef(null)
+  const [w, setW] = useState(fallback)
+  useEffect(() => {
+    if (!ref.current || typeof ResizeObserver === 'undefined') return undefined
+    const ro = new ResizeObserver(([e]) => { const v = Math.round(e.contentRect.width); if (v > 0) setW(v) })
+    ro.observe(ref.current)
+    return () => ro.disconnect()
+  }, [])
+  return [ref, w]
+}
 
 const fmt = (n) => Number(n || 0).toLocaleString()
 const fmtN = fmt
@@ -16,7 +30,7 @@ export function CompareLine({ current, previous, labelOf, money }) {
   const fmt = money ? (n) => `₱${Number(n || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}` : fmtN
   const [hover, setHover] = useState(null)
   const id = useId()
-  const W = 640
+  const [box, W] = useWidth(640)
   const H = 230
   const pad = { l: money ? 62 : 34, r: 12, t: 12, b: 26 }
   const n = Math.max(current.length, previous.length, 2)
@@ -25,10 +39,10 @@ export function CompareLine({ current, previous, labelOf, money }) {
   const y = (v) => H - pad.b - (v / max) * (H - pad.t - pad.b)
   const path = (pts) => pts.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d.n).toFixed(1)}`).join('')
   const ticks = [0, max / 2, max]
-  const step = Math.ceil(n / 6)
+  const step = Math.ceil(n / Math.max(2, Math.floor((W - pad.l) / 80)))
   return (
-    <div className="chart" onMouseLeave={() => setHover(null)}>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-labelledby={`${id}-t`}>
+    <div className="chart" ref={box} onMouseLeave={() => setHover(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-labelledby={`${id}-t`}>
         <title id={`${id}-t`}>{money ? 'Revenue' : 'Visits'} per day: {fmt(current.reduce((s, d) => s + d.n, 0))} this period, {fmt(previous.reduce((s, d) => s + d.n, 0))} the period before</title>
         {ticks.map((t) => (
           <g key={t}>
