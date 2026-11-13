@@ -2,7 +2,7 @@
 //   lands in the client's same conversation, with the clinic's signature and the last email quoted below.
 
 import { json, fail, readJson, cleanMultiline, audit } from '../../../../../lib/http.js'
-import { sendEmail, SIGNATURE, textToHtml } from '../../../../../lib/email.js'
+import { sendEmail, getSignature, textToHtml } from '../../../../../lib/email.js'
 import { INBOX_ADDRESS, snippetOf, visible } from '../../../../../lib/inbox.js'
 import { loadThread } from '../[id].js'
 
@@ -18,7 +18,8 @@ export async function onRequestPost({ request, env, params, data }) {
   const subject = /^re:/i.test(t.subject || '') ? t.subject : `Re: ${t.subject || 'Your message'}`
   const mid = `<${crypto.randomUUID()}@hannapetwellnesscenter.com>`
   const refs = [last?.references_h, last?.message_id].filter(Boolean).join(' ').split(/\s+/).filter(Boolean).slice(-10).join(' ')
-  const quoted = lastIn ? `\n\nOn ${new Date(lastIn.created_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' })}, ${lastIn.from_name || lastIn.from_email} wrote:\n${String(lastIn.text_body || '').split('\n').slice(0, 40).map((l) => `> ${l}`).join('\n')}` : ''
+  const quoted = lastIn ? `\n\nOn ${new Date(lastIn.created_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' })}, ${lastIn.from_name || lastIn.from_email} wrote:\n${String(lastIn.text_body || '').replace(/\s+$/, '').split('\n').slice(0, 40).map((l) => `> ${l}`).join('\n')}` : ''
+  const SIGNATURE = await getSignature(env)
   const text = `${body}\n\n${SIGNATURE}${quoted}`
   const html = `<div>${textToHtml(body)}</div><p style="color:#5E6785">${textToHtml(SIGNATURE)}</p>${lastIn ? `<blockquote style="margin:0;padding-left:10px;border-left:3px solid #ddd;color:#666">${textToHtml(quoted.trim())}</blockquote>` : ''}`
   const headers = { 'Message-ID': mid, ...(last?.message_id ? { 'In-Reply-To': last.message_id, References: refs } : {}) }

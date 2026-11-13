@@ -223,6 +223,13 @@ function SettingsPanel({ onClose }) {
   const [note, setNote] = useState('')
   const [edit, setEdit] = useState(null) // {id?, title, body}
   const [error, setError] = useState(null)
+  const sig = useApi('inbox/signature')
+  const [signature, setSignature] = useState(null) // null until loaded
+  useEffect(() => { if (sig.data && signature === null) setSignature(sig.data.signature) }, [sig.data, signature])
+  async function saveSignature(value) {
+    setError(null)
+    try { const r = await api('inbox/signature', { method: 'PUT', body: { signature: value } }); setSignature(r.signature); sig.reload(); toast('Signature saved') } catch (err) { setError(err) }
+  }
   async function addSender() {
     setError(null)
     try { await api('inbox/private-senders', { method: 'POST', body: { pattern, note } }); setPattern(''); setNote(''); senders.reload(); toast('Private Sender added') } catch (err) { setError(err) }
@@ -249,6 +256,17 @@ function SettingsPanel({ onClose }) {
           ))}
           {senders.data && !senders.data.senders.length && <li className="cell-sub">None yet.</li>}
         </ul>
+      </section>
+      <section className="form-section" data-no-dirty>
+        <h3 className="label">Email Signature</h3>
+        <p className="field-hint" style={{ margin: 0 }}>Added under every email sent from the Inbox, for all staff.</p>
+        {signature !== null && <>
+          <Field label="Signature">{(a) => <textarea {...a} rows={6} value={signature} onChange={(e) => setSignature(e.target.value)} maxLength={1000} />}</Field>
+          <div className="inline-row">
+            <button type="button" className="btn" onClick={() => saveSignature(signature)} disabled={!signature.trim() || signature === sig.data?.signature}>Save Signature</button>
+            {sig.data && signature !== sig.data.defaultSignature && <button type="button" className="btn btn-quiet" onClick={() => saveSignature('')}>Use the Default</button>}
+          </div>
+        </>}
       </section>
       <section className="form-section" data-no-dirty>
         <div className="form-section-head"><h3 className="label">Quick Replies</h3><button type="button" className="btn btn-quiet" onClick={() => setEdit({ title: '', body: '' })}><Plus aria-hidden /> Add Quick Reply</button></div>
