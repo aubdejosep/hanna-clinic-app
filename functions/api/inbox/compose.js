@@ -15,8 +15,8 @@ export async function onRequestPost({ request, env, data }) {
   const to = String(o.email || '').trim().toLowerCase()
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(to) || /^vpnoemail/i.test(to)) return fail(400, `${o.full_name} has no email address on file. Add one on their page first.`)
   const mid = `<${crypto.randomUUID()}@hannapetwellnesscenter.com>`
-  const SIGNATURE = await getSignature(env)
-  const sent = await sendEmail(env, { to, subject, text: `${body}\n\n${SIGNATURE}`, html: `<div>${textToHtml(body)}</div><p style="color:#5E6785">${textToHtml(SIGNATURE)}</p>`, headers: { 'Message-ID': mid } })
+  const sig = await getSignature(env)
+  const sent = await sendEmail(env, { to, subject, text: `${body}\n\n${sig.text}`, html: `<div>${textToHtml(body)}</div><div style="margin-top:16px">${sig.html}</div>`, headers: { 'Message-ID': mid } })
     .catch((err) => fail(err.status || 502, err.message))
   if (sent instanceof Response) return sent
   const now = new Date().toISOString()

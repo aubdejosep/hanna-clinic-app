@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Ban, Check, Inbox as InboxIcon, Link2, Lock, Mail, MessageSquareText, Paperclip, PenLine, Plus, RotateCcw, Search, Send, Settings, StickyNote, Trash2, UserRound, X } from 'lucide-react'
 import { Empty, ErrorNote, Field, PageHead, Pager, Panel, PawLoader, useToast } from '../components/ui.jsx'
-import { RichView } from '../components/RichText.jsx'
+import RichText, { RichView } from '../components/RichText.jsx'
 import { api, ApiError, query } from '../lib/api.js'
 import { useApi, useDebounced } from '../lib/useApi.js'
 import { canManage, useStaff } from '../lib/staff.js'
@@ -224,11 +224,12 @@ function SettingsPanel({ onClose }) {
   const [edit, setEdit] = useState(null) // {id?, title, body}
   const [error, setError] = useState(null)
   const sig = useApi('inbox/signature')
-  const [signature, setSignature] = useState(null) // null until loaded
-  useEffect(() => { if (sig.data && signature === null) setSignature(sig.data.signature) }, [sig.data, signature])
+  const [signature, setSignature] = useState(null) // HTML; null until loaded
+  const [sigKey, setSigKey] = useState(0) // remounts the editor after Use the Default
+  useEffect(() => { if (sig.data && signature === null) setSignature(sig.data.html) }, [sig.data, signature])
   async function saveSignature(value) {
     setError(null)
-    try { const r = await api('inbox/signature', { method: 'PUT', body: { signature: value } }); setSignature(r.signature); sig.reload(); toast('Signature saved') } catch (err) { setError(err) }
+    try { const r = await api('inbox/signature', { method: 'PUT', body: { html: value } }); setSignature(r.html); setSigKey((k) => k + 1); sig.reload(); toast('Signature saved') } catch (err) { setError(err) }
   }
   async function addSender() {
     setError(null)
@@ -261,10 +262,14 @@ function SettingsPanel({ onClose }) {
         <h3 className="label">Email Signature</h3>
         <p className="field-hint" style={{ margin: 0 }}>Added under every email sent from the Inbox, for all staff.</p>
         {signature !== null && <>
-          <Field label="Signature">{(a) => <textarea {...a} rows={6} value={signature} onChange={(e) => setSignature(e.target.value)} maxLength={1000} />}</Field>
+          <div className="field">
+            <span className="field-label">Signature</span>
+            <RichText key={sigKey} id="email-signature" label="Signature" variant="signature" value={signature} onChange={setSignature} />
+            <span className="field-hint">Use the toolbar for bold, colour, links and pictures (a picture must already be online, at an https:// address), or the &lt;/&gt; button to paste HTML. Unsafe code is removed when you save.</span>
+          </div>
           <div className="inline-row">
-            <button type="button" className="btn" onClick={() => saveSignature(signature)} disabled={!signature.trim() || signature === sig.data?.signature}>Save Signature</button>
-            {sig.data && signature !== sig.data.defaultSignature && <button type="button" className="btn btn-quiet" onClick={() => saveSignature('')}>Use the Default</button>}
+            <button type="button" className="btn" onClick={() => saveSignature(signature)} disabled={signature === sig.data?.html}>Save Signature</button>
+            {sig.data?.saved && <button type="button" className="btn btn-quiet" onClick={() => saveSignature('')}>Use the Default</button>}
           </div>
         </>}
       </section>
