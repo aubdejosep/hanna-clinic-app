@@ -1490,3 +1490,9 @@ button.content-flag:disabled { cursor: default; }
 .tx-totals strong { color: var(--heading); font-size: var(--fs-h2); }
 @media (max-width: 640px) { .balance-items li { grid-template-columns: 1fr; } }
 .tx-import { margin-left: auto; }
+
+/* Destructive actions: red is reserved for errors and these (Delete Owner and All Records) */
+.btn-danger { background: var(--red); border-color: var(--red); color: #fff; }
+.btn-danger:hover:not(:disabled) { background: #8F1C13; border-color: #8F1C13; }
+.btn-danger-quiet { color: var(--red); border-color: var(--red-tint); }
+.btn-danger-quiet svg { color: var(--red); }

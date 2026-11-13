@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { CalendarDays, ChevronRight, Crown, Hash, Mail, Pencil, Phone, Plus, Trash2, TriangleAlert } from 'lucide-react'
 import { Empty, ErrorNote, PageHead, PetAvatar, useToast, PawLoader } from '../components/ui.jsx'
 import { EditOwnerPanel, PetPanel } from '../components/ClientForms.jsx'
-import { RemoveOwnerPanel } from '../components/RemovePanels.jsx'
+import { DeleteOwnerPanel, RemoveOwnerPanel } from '../components/RemovePanels.jsx'
 import { canManage, useStaff } from '../lib/staff.js'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
@@ -101,6 +101,11 @@ export default function OwnerPage() {
                     <Trash2 />
                   </button>
                 )}
+                {canManage(staff) && (
+                  <button type="button" className="btn btn-quiet btn-danger-quiet" onClick={() => setPanel({ kind: 'delete' })} title="Owners and admins: delete this owner, their pets and every visit, record and payment">
+                    <Trash2 aria-hidden /> Delete Owner and All Records
+                  </button>
+                )}
               </div>
             </div>
           </section>
@@ -149,6 +154,9 @@ export default function OwnerPage() {
         </section>
       </div>
 
+      {panel?.kind === 'delete' && (
+        <DeleteOwnerPanel owner={o} onClose={() => setPanel(null)} onDone={() => { toast(`${o.name} and all their records were deleted`); navigate('/clients') }} />
+      )}
       {panel?.kind === 'remove' && (
         <RemoveOwnerPanel owner={o} onClose={() => setPanel(null)} onDone={() => { toast(`${o.name} removed. Restore from Masterlist → Removed.`); navigate('/clients') }} />
       )}

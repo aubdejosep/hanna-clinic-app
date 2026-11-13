@@ -12,6 +12,7 @@ const ROWS = `
   FROM payments y LEFT JOIN appointments a ON a.id = y.appointment_id LEFT JOIN owners o1 ON o1.id = a.owner_id LEFT JOIN pets p ON p.id = a.pet_id
     LEFT JOIN sales s ON s.id = y.sale_id LEFT JOIN owners o2 ON o2.id = s.owner_id LEFT JOIN owners o3 ON o3.id = y.owner_id
     LEFT JOIN old_invoices i ON i.id = y.old_invoice_id
+  WHERE y.deleted_at IS NULL
   UNION ALL
   SELECT 'old', 'old', op.id, op.day, COALESCE(op.day, ''), op.invoice_no, NULL, NULL, op.owner_id, op.customer_name, op.pet_name,
     op.amount_cents, op.method, op.reference, op.reason, op.creator, NULL, op.amount_note

@@ -20,7 +20,7 @@ const ROWS = `
   SELECT 'app', 'sale', s.id, s.day, s.at, '#S' || s.id, o.id, COALESCE(o.full_name, s.customer), NULL, s.total_cents,
     (SELECT COALESCE(SUM(y.amount_cents), 0) FROM payments y WHERE y.sale_id = s.id AND y.voided_at IS NULL), 0,
     (SELECT y.method FROM payments y WHERE y.sale_id = s.id ORDER BY y.id LIMIT 1), s.staff_name, NULL, s.voided_at
-  FROM sales s LEFT JOIN owners o ON o.id = s.owner_id
+  FROM sales s LEFT JOIN owners o ON o.id = s.owner_id WHERE s.deleted_at IS NULL
   UNION ALL
   SELECT 'old', 'invoice', i.id, i.day, COALESCE(i.day, ''), i.invoice_no, i.owner_id, i.customer_name, i.pet_name, i.amount_cents, i.paid_cents, 0,
     i.method, i.staff_names, i.status, NULL

@@ -10,7 +10,7 @@ import { qtyOf } from '../../../lib/inventory.js'
 export async function loadSales(env, where, binds) {
   const { results } = await env.DB.prepare(`SELECT s.*, (SELECT GROUP_CONCAT(i.name || ' × ' || printf('%g', i.qty), ', ') FROM sale_items i WHERE i.sale_id = s.id) AS items_text,
       (SELECT method FROM payments p WHERE p.sale_id = s.id ORDER BY p.id DESC LIMIT 1) AS method
-    FROM sales s WHERE ${where} ORDER BY s.at DESC LIMIT 200`).bind(...binds).all()
+    FROM sales s WHERE s.deleted_at IS NULL AND (${where}) ORDER BY s.at DESC LIMIT 200`).bind(...binds).all()
   return results.map((s) => ({ id: s.id, at: s.at, day: s.day, customer: s.customer, total: s.total_cents / 100, method: s.method, by: s.staff_name,
     items: s.items_text || '', voidedAt: s.voided_at, voidedBy: s.voided_by, voidReason: s.void_reason }))
 }

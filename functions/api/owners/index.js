@@ -12,7 +12,8 @@ export async function onRequestGet({ request, env }) {
   const url = new URL(request.url)
   const { page, size, offset } = pageArgs(url)
   const removed = url.searchParams.get('removed') === '1'
-  const where = [removed ? 'o.deleted_at IS NOT NULL' : 'o.deleted_at IS NULL']
+  // Owners deleted with all their records (owners/[id]/delete.js) can't be restored from here.
+  const where = [removed ? "o.deleted_at IS NOT NULL AND COALESCE(o.deleted_by, '') NOT LIKE '%(with all records)'" : 'o.deleted_at IS NULL']
   const binds = []
 
   const q = url.searchParams.get('q') || ''
