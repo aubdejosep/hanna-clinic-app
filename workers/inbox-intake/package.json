@@ -1,0 +1,9 @@
+{
+  "name": "hanna-inbox-intake",
+  "private": true,
+  "type": "module",
+  "description": "Email Routing intake for the clinic app's Inbox: forwards hello@ mail to the private mailbox and saves a copy.",
+  "scripts": { "deploy": "wrangler deploy", "dev": "wrangler dev" },
+  "dependencies": { "postal-mime": "2.4.4" },
+  "devDependencies": { "wrangler": "4.158.0" }
+}

@@ -43,7 +43,7 @@ const NAV = [
     { to: '/finances/balances', label: 'Balances' },
   ] },
   { to: '/content', label: 'Content', icon: Megaphone },
-  { to: '/inbox', label: 'Inbox', icon: Inbox, soon: true },
+  { to: '/inbox', label: 'Inbox', icon: Inbox, badge: 'inbox' },
 ]
 
 const isInside = (group, pathname) => group.children.some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`) || (c.to === '/clients' && pathname.startsWith('/pets')))
@@ -140,6 +140,17 @@ function AccountMenu({ staff }) {
   )
 }
 
+// Unread conversations in the Inbox, beside the menu item (one small read every 2 minutes while visible).
+function InboxBadge() {
+  const { data, reload } = useApi('inbox/count')
+  useEffect(() => {
+    const t = setInterval(() => { if (!document.hidden) reload() }, 2 * 60000)
+    window.addEventListener('clinic:inbox-changed', reload)
+    return () => { clearInterval(t); window.removeEventListener('clinic:inbox-changed', reload) }
+  }, [reload])
+  return data?.unread ? <span className="menu-count nav-count" aria-label={`${data.unread} unread`}>{data.unread > 99 ? '99+' : data.unread}</span> : null
+}
+
 async function logOut() {
   try {
     await api('auth/logout', { method: 'POST' })
@@ -179,6 +190,7 @@ export default function Layout({ staff }) {
           <NavLink key={item.to} to={item.to} end={item.end} className="nav-link">
             <item.icon aria-hidden /> {item.label}
             {item.soon && <span className="badge badge-soft soon">Soon</span>}
+            {item.badge === 'inbox' && <InboxBadge />}
           </NavLink>
         ))}
         <div className="sidebar-foot">

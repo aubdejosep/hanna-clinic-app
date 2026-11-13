@@ -4,7 +4,7 @@ One **Inbox** in the clinic app for the clinic's conversations: email to and fro
 **hello@hannapetwellnesscenter.com**, and SMS to and from the clinic's SMS number. Staff read, reply,
 see who the client is (Masterlist), and mark conversations done.
 
-Status: **planning.** SMS provider still to choose (Semaphore or Promotexter).
+Status: **phase 1 (email) built.** Setup: `workers/inbox-intake/README.md`. SMS provider still to choose (Semaphore or Promotexter).
 
 ## Decisions (Nov 2026)
 

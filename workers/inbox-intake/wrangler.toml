@@ -1,0 +1,19 @@
+# The clinic app's email intake (Inbox). Email Routing's hello@ rule sends mail here; it forwards every email
+# to the private mailbox, then saves a copy for the app. Deploy: cd workers/inbox-intake && npm install && npx wrangler deploy
+name = "hanna-inbox-intake"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = false   # no web address: only Email Routing can call it
+
+[vars]
+FORWARD_TO = "hannapetwellnesscenter@atomicmail.io"   # must be a verified destination address in Email Routing
+INBOX_ADDRESS = "hello@hannapetwellnesscenter.com"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hanna-clinic"
+database_id = "48ed1085-1b31-4727-bde8-4835d1c0c008"
+
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "hanna-clinic-photos"
