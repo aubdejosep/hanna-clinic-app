@@ -1647,3 +1647,5 @@ th[aria-sort="ascending"] .th-sort svg, th[aria-sort="descending"] .th-sort svg 
   .mail-list { max-height: none; }
   .mail { max-width: 100%; }
 }
+.thread-access { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 10px 18px; border-bottom: 1px solid var(--border); }
+.thread-access strong { display: inline-flex; align-items: center; gap: 4px; color: var(--heading); }

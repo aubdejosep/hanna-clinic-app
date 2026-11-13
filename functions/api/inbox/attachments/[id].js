@@ -2,9 +2,11 @@
 //   staff member; other files download, for owners and admins only (logged).
 
 import { fail, canManage, audit } from '../../../../lib/http.js'
+import { visible } from '../../../../lib/inbox.js'
 
 export async function onRequestGet({ env, params, data }) {
-  const a = await env.DB.prepare('SELECT r2_key, filename, content_type FROM inbox_attachments WHERE id = ?').bind(Number(params.id)).first()
+  const a = await env.DB.prepare(`SELECT a.r2_key, a.filename, a.content_type FROM inbox_attachments a JOIN inbox_messages m ON m.id = a.message_id
+    JOIN inbox_threads t ON t.id = m.thread_id WHERE a.id = ?${visible(data.staff)}`).bind(Number(params.id)).first()
   if (!a || !env.PHOTOS) return fail(404, 'This attachment was not found.')
   const obj = await env.PHOTOS.get(a.r2_key)
   if (!obj) return fail(404, 'This attachment was not found.')

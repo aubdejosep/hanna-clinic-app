@@ -4,7 +4,7 @@
 // keep Private Senders and quick replies. Plan: docs/INBOX-PLAN.md.
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Ban, Check, Inbox as InboxIcon, Link2, Mail, MessageSquareText, Paperclip, PenLine, Plus, RotateCcw, Search, Send, Settings, StickyNote, Trash2, UserRound, X } from 'lucide-react'
+import { ArrowLeft, Ban, Check, Inbox as InboxIcon, Link2, Lock, Mail, MessageSquareText, Paperclip, PenLine, Plus, RotateCcw, Search, Send, Settings, StickyNote, Trash2, UserRound, X } from 'lucide-react'
 import { Empty, ErrorNote, Field, PageHead, Pager, Panel, PawLoader, useToast } from '../components/ui.jsx'
 import { RichView } from '../components/RichText.jsx'
 import { api, ApiError, query } from '../lib/api.js'
@@ -78,7 +78,9 @@ function Thread({ id, onBack, onChanged }) {
   const [busy, setBusy] = useState(false)
   const [linking, setLinking] = useState(false)
   const [sendError, setSendError] = useState(null)
+  const [restrict, setRestrict] = useState(null) // the ticked value before Apply
   const t = data?.thread
+  useEffect(() => { setRestrict(t ? t.restricted : null) }, [t?.id, t?.restricted]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setText(''); setMode('reply'); setLinking(false); setSendError(null) }, [id])
   useEffect(() => { if (data) onChanged() }, [data?.thread?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   async function patch(body, msg) {
@@ -124,6 +126,15 @@ function Thread({ id, onBack, onChanged }) {
         </div>
       </div>
 
+      {t.canRestrict && (
+        <div className="thread-access">
+          <label className="check">
+            <input type="checkbox" checked={!!restrict} onChange={(e) => setRestrict(e.target.checked)} />
+            <span><strong><Lock size={13} aria-hidden /> Owners and Admins Only</strong> <span className="cell-sub" style={{ display: 'inline' }}>{t.restricted ? `Hidden from other staff${t.restrictedBy ? ` (set by ${t.restrictedBy})` : ''}.` : 'Hide this conversation, and its future replies, from other staff.'}</span></span>
+          </label>
+          <button type="button" className="btn btn-quiet" disabled={restrict === t.restricted} onClick={() => patch({ restricted: !!restrict }, restrict ? 'Now only owners and admins see this conversation' : 'Everyone on the staff can see this conversation again')}>Apply</button>
+        </div>
+      )}
       <div className="thread-owner">
         {t.owner ? (
           <>
@@ -314,6 +325,7 @@ export default function InboxPage() {
                       <span className="cell-sub inbox-snippet">{t.lastDirection === 'out' ? 'You: ' : ''}{t.snippet}</span>
                       <span className="inbox-tags">
                         {t.unread && <span className="badge badge-warm">New</span>}
+                        {t.restricted && <span className="badge badge-soft" title="Owners and admins only"><Lock size={11} aria-hidden /> Owners &amp; Admins</span>}
                         {t.owner && <span className="badge badge-soft">Client</span>}
                         {t.assignedTo && <span className="badge badge-soft">{t.assignedTo.name}</span>}
                         {t.messageCount > 1 && <span className="cell-sub">{t.messageCount} emails</span>}

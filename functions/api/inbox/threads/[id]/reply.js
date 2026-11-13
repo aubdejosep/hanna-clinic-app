@@ -3,14 +3,14 @@
 
 import { json, fail, readJson, cleanMultiline, audit } from '../../../../../lib/http.js'
 import { sendEmail, SIGNATURE, textToHtml } from '../../../../../lib/email.js'
-import { INBOX_ADDRESS, snippetOf } from '../../../../../lib/inbox.js'
+import { INBOX_ADDRESS, snippetOf, visible } from '../../../../../lib/inbox.js'
 import { loadThread } from '../[id].js'
 
 export async function onRequestPost({ request, env, params, data }) {
   const id = Number(params.id)
   const body = cleanMultiline((await readJson(request))?.body, 10000)
   if (!body) return fail(400, 'Write your reply first.')
-  const t = await env.DB.prepare('SELECT * FROM inbox_threads WHERE id = ? AND deleted_at IS NULL').bind(id).first()
+  const t = await env.DB.prepare(`SELECT * FROM inbox_threads t WHERE id = ? AND deleted_at IS NULL${visible(data.staff)}`).bind(id).first()
   if (!t) return fail(404, 'This conversation was not found.')
   if (t.channel !== 'email' || !t.contact_email) return fail(400, 'This conversation has no email address to reply to.')
   const last = await env.DB.prepare("SELECT * FROM inbox_messages WHERE thread_id = ? ORDER BY created_at DESC, id DESC LIMIT 1").bind(id).first()
