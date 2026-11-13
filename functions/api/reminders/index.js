@@ -19,7 +19,7 @@ export async function onRequestGet({ request, env, data }) {
 export async function onRequestPost({ request, env, data }) {
   const body = (await readJson(request)) || {}
   const key = clean(body.key, 60)
-  if (!/^((follow_up|dispense|no_services|no_vet|pet_info|owner_info|website_client):\d+|(low_stock|expiring):\d{4}-\d\d-\d\d)$/.test(key)) return fail(400, 'This reminder was not found.')
+  if (!/^((follow_up|dispense|no_services|no_vet|pet_info|owner_info|website_client|online_booking):\d+|(low_stock|expiring):\d{4}-\d\d-\d\d)$/.test(key)) return fail(400, 'This reminder was not found.')
   await env.DB.prepare('INSERT OR REPLACE INTO reminder_dismissals (key, dismissed_by, reason) VALUES (?, ?, ?)').bind(key, data.staff.name, clean(body.reason, 200) || null).run()
   await audit(env, data.staff.email, 'dismiss_reminder', 'reminder', key, { reason: clean(body.reason, 200) || null })
   return json({ ok: true })

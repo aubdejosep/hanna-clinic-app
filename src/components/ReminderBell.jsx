@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, CalendarClock, CalendarPlus, Globe, ClipboardCheck, Package, PawPrint, Wallet, Pill, Stethoscope, UserRound, X } from 'lucide-react'
+import { Bell, CalendarCheck, CalendarClock, CalendarPlus, Globe, ClipboardCheck, Package, PawPrint, Wallet, Pill, Stethoscope, UserRound, X } from 'lucide-react'
 import { useToast } from './ui.jsx'
 import { useAppointmentsChanged } from './TagCheckIn.jsx'
 import { api } from '../lib/api.js'
@@ -18,8 +18,10 @@ export const KIND = {
   pet_info: { icon: PawPrint, label: 'Pet Details' },
   owner_info: { icon: UserRound, label: 'Owner Details' },
   website_client: { icon: Globe, label: 'Online Clients' },
+  online_booking: { icon: CalendarCheck, label: 'Online Bookings' },
   balance: { icon: Wallet, label: 'Balances' },
 }
+export const dismissLabel = (r) => (['low_stock', 'expiring', 'balance'].includes(r.kind) ? 'Hide for Today' : r.kind === 'online_booking' ? 'Mark as Seen' : 'Not Needed')
 export const linkOf = (r) => (r.kind === 'low_stock' ? '/inventory?filter=low' : r.kind === 'expiring' ? '/inventory?filter=expiring' : r.kind === 'pet_info' ? `/pets/${r.pet.id}` : ['owner_info', 'website_client', 'balance'].includes(r.kind) ? `/clients/${r.owner.id}` : `/appointments/${r.appointmentId}${r.kind === 'unpaid' ? '?pay=1' : r.kind === 'follow_up' ? '?followup=1' : ''}`)
 
 // The bell: workflow steps still to finish. Each one clears itself once the step is done.
@@ -86,7 +88,7 @@ export default function ReminderBell({ align = 'right' }) {
                       <span className="cell-sub">{r.text}{r.day ? ` · Visit ${prettyDay(r.day)}` : ''}</span>
                       <div className="bell-actions">
                         <Link className="text-btn" to={linkOf(r)} onClick={() => setOpen(false)}>{r.action}</Link>
-                        {!['unpaid'].includes(r.kind) && <button type="button" className="text-btn" onClick={() => notNeeded(r)} disabled={busy === r.key}>{['low_stock', 'expiring', 'balance'].includes(r.kind) ? 'Hide for Today' : 'Not Needed'}</button>}
+                        {!['unpaid'].includes(r.kind) && <button type="button" className="text-btn" onClick={() => notNeeded(r)} disabled={busy === r.key}>{dismissLabel(r)}</button>}
                       </div>
                     </div>
                   </li>

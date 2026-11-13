@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BellOff } from 'lucide-react'
 import { Empty, ErrorNote, PageHead, PawLoader, useToast } from '../components/ui.jsx'
-import { KIND, linkOf } from '../components/ReminderBell.jsx'
+import { KIND, dismissLabel, linkOf } from '../components/ReminderBell.jsx'
 import { useAppointmentsChanged } from '../components/TagCheckIn.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
@@ -60,7 +60,7 @@ export default function NotificationsPage() {
                     <span className="cell-sub">{r.text}{r.day ? ` · Visit ${prettyDay(r.day)}` : ''}</span>
                     <div className="bell-actions">
                       <Link className="text-btn" to={linkOf(r)}>{r.action}</Link>
-                      {r.kind !== 'unpaid' && <button type="button" className="text-btn" onClick={() => notNeeded(r)} disabled={busy === r.key}>{['low_stock', 'expiring', 'balance'].includes(r.kind) ? 'Hide for Today' : 'Not Needed'}</button>}
+                      {r.kind !== 'unpaid' && <button type="button" className="text-btn" onClick={() => notNeeded(r)} disabled={busy === r.key}>{dismissLabel(r)}</button>}
                     </div>
                   </div>
                 </li>
