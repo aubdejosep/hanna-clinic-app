@@ -2,10 +2,11 @@
 // per page (10 to 100), each medication's details with its variations and dosages, and View / Edit / Remove.
 // Owners and admins can import the old system's list (tools/medical-records-download/medications.mjs).
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, Eye, FolderUp, Info, Pencil, Pill, Plus, Scale, Search, ShieldAlert, Trash2 } from 'lucide-react'
 import { Empty, ErrorNote, PageHead, Pager, Panel, PawLoader, useToast } from '../components/ui.jsx'
 import { RichView } from '../components/RichText.jsx'
+import MedicationPanel from './MedicationFormPage.jsx'
 import { api, ApiError, query } from '../lib/api.js'
 import { useApi, useDebounced } from '../lib/useApi.js'
 import { canManage, useStaff } from '../lib/staff.js'
@@ -20,13 +21,13 @@ function MedIcon({ m, large }) {
   return <span className={`med-icon ${large ? 'is-large' : ''}`}>{m.hasImage ? <img src={imgSrc(m)} alt="" loading="lazy" /> : <Pill aria-hidden />}</span>
 }
 
-function ViewPanel({ id, onClose }) {
+function ViewPanel({ id, onClose, onEdit }) {
   const { data, error } = useApi(`medications/${id}`)
   const staff = useStaff()
   const m = data?.medication
   return (
     <Panel title={m ? m.name : 'Medication'} intro={m ? <><CalendarDays size={13} aria-hidden /> Added on {prettyDay(m.addedOn)}</> : ''} onClose={onClose}
-      footer={m && canEditMeds(staff) ? <><button type="button" className="btn btn-quiet" onClick={onClose}>Close</button><Link className="btn" to={`/prescription/medications/${m.id}/edit`}><Pencil aria-hidden /> Edit Medication</Link></> : null}>
+      footer={m && canEditMeds(staff) ? <><button type="button" className="btn btn-quiet" onClick={onClose}>Close</button><button type="button" className="btn" onClick={() => onEdit(m.id)}><Pencil aria-hidden /> Edit Medication</button></> : null}>
       <ErrorNote error={error} />
       {!m ? <PawLoader label="Opening…" /> : (
         <div className="stack med-view">
@@ -129,6 +130,12 @@ export default function MedicationsPage() {
   const { data, error, reload } = useApi(`medications${query({ q, page, size, sort, dir })}`)
   const [view, setView] = useState(null)
   const [importing, setImporting] = useState(false)
+  // Add / Edit open as a panel over the list; their addresses (…/new, …/:id/edit) open it straight away.
+  const { id: editId } = useParams()
+  const adding = useLocation().pathname.endsWith('/new')
+  const panelOpen = adding || !!editId
+  const toList = () => navigate(`/prescription/medications${params.toString() ? `?${params}` : ''}`)
+  const openEdit = (mid) => { setView(null); navigate(`/prescription/medications/${mid}/edit${params.toString() ? `?${params}` : ''}`) }
   async function remove(m) {
     if (!window.confirm(`Remove ${m.name} from the Medication List?`)) return
     try { await api(`medications/${m.id}`, { method: 'DELETE' }); toast(`${m.name} removed`); reload() } catch (err) { toast(err.message) }
@@ -143,7 +150,7 @@ export default function MedicationsPage() {
       <PageHead crumbs={[{ label: 'Smart Prescription' }, { label: 'Medication List' }]} title="Medication List" intro="Medicines with their details, variations and dosages.">
         <div className="head-actions">
           {canManage(staff) && <button type="button" className="btn btn-quiet" onClick={() => setImporting(true)}><FolderUp aria-hidden /> Import from Old System</button>}
-          {canEditMeds(staff) && <Link className="btn" to="/prescription/medications/new"><Plus aria-hidden /> Add Medication</Link>}
+          {canEditMeds(staff) && <button type="button" className="btn" onClick={() => navigate(`/prescription/medications/new${params.toString() ? `?${params}` : ''}`)}><Plus aria-hidden /> Add Medication</button>}
         </div>
       </PageHead>
       <section className="card">
@@ -173,7 +180,7 @@ export default function MedicationsPage() {
                     <td className="num" onClick={(e) => e.stopPropagation()}>
                       <span className="row-actions">
                         <button type="button" className="icon-btn" onClick={() => setView(m.id)} aria-label={`View ${m.name}`} title="View Details"><Eye /></button>
-                        {canEditMeds(staff) && <button type="button" className="icon-btn" onClick={() => navigate(`/prescription/medications/${m.id}/edit`)} aria-label={`Edit ${m.name}`} title="Edit"><Pencil /></button>}
+                        {canEditMeds(staff) && <button type="button" className="icon-btn" onClick={() => openEdit(m.id)} aria-label={`Edit ${m.name}`} title="Edit"><Pencil /></button>}
                         {canManage(staff) && <button type="button" className="icon-btn icon-danger" onClick={() => remove(m)} aria-label={`Remove ${m.name}`} title="Remove"><Trash2 /></button>}
                       </span>
                     </td>
@@ -190,7 +197,8 @@ export default function MedicationsPage() {
           </>
         )}
       </section>
-      {view && <ViewPanel id={view} onClose={() => setView(null)} />}
+      {view && <ViewPanel id={view} onClose={() => setView(null)} onEdit={openEdit} />}
+      {panelOpen && <MedicationPanel key={editId || 'new'} id={editId ? Number(editId) : null} onClose={toList} onDone={(msg) => { toast(msg); reload(); toList() }} />}
       {importing && <ImportPanel onClose={() => setImporting(false)} onDone={(msg) => { setImporting(false); toast(msg); reload() }} />}
     </>
   )

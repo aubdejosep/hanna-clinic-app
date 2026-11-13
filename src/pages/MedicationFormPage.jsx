@@ -1,10 +1,9 @@
-// Smart Prescription ▸ Add Medication, and Edit Medication (same page, filled in): Basic Information
+// Smart Prescription ▸ Add Medication and Edit Medication (the same panel, filled in): Basic Information
 // (name, formatted description, picture), Dosages (amount, unit, type) and optional Medication Variations,
 // each with its own dosages. Owners, admins and vets.
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ImageUp, Plus, Trash2, X } from 'lucide-react'
-import { ErrorNote, Field, PageHead, PawLoader, useToast } from '../components/ui.jsx'
+import { ErrorNote, Field, Panel, PawLoader } from '../components/ui.jsx'
 import RichText from '../components/RichText.jsx'
 import { api, ApiError } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
@@ -41,12 +40,11 @@ function Dosages({ list, setList, errors, prefix }) {
   )
 }
 
-export default function MedicationFormPage() {
-  const { id } = useParams()
+// Add Medication / Edit Medication: a wide slide-out panel over the Medication List, like the other panels.
+// id: the medication to edit, or null to add one. Closing with unsaved changes asks first (Panel).
+export default function MedicationPanel({ id, onClose, onDone }) {
   const editing = !!id
   const staff = useStaff()
-  const toast = useToast()
-  const navigate = useNavigate()
   const { data, error: loadError } = useApi(editing ? `medications/${id}` : null)
   const [form, setForm] = useState(editing ? null : { name: '', descriptionHtml: '', dosages: [blankDose()], variations: [] })
   const [picture, setPicture] = useState(undefined) // undefined: unchanged; null: remove; File: new
@@ -60,17 +58,7 @@ export default function MedicationFormPage() {
     if (m) setForm({ name: m.name, descriptionHtml: m.descriptionHtml, dosages: m.dosages.map(({ amount, unit, type }) => ({ amount, unit, type })), variations: m.variations.map((v) => ({ name: v.name, details: v.details || '', dosages: v.dosages.map(({ amount, unit, type }) => ({ amount, unit, type })) })) })
   }, [data])
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview) }, [preview])
-  useEffect(() => { // closing or reloading the tab with unsaved changes asks first
-    if (!dirty || busy) return undefined
-    const warn = (e) => { e.preventDefault(); e.returnValue = '' }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [dirty, busy])
   const set = (patch) => { setForm((f) => ({ ...f, ...patch })); setDirty(true) }
-
-  if (!canEditMeds(staff)) return <><PageHead title="Medication" /><ErrorNote error={new Error('Only vets, owners and admins can add or change medications.')} /></>
-  if (loadError) return <><PageHead title="Edit Medication" /><ErrorNote error={loadError} /></>
-  if (!form) return <><PageHead title="Edit Medication" /><PawLoader label="Loading the medication…" /></>
 
   const m = data?.medication
   const currentImg = picture === undefined ? (m?.hasImage ? `/api/medications/${m.id}/image?v=${encodeURIComponent(m.imageVersion || '')}` : null) : preview
@@ -90,80 +78,81 @@ export default function MedicationFormPage() {
         const r = await fetch(`/api/medications/${mid}/image`, { method: 'PUT', body: picture, headers: { 'Content-Type': picture.type }, credentials: 'same-origin' })
         if (!r.ok) throw new ApiError(r.status, (await r.json().catch(() => null)) || { error: 'The picture didn’t upload. Try again from Edit.' })
       } else if (picture === null) await api(`medications/${mid}/image`, { method: 'DELETE' })
-      setDirty(false)
-      toast(editing ? `${form.name} updated` : `${form.name} added`)
-      setTimeout(() => navigate('/prescription/medications'), 0)
+      onDone(editing ? `${form.name} updated` : `${form.name} added`)
     } catch (err) {
       setError(err)
       setBusy(false)
     }
   }
-  const crumbs = [{ label: 'Smart Prescription' }, { label: 'Medication List', to: '/prescription/medications' }, { label: editing ? 'Edit Medication' : 'Add Medication' }]
+  const title = editing ? (m ? `Edit ${m.name}` : 'Edit Medication') : 'Add Medication'
   return (
-    <>
-      <PageHead crumbs={crumbs} title={editing ? 'Edit Medication' : 'Add Medication'} intro={editing ? 'Update the medication’s details, dosages and variations.' : 'Add a medicine with its details, dosages and variations.'} />
-      <div className="stack med-form">
-        <ErrorNote error={error && !Object.keys(errors).length ? error : null} />
-        {Object.keys(errors).length > 0 && <ErrorNote error={new Error('Some details need fixing. They’re marked below.')} />}
-        <section className="card card-pad stack">
-          <h2 className="med-section">Basic Information</h2>
-          <Field label="Medication Name" error={errors.name}>{(a) => <input {...a} value={form.name} onChange={(e) => set({ name: e.target.value })} maxLength={150} placeholder="e.g. Scourvet Oral Anti-diarrheal Suspension" />}</Field>
-          <div className="field">
-            <span className="field-label" id="med-desc-label">Description</span>
-            <RichText id="med-desc" label="Description" value={form.descriptionHtml} onChange={(html) => set({ descriptionHtml: html })} />
-            <span className="field-hint">Usage instructions, contraindications and anything else the vets should know.</span>
-          </div>
-          <div className="field">
-            <span className="field-label">Medication Image <small>(optional)</small></span>
-            {currentImg ? (
-              <div className="med-picture">
-                <img src={currentImg} alt="Medication" />
-                <div className="inline-row">
-                  <label className="btn btn-quiet"><ImageUp aria-hidden /> Change Picture<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { pickPicture(e.target.files?.[0]); e.target.value = '' }} /></label>
-                  <button type="button" className="btn btn-quiet" onClick={() => { setPicture(null); setPreview(null); setDirty(true) }}><X aria-hidden /> Remove</button>
+    <Panel wide title={title} intro={editing ? 'Update the medication’s details, dosages and variations.' : 'Add a medicine with its details, dosages and variations.'}
+      onClose={onClose} busy={busy} dirty={dirty} discardTitle="Close without saving the medication?"
+      footer={canEditMeds(staff) && form ? <>
+        <button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Cancel</button>
+        <button type="button" className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : editing ? 'Update Medication' : 'Add Medication'}</button>
+      </> : null}>
+      {!canEditMeds(staff) ? <ErrorNote error={new Error('Only vets, owners and admins can add or change medications.')} />
+        : loadError ? <ErrorNote error={loadError} />
+          : !form ? <PawLoader label="Loading the medication…" /> : (
+            <>
+              <ErrorNote error={error && !Object.keys(errors).length ? error : null} />
+              {Object.keys(errors).length > 0 && <ErrorNote error={new Error('Some details need fixing. They’re marked below.')} />}
+              <section className="form-section">
+                <h3 className="label">Basic Information</h3>
+                <Field label="Medication Name" error={errors.name}>{(a) => <input {...a} value={form.name} onChange={(e) => set({ name: e.target.value })} maxLength={150} placeholder="e.g. Scourvet Oral Anti-diarrheal Suspension" />}</Field>
+                <div className="field">
+                  <span className="field-label" id="med-desc-label">Description</span>
+                  <RichText id="med-desc" label="Description" value={form.descriptionHtml} onChange={(html) => set({ descriptionHtml: html })} />
+                  <span className="field-hint">Usage instructions, contraindications and anything else the vets should know.</span>
                 </div>
-              </div>
-            ) : (
-              <label className="drop-zone" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); pickPicture(e.dataTransfer.files?.[0]) }}>
-                <ImageUp aria-hidden />
-                <span>Drag and drop a picture, or click to browse</span>
-                <span className="cell-sub">JPG, PNG or WebP up to 5 MB</span>
-                <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { pickPicture(e.target.files?.[0]); e.target.value = '' }} />
-              </label>
-            )}
-          </div>
-        </section>
-
-        <section className="card card-pad stack">
-          <div className="form-section-head"><div><h2 className="med-section">Dosages</h2><p className="cell-sub" style={{ margin: 0 }}>Dosage amounts for this medication.</p></div>
-            <button type="button" className="btn btn-quiet" onClick={() => set({ dosages: [...form.dosages, blankDose()] })}><Plus aria-hidden /> Add Dosage</button></div>
-          {form.dosages.length ? <Dosages list={form.dosages} setList={(l) => set({ dosages: l })} errors={errors} prefix="dosages" /> : <p className="muted" style={{ margin: 0 }}>No dosages yet. Use Add Dosage.</p>}
-        </section>
-
-        <section className="card card-pad stack">
-          <div className="form-section-head"><div><h2 className="med-section">Medication Variations <small>(optional)</small></h2><p className="cell-sub" style={{ margin: 0 }}>Other forms or strengths of this medication.</p></div>
-            <button type="button" className="btn btn-quiet" onClick={() => set({ variations: [...form.variations, { name: '', details: '', dosages: [] }] })}><Plus aria-hidden /> Add Variation</button></div>
-          {!form.variations.length ? <p className="muted" style={{ margin: 0, textAlign: 'center' }}>No variations added yet. Use Add Variation for other forms or strengths.</p> : form.variations.map((v, i) => {
-            const upd = (patch) => set({ variations: form.variations.map((x, j) => (j === i ? { ...x, ...patch } : x)) })
-            return (
-              <div key={i} className="med-variation">
-                <div className="form-row">
-                  <Field label="Variation Name" error={errors[`variations.${i}.name`]}>{(a) => <input {...a} value={v.name} onChange={(e) => upd({ name: e.target.value })} maxLength={120} placeholder="e.g. 250 mg tablet" />}</Field>
-                  <Field label="Details" optional>{(a) => <input {...a} value={v.details} onChange={(e) => upd({ details: e.target.value })} maxLength={300} placeholder="e.g. for cats under 4 kg" />}</Field>
-                  <button type="button" className="icon-btn" style={{ alignSelf: 'end' }} onClick={() => set({ variations: form.variations.filter((_, j) => j !== i) })} aria-label={`Remove variation ${i + 1}`} title="Remove Variation"><Trash2 /></button>
+                <div className="field">
+                  <span className="field-label">Medication Image <small>(optional)</small></span>
+                  {currentImg ? (
+                    <div className="med-picture">
+                      <img src={currentImg} alt="Medication" />
+                      <div className="inline-row">
+                        <label className="btn btn-quiet"><ImageUp aria-hidden /> Change Picture<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { pickPicture(e.target.files?.[0]); e.target.value = '' }} /></label>
+                        <button type="button" className="btn btn-quiet" onClick={() => { setPicture(null); setPreview(null); setDirty(true) }}><X aria-hidden /> Remove</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="drop-zone" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); pickPicture(e.dataTransfer.files?.[0]) }}>
+                      <ImageUp aria-hidden />
+                      <span>Drag and drop a picture, or click to browse</span>
+                      <span className="cell-sub">JPG, PNG or WebP up to 5 MB</span>
+                      <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { pickPicture(e.target.files?.[0]); e.target.value = '' }} />
+                    </label>
+                  )}
                 </div>
-                {v.dosages.length > 0 && <Dosages list={v.dosages} setList={(l) => upd({ dosages: l })} errors={errors} prefix={`variations.${i}.dosages`} />}
-                <button type="button" className="text-btn" style={{ justifySelf: 'start' }} onClick={() => upd({ dosages: [...v.dosages, blankDose()] })}><Plus size={14} aria-hidden /> Add Dosage for This Variation</button>
-              </div>
-            )
-          })}
-        </section>
+              </section>
 
-        <div className="med-actions">
-          <Link className="btn btn-quiet" to="/prescription/medications" onClick={(e) => { if (dirty && !window.confirm('Leave without saving? Your changes will be lost.')) e.preventDefault() }}>Cancel</Link>
-          <button type="button" className="btn" onClick={save} disabled={busy}>{busy ? 'Saving…' : editing ? 'Update Medication' : 'Add Medication'}</button>
-        </div>
-      </div>
-    </>
+              <section className="form-section">
+                <div className="form-section-head"><h3 className="label">Dosages</h3>
+                  <button type="button" className="btn btn-quiet" onClick={() => set({ dosages: [...form.dosages, blankDose()] })}><Plus aria-hidden /> Add Dosage</button></div>
+                {form.dosages.length ? <Dosages list={form.dosages} setList={(l) => set({ dosages: l })} errors={errors} prefix="dosages" /> : <p className="field-hint" style={{ margin: 0 }}>No general dosage. Use Add Dosage, or give each variation its own.</p>}
+              </section>
+
+              <section className="form-section">
+                <div className="form-section-head"><h3 className="label">Medication Variations <small>(optional)</small></h3>
+                  <button type="button" className="btn btn-quiet" onClick={() => set({ variations: [...form.variations, { name: '', details: '', dosages: [] }] })}><Plus aria-hidden /> Add Variation</button></div>
+                {!form.variations.length ? <p className="field-hint" style={{ margin: 0 }}>No variations yet. Use Add Variation for other forms or strengths.</p> : form.variations.map((v, i) => {
+                  const upd = (patch) => set({ variations: form.variations.map((x, j) => (j === i ? { ...x, ...patch } : x)) })
+                  return (
+                    <div key={i} className="med-variation">
+                      <div className="form-row">
+                        <Field label="Variation Name" error={errors[`variations.${i}.name`]}>{(a) => <input {...a} value={v.name} onChange={(e) => upd({ name: e.target.value })} maxLength={120} placeholder="e.g. 250 mg tablet" />}</Field>
+                        <Field label="Details" optional>{(a) => <input {...a} value={v.details} onChange={(e) => upd({ details: e.target.value })} maxLength={300} placeholder="e.g. for cats under 4 kg" />}</Field>
+                        <button type="button" className="icon-btn" style={{ alignSelf: 'end' }} onClick={() => set({ variations: form.variations.filter((_, j) => j !== i) })} aria-label={`Remove variation ${i + 1}`} title="Remove Variation"><Trash2 /></button>
+                      </div>
+                      {v.dosages.length > 0 && <Dosages list={v.dosages} setList={(l) => upd({ dosages: l })} errors={errors} prefix={`variations.${i}.dosages`} />}
+                      <button type="button" className="text-btn" style={{ justifySelf: 'start' }} onClick={() => upd({ dosages: [...v.dosages, blankDose()] })}><Plus size={14} aria-hidden /> Add Dosage for This Variation</button>
+                    </div>
+                  )
+                })}
+              </section>
+            </>
+          )}
+    </Panel>
   )
 }
