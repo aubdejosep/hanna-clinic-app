@@ -3,11 +3,14 @@
 name = "hanna-inbox-intake"
 main = "src/index.js"
 compatibility_date = "2026-10-01"
-workers_dev = false   # no web address: only Email Routing can call it
+workers_dev = false   # no workers.dev address
+# Meta's webhook (Facebook Page messages): only /meta answers, and only with Meta's signature.
+routes = [{ pattern = "hooks.hannapetwellnesscenter.com", custom_domain = true }]
 
 [vars]
 FORWARD_TO = "hannapetwellnesscenter@atomicmail.io"   # must be a verified destination address in Email Routing
 INBOX_ADDRESS = "hello@hannapetwellnesscenter.com"
+# Messenger keys are secrets (META_APP_SECRET, META_VERIFY_TOKEN, META_PAGE_TOKEN, META_PAGE_ID): docs/MESSENGER-SETUP.md
 
 [[d1_databases]]
 binding = "DB"

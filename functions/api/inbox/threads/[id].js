@@ -5,6 +5,7 @@
 import { json, fail, readJson, audit } from '../../../../lib/http.js'
 import { localMobile } from '../../../../lib/clients.js'
 import { seesRestricted, visible } from '../../../../lib/inbox.js'
+import { replyWindow } from '../../../../lib/messenger.js'
 
 export async function loadThread(env, id, staff) {
   const t = await env.DB.prepare(`SELECT t.*, s.first_name AS assigned_name FROM inbox_threads t LEFT JOIN staff s ON s.id = t.assigned_to WHERE t.id = ? AND t.deleted_at IS NULL${visible(staff)}`).bind(id).first()
@@ -19,6 +20,7 @@ export async function loadThread(env, id, staff) {
   const o = owner.results[0]
   return {
     id: t.id, channel: t.channel, subject: t.subject, contactEmail: t.contact_email, contactName: t.contact_name, status: t.status,
+    replyWindow: t.channel === 'messenger' ? replyWindow(t, env) : null,
     restricted: !!t.restricted, restrictedBy: t.restricted_by, restrictedAt: t.restricted_at, canRestrict: seesRestricted(staff),
     assignedTo: t.assigned_to ? { id: t.assigned_to, name: t.assigned_name } : null,
     owner: o ? { id: o.id, name: o.full_name, customerNo: o.customer_no, mobile: localMobile(o.mobile), email: o.email, pets: pets.results } : null,

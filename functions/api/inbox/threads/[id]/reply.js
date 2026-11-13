@@ -5,6 +5,7 @@ import { json, fail, readJson, cleanMultiline, audit } from '../../../../../lib/
 import { sendEmail, getSignature, textToHtml } from '../../../../../lib/email.js'
 import { INBOX_ADDRESS, snippetOf, visible } from '../../../../../lib/inbox.js'
 import { loadThread } from '../[id].js'
+import { replyWindow, sendMessenger } from '../../../../../lib/messenger.js'
 
 export async function onRequestPost({ request, env, params, data }) {
   const id = Number(params.id)
@@ -12,6 +13,7 @@ export async function onRequestPost({ request, env, params, data }) {
   if (!body) return fail(400, 'Write your reply first.')
   const t = await env.DB.prepare(`SELECT * FROM inbox_threads t WHERE id = ? AND deleted_at IS NULL${visible(data.staff)}`).bind(id).first()
   if (!t) return fail(404, 'This conversation was not found.')
+  if (t.channel === 'messenger') return replyMessenger(env, t, body, data.staff)
   if (t.channel !== 'email' || !t.contact_email) return fail(400, 'This conversation has no email address to reply to.')
   const last = await env.DB.prepare("SELECT * FROM inbox_messages WHERE thread_id = ? ORDER BY created_at DESC, id DESC LIMIT 1").bind(id).first()
   const lastIn = await env.DB.prepare("SELECT * FROM inbox_messages WHERE thread_id = ? AND direction = 'in' ORDER BY created_at DESC, id DESC LIMIT 1").bind(id).first()
@@ -39,4 +41,24 @@ export async function onRequestPost({ request, env, params, data }) {
   await audit(env, data.staff.email, error ? 'reply_failed' : 'reply', 'inbox_thread', id)
   if (error) return fail(error.status || 502, error.message)
   return json({ thread: await loadThread(env, id, data.staff) }, 201)
+}
+
+// Messenger: plain text from the Page (no signature, no quote), only inside Meta's reply window.
+async function replyMessenger(env, t, body, staff) {
+  if (body.length > 2000) return fail(400, 'Messenger takes up to 2,000 characters per message. Shorten it, or send it in two parts.')
+  const w = replyWindow(t, env)
+  if (!w.ok) return fail(400, w.reason)
+  const now = new Date().toISOString()
+  let sent
+  let error = null
+  try { sent = await sendMessenger(env, t.external_id, body, { tag: w.tag }) } catch (err) { error = err }
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO inbox_messages (thread_id, direction, message_id, from_name, text_body, status, error, sent_by, staff_id, created_at)
+      VALUES (?, 'out', ?, 'Hanna Pet Wellness Center', ?, ?, ?, ?, ?, ?)`)
+      .bind(t.id, sent?.mid || null, body, error ? 'failed' : 'sent', error ? error.message : null, staff.name, staff.id, now),
+    ...(error ? [] : [env.DB.prepare(`UPDATE inbox_threads SET message_count = message_count + 1, last_message_at = ?, last_direction = 'out', snippet = ?, unread = 0, updated_at = ? WHERE id = ?`).bind(now, snippetOf(body), now, t.id)]),
+  ])
+  await audit(env, staff.email, error ? 'reply_failed' : 'reply', 'inbox_thread', t.id, { channel: 'messenger' })
+  if (error) return fail(error.status || 502, error.message)
+  return json({ thread: await loadThread(env, t.id, staff) }, 201)
 }

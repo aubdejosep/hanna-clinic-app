@@ -39,3 +39,8 @@ Mail then goes only to the private mailbox, as before.
 
 **If something's off:** Cloudflare ▸ Workers & Pages ▸ hanna-inbox-intake ▸ Logs. A line `inbox {"threadId":…}` means
 it was saved; `inbox save failed (the email was still forwarded)` shows why it wasn't.
+
+## Facebook Page messages (Messenger)
+
+The same Worker also receives the Facebook Page's messages at `https://hooks.hannapetwellnesscenter.com/meta`
+(Meta's webhook, refused unless signed by Meta). Setup: `docs/MESSENGER-SETUP.md`.

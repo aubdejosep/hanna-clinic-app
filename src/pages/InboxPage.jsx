@@ -4,7 +4,7 @@
 // keep Private Senders and quick replies. Plan: docs/INBOX-PLAN.md.
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Ban, Globe, Check, Inbox as InboxIcon, Link2, Lock, Mail, MessageSquareText, Paperclip, PenLine, Plus, RotateCcw, Search, Send, Settings, StickyNote, Trash2, UserRound, X } from 'lucide-react'
+import { ArrowLeft, Ban, Globe, MessageCircle, Check, Inbox as InboxIcon, Link2, Lock, Mail, MessageSquareText, Paperclip, PenLine, Plus, RotateCcw, Search, Send, Settings, StickyNote, Trash2, UserRound, X } from 'lucide-react'
 import { Empty, ErrorNote, Field, PageHead, Pager, Panel, PawLoader, useToast } from '../components/ui.jsx'
 import RichText, { RichView } from '../components/RichText.jsx'
 import { api, ApiError, query } from '../lib/api.js'
@@ -50,7 +50,7 @@ function Message({ m }) {
     <li className={`mail ${out ? 'is-out' : 'is-in'} ${m.status === 'failed' ? 'is-failed' : ''}`}>
       <div className="mail-head">
         <strong>{out ? `Hanna Pet Wellness Center${m.sentBy ? ` (${m.sentBy})` : ''}` : (m.fromName || m.fromEmail)}</strong>
-        <span className="cell-sub">{[out ? `to ${m.to}` : m.fromEmail, `${prettyDay(manilaDay(m.at))}, ${clockTime(m.at)}`].filter(Boolean).join(' · ')}</span>
+        <span className="cell-sub">{[out ? (m.to ? `to ${m.to}` : null) : m.fromEmail, `${prettyDay(manilaDay(m.at))}, ${clockTime(m.at)}`].filter(Boolean).join(' · ')}</span>
       </div>
       {m.html ? <RichView html={m.html} /> : <p className="mail-text">{m.text}</p>}
       {m.attachments.length > 0 && (
@@ -104,14 +104,22 @@ function Thread({ id, onBack, onChanged }) {
   }
   if (error) return <div className="card-pad"><ErrorNote error={error} /></div>
   if (!t) return <PawLoader label="Opening the conversation…" />
+  const msgr = t.channel === 'messenger'
+  const win = t.replyWindow
+  const closed = msgr && mode === 'reply' && win && !win.ok
   const timeline = [...t.messages.map((m) => ({ kind: 'm', at: m.at, m })), ...t.notes.map((n) => ({ kind: 'n', at: n.at, n }))].sort((a, b) => a.at.localeCompare(b.at))
   return (
     <div className="thread">
       <div className="thread-head">
         <button type="button" className="icon-btn thread-back" onClick={onBack} aria-label="Back to the List"><ArrowLeft /></button>
         <div className="thread-title">
-          <h2>{t.subject || '(no subject)'}</h2>
-          <span className="cell-sub">{t.contactName ? `${t.contactName} · ` : ''}{t.contactEmail}</span>
+          {msgr ? <>
+            <h2>{t.contactName || 'Facebook user'}</h2>
+            <span className="cell-sub"><MessageCircle size={13} aria-hidden /> Messenger, from the clinic’s Facebook Page</span>
+          </> : <>
+            <h2>{t.subject || '(no subject)'}</h2>
+            <span className="cell-sub">{t.contactName ? `${t.contactName} · ` : ''}{t.contactEmail}</span>
+          </>}
         </div>
         <div className="thread-actions">
           <label className="sr-only" htmlFor="assign">Assigned To</label>
@@ -165,21 +173,23 @@ function Thread({ id, onBack, onChanged }) {
 
       <div className="composer" data-no-dirty>
         <div className="tabs" role="group" aria-label="Write">
-          <button type="button" className="tab" aria-pressed={mode === 'reply'} onClick={() => setMode('reply')}><Mail size={14} aria-hidden /> Reply by Email</button>
+          <button type="button" className="tab" aria-pressed={mode === 'reply'} onClick={() => setMode('reply')}>{msgr ? <><MessageCircle size={14} aria-hidden /> Reply on Messenger</> : <><Mail size={14} aria-hidden /> Reply by Email</>}</button>
           <button type="button" className="tab" aria-pressed={mode === 'note'} onClick={() => setMode('note')}><StickyNote size={14} aria-hidden /> Staff Note</button>
         </div>
-        {mode === 'reply' && templates.length > 0 && (
+        {mode === 'reply' && !closed && templates.length > 0 && (
           <div className="quick-replies" aria-label="Quick replies">
             {templates.map((q) => <button key={q.id} type="button" className="chip-btn" onClick={() => setText((v) => (v.trim() ? `${v.trim()}\n\n${q.body}` : q.body))}><MessageSquareText size={13} aria-hidden /> {q.title}</button>)}
           </div>
         )}
         <label className="sr-only" htmlFor="composer">{mode === 'note' ? 'Staff note' : 'Reply'}</label>
-        <textarea id="composer" rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={mode === 'note' ? 'A note for the team. It is never sent.' : `Write to ${t.contactName || t.contactEmail}… The clinic's signature is added.`}
+        <textarea id="composer" rows={5} value={text} onChange={(e) => setText(e.target.value)} maxLength={mode === 'reply' && msgr ? 2000 : undefined} disabled={closed}
+          placeholder={mode === 'note' ? 'A note for the team. It is never sent.' : closed ? 'Messenger won’t deliver a reply now (see below).' : msgr ? `Write to ${t.contactName || 'the client'} on Messenger…` : `Write to ${t.contactName || t.contactEmail}… The clinic's signature is added.`}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send() }} />
+        {closed && <ErrorNote error={new Error(win.reason)} />}
         <ErrorNote error={sendError} />
         <div className="composer-foot">
-          <span className="cell-sub">{mode === 'reply' ? `From hello@hannapetwellnesscenter.com to ${t.contactEmail}` : 'Only staff see notes.'}</span>
-          <button type="button" className="btn" onClick={send} disabled={busy || !text.trim()}>{mode === 'note' ? <><StickyNote aria-hidden /> {busy ? 'Saving…' : 'Add Note'}</> : <><Send aria-hidden /> {busy ? 'Sending…' : 'Send Reply'}</>}</button>
+          <span className="cell-sub">{mode !== 'reply' ? 'Only staff see notes.' : msgr ? (win?.ok ? `From the Facebook Page. Messenger allows replies until ${prettyDay(manilaDay(win.until))}, ${clockTime(win.until)}.` : 'From the Facebook Page.') : `From hello@hannapetwellnesscenter.com to ${t.contactEmail}`}</span>
+          <button type="button" className="btn" onClick={send} disabled={busy || !text.trim() || closed}>{mode === 'note' ? <><StickyNote aria-hidden /> {busy ? 'Saving…' : 'Add Note'}</> : <><Send aria-hidden /> {busy ? 'Sending…' : 'Send Reply'}</>}</button>
         </div>
       </div>
     </div>
@@ -316,7 +326,7 @@ export default function InboxPage() {
   const c = data?.counts
   return (
     <>
-      <PageHead crumbs={[{ label: 'Inbox' }]} title="Inbox" intro="Email to and from hello@hannapetwellnesscenter.com. SMS joins here once the provider is chosen.">
+      <PageHead crumbs={[{ label: 'Inbox' }]} title="Inbox" intro="Email to and from hello@hannapetwellnesscenter.com, and messages to the clinic’s Facebook Page once it’s connected. SMS joins later.">
         <div className="head-actions">
           {canManage(staff) && <button type="button" className="icon-btn" onClick={() => setPanel('settings')} aria-label="Inbox Settings" title="Inbox Settings"><Settings /></button>}
           <button type="button" className="btn" onClick={() => setPanel('compose')}><PenLine aria-hidden /> New Email</button>
@@ -336,7 +346,7 @@ export default function InboxPage() {
           </div>
           <ErrorNote error={error} />
           {!data ? <PawLoader label="Loading the Inbox…" /> : !data.threads.length ? (
-            <Empty icon={InboxIcon} title={q ? `Nothing matches “${q}”` : tab === 'open' ? 'All caught up' : 'Nothing here'} text={tab === 'open' && !q ? 'New email to hello@ shows up here.' : 'Try another tab.'} />
+            <Empty icon={InboxIcon} title={q ? `Nothing matches “${q}”` : tab === 'open' ? 'All caught up' : 'Nothing here'} text={tab === 'open' && !q ? 'New email to hello@ and Facebook Page messages show up here.' : 'Try another tab.'} />
           ) : (
             <>
               <ul className="inbox-items">
@@ -344,7 +354,7 @@ export default function InboxPage() {
                   <li key={t.id}>
                     <button type="button" className={`inbox-item ${t.unread ? 'is-unread' : ''} ${open === t.id ? 'is-open' : ''}`} onClick={() => set({ t: String(t.id) })}>
                       <span className="inbox-item-top"><strong>{who(t)}</strong><span className="cell-sub">{when(t.lastMessageAt)}</span></span>
-                      <span className="inbox-subject">{t.subject || '(no subject)'}</span>
+                      <span className="inbox-subject">{t.channel === 'messenger' ? <><MessageCircle size={13} aria-hidden /> Messenger</> : t.subject || '(no subject)'}</span>
                       <span className="cell-sub inbox-snippet">{t.lastDirection === 'out' ? 'You: ' : ''}{t.snippet}</span>
                       <span className="inbox-tags">
                         {t.unread && <span className="badge badge-warm">New</span>}
@@ -352,7 +362,7 @@ export default function InboxPage() {
                         {t.restricted && <span className="badge badge-soft" title="Owners and admins only"><Lock size={11} aria-hidden /> Owners &amp; Admins</span>}
                         {t.owner && <span className="badge badge-soft">Client</span>}
                         {t.assignedTo && <span className="badge badge-soft">{t.assignedTo.name}</span>}
-                        {t.messageCount > 1 && <span className="cell-sub">{t.messageCount} emails</span>}
+                        {t.messageCount > 1 && <span className="cell-sub">{t.messageCount} {t.channel === 'messenger' ? 'messages' : 'emails'}</span>}
                       </span>
                     </button>
                   </li>
@@ -364,7 +374,7 @@ export default function InboxPage() {
         </div>
         <div className="inbox-thread">
           {open ? <Thread key={open} id={open} onBack={() => set({ t: '' })} onChanged={changed} />
-            : <Empty icon={Mail} title="Pick a conversation" text="Choose an email on the left to read and reply." />}
+            : <Empty icon={Mail} title="Pick a conversation" text="Choose a conversation on the left to read and reply." />}
         </div>
       </section>
       {panel === 'compose' && <ComposePanel onClose={() => setPanel(null)} onDone={(id) => { setPanel(null); toast('Email sent'); set({ t: String(id) }); changed() }} />}
