@@ -1659,3 +1659,20 @@ th[aria-sort="ascending"] .th-sort svg, th[aria-sort="descending"] .th-sort svg 
 }
 .thread-access { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 10px 18px; border-bottom: 1px solid var(--border); }
 .thread-access strong { display: inline-flex; align-items: center; gap: 4px; color: var(--heading); }
+
+/* Clinic Operations ▸ Import from VetAssist */
+.va-steps { display: grid; gap: 16px; max-width: 920px; }
+.va-step { display: grid; gap: 12px; }
+.va-step h2 { margin: 0; font-size: var(--fs-h2); color: var(--heading); }
+.va-step-head { display: flex; gap: 12px; align-items: flex-start; }
+.va-step-head .cell-sub { margin: 2px 0 0; }
+.va-num { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--teal-tint, var(--surface-alt)); color: var(--heading); font-weight: 700; display: grid; place-items: center; font-size: var(--fs-small); }
+.va-files { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.va-file { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-field); background: var(--surface); }
+.va-file input { font: inherit; font-size: var(--fs-small); min-width: 0; max-width: 100%; }
+.va-result { display: grid; gap: 8px; padding: 12px 14px; border-radius: var(--radius-field); background: var(--surface-alt); }
+.va-review summary { cursor: pointer; display: inline-flex; gap: 6px; align-items: center; margin-top: 4px; }
+.va-review ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; max-height: 320px; overflow: auto; }
+.va-review li .cell-sub { display: block; }
+.va-done { display: inline-flex; gap: 6px; align-items: center; color: var(--text); }
+.va-done svg { width: 16px; height: 16px; color: var(--teal); }

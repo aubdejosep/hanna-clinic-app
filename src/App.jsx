@@ -12,6 +12,7 @@ import ComingSoon from './pages/ComingSoon.jsx'
 import StaffPage from './pages/StaffPage.jsx'
 import ClinicProfilePage from './pages/ClinicProfilePage.jsx'
 import ServicesPage from './pages/ServicesPage.jsx'
+import VetAssistImportPage from './pages/VetAssistImportPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import AppointmentsPage from './pages/AppointmentsPage.jsx'
 import AppointmentPage from './pages/AppointmentPage.jsx'
@@ -74,6 +75,7 @@ export default function App() {
         <Route path="clinic/staff" element={<StaffPage />} />
         <Route path="clinic/profile" element={<ClinicProfilePage />} />
         <Route path="clinic/services" element={<ServicesPage />} />
+        <Route path="clinic/vetassist" element={<VetAssistImportPage />} />
         <Route path="clinic" element={<ClinicProfilePage />} />
         <Route path="analytics/customers" element={<CustomerAnalyticsPage />} />
         <Route path="inventory" element={<InventoryPage />} />

@@ -19,6 +19,7 @@ const NAV = [
     { to: '/clinic/profile', label: 'Clinic Profile' },
     { to: '/clinic/staff', label: 'Staff', owners: true },
     { to: '/clinic/services', label: 'Services' },
+    { to: '/clinic/vetassist', label: 'Import from VetAssist', owners: true },
   ] },
   { to: '/appointments', label: 'Appointments', icon: CalendarDays },
   { label: 'Client Portal', icon: UserRound, children: [
