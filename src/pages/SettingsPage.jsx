@@ -165,7 +165,7 @@ export default function SettingsPage({ onStaff }) {
             </div>
             <div className="inline-row">
               <button type="button" className="btn btn-quiet" onClick={() => save({ fonts: GYM_LOOK }, 'Fonts: the gym’s look')} disabled={JSON.stringify(display.fonts) === JSON.stringify(GYM_LOOK)}>Use the Gym’s Look</button>
-              <button type="button" className="btn btn-quiet" onClick={() => save({ fonts: DEFAULT_FONTS }, 'Fonts back to TeX Gyre Heros')} disabled={JSON.stringify(display.fonts) === JSON.stringify(DEFAULT_FONTS)}><RotateCcw aria-hidden /> Reset Fonts</button>
+              <button type="button" className="btn btn-quiet" onClick={() => save({ fonts: DEFAULT_FONTS }, 'Fonts back to the default (System)')} disabled={JSON.stringify(display.fonts) === JSON.stringify(DEFAULT_FONTS)}><RotateCcw aria-hidden /> Reset Fonts</button>
             </div>
           </div>
         </section>

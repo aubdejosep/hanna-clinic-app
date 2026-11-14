@@ -13,16 +13,12 @@ export const TEXT_SIZES = [
 
 import { cleanFonts, FONT_PARTS } from '../../lib/fonts.js'
 
-// Fonts: data-font-head="montserrat" etc. on <html> (default TeX Gyre Heros has none), and data-menu-weight.
+// Fonts: data-font-head="heros" etc. on <html>, and data-menu-weight. Without them (the login page, a first
+// visit) the CSS default is the system font with a regular menu, the same as DEFAULT_FONTS.
 function applyFonts(root, fonts) {
   const f = cleanFonts(fonts)
-  for (const p of FONT_PARTS) {
-    const attr = `font${p.key[0].toUpperCase()}${p.key.slice(1)}`
-    if (f[p.key] !== 'heros') root.dataset[attr] = f[p.key]
-    else delete root.dataset[attr]
-  }
-  if (f.menuWeight !== 'bold') root.dataset.menuWeight = f.menuWeight
-  else delete root.dataset.menuWeight
+  for (const p of FONT_PARTS) root.dataset[`font${p.key[0].toUpperCase()}${p.key.slice(1)}`] = f[p.key]
+  root.dataset.menuWeight = f.menuWeight
   return f
 }
 

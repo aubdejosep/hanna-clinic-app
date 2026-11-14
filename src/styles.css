@@ -8,7 +8,7 @@
    never for words. The one exception is red for error messages.
 
    Fonts (Account ▸ Settings ▸ Font, per person): each of Headings, Menu, Text and Buttons uses one of
-   TeX Gyre Heros (default; a free Helvetica-style font, GUST Font License, /fonts/texgyreheros-LICENSE.txt),
+   the device's system font (the default), TeX Gyre Heros ( a free Helvetica-style font, GUST Font License, /fonts/texgyreheros-LICENSE.txt),
    Montserrat (SIL Open Font License, /fonts/montserrat-LICENSE.txt), both served from /fonts, or the
    device's system font (Segoe UI / San Francisco). Use --font-head, --font-body, --font-menu, --font-button.
    The tokens below are the only sizes, colours and shadows to use. */
@@ -56,11 +56,11 @@
   --stack-heros: "TeX Gyre Heros", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --stack-montserrat: "Montserrat", "TeX Gyre Heros", Arial, sans-serif;
   --stack-system: "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, Roboto, Arial, sans-serif;
-  --font-body: var(--stack-heros);
-  --font-head: var(--stack-heros);
-  --font-menu: var(--stack-heros);
-  --font-button: var(--stack-heros);
-  --menu-weight: 700;
+  --font-body: var(--stack-system);   /* the default: the system font everywhere (Settings ▸ Font) */
+  --font-head: var(--stack-system);
+  --font-menu: var(--stack-system);
+  --font-button: var(--stack-system);
+  --menu-weight: 400;
 
   /* Type scale (the only sizes in the app) */
   --fs-h1: 1.75rem;     /* 28px page titles */
@@ -111,18 +111,23 @@
   --radius-sm: 8px;
   --radius-field: 6px;
 }
+:root[data-font-head="heros"] { --font-head: var(--stack-heros); }
 :root[data-font-head="montserrat"] { --font-head: var(--stack-montserrat); }
 :root[data-font-head="system"] { --font-head: var(--stack-system); }
+:root[data-font-menu="heros"] { --font-menu: var(--stack-heros); }
 :root[data-font-menu="montserrat"] { --font-menu: var(--stack-montserrat); }
 :root[data-font-menu="system"] { --font-menu: var(--stack-system); }
+:root[data-font-text="heros"] { --font-body: var(--stack-heros); }
 :root[data-font-text="montserrat"] { --font-body: var(--stack-montserrat); }
 :root[data-font-text="system"] { --font-body: var(--stack-system); }
+:root[data-font-button="heros"] { --font-button: var(--stack-heros); }
 :root[data-font-button="montserrat"] { --font-button: var(--stack-montserrat); }
 :root[data-font-button="system"] { --font-button: var(--stack-system); }
 :root[data-menu-weight="regular"] { --menu-weight: 400; }
 :root[data-menu-weight="semibold"] { --menu-weight: 600; }
+:root[data-menu-weight="bold"] { --menu-weight: 700; }
 /* The selected menu item stays a step bolder, as in most apps. */
-:root[data-menu-weight="regular"] .nav-link.active { font-weight: 600; }
+:root:not([data-menu-weight]) .nav-link.active, :root[data-menu-weight="regular"] .nav-link.active { font-weight: 600; }
 :root[data-menu-weight="semibold"] .nav-link.active { font-weight: 700; }
 :root[data-text="large"] { font-size: 112.5%; }
 :root[data-text="larger"] { font-size: 125%; }

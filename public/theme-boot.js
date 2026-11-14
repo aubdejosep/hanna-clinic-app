@@ -7,8 +7,8 @@
     if (t.textSize && t.textSize !== 'standard') document.documentElement.dataset.text = t.textSize
     var f = t.fonts || {}
     ;['head', 'menu', 'text', 'button'].forEach(function (k) {
-      if (f[k] === 'montserrat' || f[k] === 'system') document.documentElement.dataset['font' + k[0].toUpperCase() + k.slice(1)] = f[k]
+      if (f[k] === 'montserrat' || f[k] === 'system' || f[k] === 'heros') document.documentElement.dataset['font' + k[0].toUpperCase() + k.slice(1)] = f[k]
     })
-    if (f.menuWeight === 'regular' || f.menuWeight === 'semibold') document.documentElement.dataset.menuWeight = f.menuWeight
+    if (f.menuWeight === 'regular' || f.menuWeight === 'semibold' || f.menuWeight === 'bold') document.documentElement.dataset.menuWeight = f.menuWeight
   } catch (e) { /* private window: brand colours, standard text */ }
 })()
