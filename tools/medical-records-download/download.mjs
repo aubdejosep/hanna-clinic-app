@@ -350,7 +350,7 @@ async function pass(page, { startPage, onlyFailed }) {
       if (!again && (progress.done[key] || progress.noRecords[key])) continue
       if (onlyFailed && !progress.failed[key]) continue
       if ((progress.failed[key]?.tries || 0) >= MAX_TRIES) continue
-      if (Object.keys(progress.done).length >= LIMIT) return { newThisPass, stopped: true }
+      if (!again && Object.keys(progress.done).length >= LIMIT) { if (progress.redo && !progress.redo.finished) continue; return { newThisPass, stopped: true } } // a limit still lets --redo pets through
 
       log(`  ${row.pet} · ${row.owner} · ${row.phone}`)
       const listUrl = page.url()

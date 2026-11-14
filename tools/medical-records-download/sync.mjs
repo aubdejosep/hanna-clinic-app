@@ -60,7 +60,7 @@ try {
   await step('appointments', 'Step 1 of 5: reading the Appointments list', 'appointments.mjs', ['--refresh', ...login, ...url.appointments])
   const changed = existsSync('output-appointments/changed.json') ? JSON.parse(readFileSync('output-appointments/changed.json', 'utf8')) : []
   log(`${changed.length} pet${changed.length === 1 ? '' : 's'} with a new or changed appointment.`)
-  await step('download', 'Step 2 of 5: downloading new and changed medical records', 'download.mjs', ['--redo', 'output-appointments/changed.json', ...login, ...url.records])
+  await step('download', 'Step 2 of 5: downloading new and changed medical records', 'download.mjs', ['--redo', 'output-appointments/changed.json', ...login, ...url.records, ...passed('--limit')])
   const lastRun = 'output/last-run.json'
   const zips = existsSync(lastRun) ? JSON.parse(readFileSync(lastRun, 'utf8')).zips || [] : []
   await step('records', `Step 3 of 5: reading ${zips.length} downloaded zip${zips.length === 1 ? '' : 's'}`, 'records.mjs', existsSync(lastRun) ? ['--redo-zips', lastRun] : [])
