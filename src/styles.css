@@ -1791,3 +1791,41 @@ th[aria-sort="ascending"] .th-sort svg, th[aria-sort="descending"] .th-sort svg 
   .card { box-shadow: none; break-inside: avoid; }
   body { background: #fff; }
 }
+
+/* ---------- Finances ▸ Ledger (spreadsheet grids) ---------- */
+.lg-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 16px; }
+.lg-card { overflow: hidden; }
+.lg-scroll { overflow-x: auto; }
+.lg-table { border-collapse: collapse; table-layout: fixed; min-width: 100%; font-variant-numeric: tabular-nums; }
+.lg-table th { position: sticky; top: 0; padding: 8px 8px; background: var(--surface-alt); border: 1px solid var(--border); text-align: left; font: 700 var(--fs-label)/1.3 var(--font-button); letter-spacing: .06em; text-transform: uppercase; color: var(--text); white-space: nowrap; }
+.lg-table td { padding: 0; border: 1px solid var(--border); height: 38px; }
+.lg-table tfoot td { padding: 8px; font-weight: 700; color: var(--heading); background: var(--surface-alt); }
+.lg-rownum { width: 44px; text-align: center; color: var(--text); font-size: var(--fs-small); background: var(--surface-alt); }
+.lg-num { text-align: right; }
+.lg-cell { display: block; width: 100%; height: 38px; padding: 0 8px; border: 0; border-radius: 0; background: transparent; color: var(--heading); font: 400 var(--fs-body)/1 var(--font-body); }
+select.lg-cell { padding-right: 4px; cursor: pointer; }
+.lg-cell:focus { outline: 2px solid var(--teal); outline-offset: -2px; background: var(--surface); }
+.lg-new td { background: var(--page); }
+.lg-new .lg-rownum { color: var(--teal-deep); font-weight: 700; }
+.lg-del { width: 32px; height: 32px; margin: 0 auto; border: 0; background: transparent; opacity: .55; }
+.lg-del:hover, .lg-del:focus-visible, .lg-del.is-confirm { opacity: 1; }
+.lg-del.is-confirm { color: #fff; background: var(--teal-deep); font-weight: 700; }
+.lg-summary { display: grid; gap: 10px; max-width: 560px; }
+.lg-summary h2 { margin: 0; font-size: var(--fs-h2); }
+.lg-summary dl { margin: 0; display: grid; gap: 6px; }
+.lg-summary dl > div { display: flex; justify-content: space-between; gap: 12px; }
+.lg-summary dd { margin: 0; font-weight: 700; color: var(--heading); font-variant-numeric: tabular-nums; }
+.lg-summary .dc-sub { padding-left: 14px; font-size: var(--fs-small); }
+.lg-summary .dc-sub dd { font-weight: 400; color: var(--text); }
+.lg-summary .dc-coh { border-top: 1px solid var(--border-strong); padding-top: 8px; margin-top: 2px; }
+.lg-summary .dc-coh dt, .lg-summary .dc-coh dd { font-weight: 700; color: var(--heading); font-size: var(--fs-h2); }
+.lg-ok, .lg-off { padding: 8px 10px; border-radius: var(--radius-field); font-weight: 700; color: var(--heading); }
+.lg-ok { background: var(--teal-tint); }
+.lg-off { background: var(--apricot-tint); }
+.lg-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 520px) { .lg-pair { grid-template-columns: 1fr; } }
+@media print {
+  .lg-bar .tabs, .lg-bar .btn, .lg-new, .lg-del, .lg-table col:last-child { display: none !important; }
+  .lg-cell { color: #000; }
+  .lg-scroll { overflow: visible; }
+}
