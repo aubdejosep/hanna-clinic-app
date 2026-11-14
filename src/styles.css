@@ -1735,3 +1735,59 @@ th[aria-sort="ascending"] .th-sort svg, th[aria-sort="descending"] .th-sort svg 
 .font-row .tabs { justify-self: start; max-width: 100%; }
 .font-row .tab { letter-spacing: 0; }
 @media (max-width: 720px) { .font-row { grid-template-columns: 1fr; } }
+
+/* ---------- Finances ▸ Daily Cash ---------- */
+.dc-daybar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 16px; }
+.dc-date { min-height: 40px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-field); background: var(--surface); color: var(--text); font: inherit; }
+.dc-dayname { color: var(--heading); margin: 0 6px; }
+.dc-print { margin-left: auto; }
+.dc-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+.dc-side { position: sticky; top: 76px; }
+@media (max-width: 1100px) { .dc-grid { grid-template-columns: 1fr; } .dc-side { position: static; } }
+.dc-table tbody tr { cursor: default; }
+.dc-table td { vertical-align: top; }
+.dc-table .dc-tags { display: block; }
+.dc-voided td { opacity: .5; text-decoration: line-through; }
+.dc-receipt { width: 92px; min-height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-field); background: var(--surface); color: var(--heading); font: 700 var(--fs-small)/1 var(--font-body); font-variant-numeric: tabular-nums; }
+.dc-receipt:focus { outline: none; border-color: var(--teal); box-shadow: var(--focus); }
+.dc-receipt::placeholder { font-weight: 400; color: var(--text); opacity: .6; }
+.dc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.dc-list li { display: flex; align-items: center; gap: 10px; min-height: 36px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+.dc-list li:last-child { border-bottom: 0; }
+.dc-list li > span:first-child, .dc-list li > button:first-child { flex: 1; min-width: 0; }
+.dc-amt { margin-left: auto; font-weight: 700; color: var(--heading); font-variant-numeric: tabular-nums; }
+.dc-list .text-btn.is-on { text-decoration: none; }
+.dc-add { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(150px, 1.4fr) minmax(110px, .8fr) auto; gap: 10px; align-items: end; }
+.dc-add-tight { grid-template-columns: minmax(110px, 1fr) minmax(120px, 1fr) auto; }
+@media (max-width: 720px) { .dc-add, .dc-add-tight { grid-template-columns: 1fr; } }
+.dc-remits { display: grid; gap: 18px; }
+.dc-remit { display: grid; gap: 8px; }
+.dc-remit > div:first-child { display: flex; gap: 8px; align-items: baseline; }
+.dc-remit > div:first-child strong { color: var(--heading); }
+.dc-remit-row { display: flex; align-items: center; gap: 10px; }
+.dc-remit-row .dc-amt { margin-left: 0; }
+.dc-summary { display: grid; gap: 10px; }
+.dc-summary h2 { margin: 0; font-size: var(--fs-h2); }
+.dc-summary dl { margin: 0; display: grid; gap: 6px; }
+.dc-summary dl > div { display: flex; justify-content: space-between; gap: 12px; }
+.dc-summary dt { color: var(--text); }
+.dc-summary dd { margin: 0; font-weight: 700; color: var(--heading); font-variant-numeric: tabular-nums; }
+.dc-summary .dc-sub { padding-left: 14px; font-size: var(--fs-small); }
+.dc-summary .dc-sub dd { font-weight: 400; color: var(--text); }
+.dc-summary .dc-coh { border-top: 1px solid var(--border-strong); padding-top: 8px; margin-top: 2px; }
+.dc-summary .dc-coh dt, .dc-summary .dc-coh dd { font-weight: 700; color: var(--heading); font-size: var(--fs-h2); }
+.dc-ok, .dc-off { margin: 0; padding: 10px 12px; border-radius: var(--radius-field); font-weight: 700; color: var(--heading); }
+.dc-ok { background: var(--teal-tint); }
+.dc-off { background: var(--apricot-tint); }
+.dc-rates summary { cursor: pointer; font-weight: 700; color: var(--heading); }
+.dc-rates[open] { display: grid; gap: 10px; }
+.dc-rates-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.dc-days .dc-list li { font-size: var(--fs-small); }
+@media print {
+  .sidebar, .topbar, .deskbar, .dc-daybar .icon-btn, .dc-daybar .btn, .dc-daybar .text-btn, .dc-add, .dc-rates, .dc-days, .card-head .btn, .dc-table .icon-btn, .icon-btn { display: none !important; }
+  .dc-grid { grid-template-columns: 1fr 260px; }
+  .dc-side { position: static; }
+  .dc-receipt { border: 0; padding: 0; width: auto; }
+  .card { box-shadow: none; break-inside: avoid; }
+  body { background: #fff; }
+}
