@@ -7,6 +7,10 @@ workers_dev = false   # no workers.dev address
 # Meta's webhook (Facebook Page messages): only /meta answers, and only with Meta's signature.
 routes = [{ pattern = "hooks.hannapetwellnesscenter.com", custom_domain = true }]
 
+# Day-before visit reminders at 9 AM Manila (01:00 UTC). They only go out when switched on in the app.
+[triggers]
+crons = ["0 1 * * *"]
+
 [vars]
 FORWARD_TO = "hannapetwellnesscenter@atomicmail.io"   # must be a verified destination address in Email Routing
 INBOX_ADDRESS = "hello@hannapetwellnesscenter.com"

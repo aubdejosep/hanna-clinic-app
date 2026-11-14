@@ -4,15 +4,22 @@
 // 3. Facebook Page messages (Messenger): Meta's webhook at https://hooks.hannapetwellnesscenter.com/meta.
 //    Every POST must carry Meta's signature (META_APP_SECRET), or it's refused unread. It can only save
 //    messages; it never shows anything. Everything else on that address answers 404.
+// 4. Every day at 9 AM Manila (a Cloudflare schedule, not a web address): the day-before visit reminders
+//    (lib/visit-reminders.js), if switched on in Account ▸ Settings ▸ Messages.
 // Setup: workers/inbox-intake/README.md and docs/MESSENGER-SETUP.md.
 
 import PostalMime from 'postal-mime'
 import { INBOX_ADDRESS, saveIncoming } from '../../../lib/inbox.js'
 import { saveMessengerEvent, validSignature } from '../../../lib/messenger.js'
+import { sendVisitReminders } from '../../../lib/visit-reminders.js'
 
 const plain = (status, body = '') => new Response(body, { status, headers: { 'Content-Type': 'text/plain' } })
 
 export default {
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(sendVisitReminders(env).then((r) => console.log('visit reminders', JSON.stringify(r))).catch((err) => console.log('visit reminders failed', String(err?.stack || err).slice(0, 500))))
+  },
+
   async fetch(request, env, ctx) {
     const url = new URL(request.url)
     if (url.pathname !== '/meta') return plain(404)

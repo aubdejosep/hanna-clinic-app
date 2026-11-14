@@ -13,6 +13,7 @@ import StaffPage from './pages/StaffPage.jsx'
 import ClinicProfilePage from './pages/ClinicProfilePage.jsx'
 import ServicesPage from './pages/ServicesPage.jsx'
 import VetAssistImportPage from './pages/VetAssistImportPage.jsx'
+import MessagesSettingsPage from './pages/MessagesSettingsPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import AppointmentsPage from './pages/AppointmentsPage.jsx'
 import AppointmentPage from './pages/AppointmentPage.jsx'
@@ -85,6 +86,7 @@ export default function App() {
         <Route path="content" element={<ContentPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="settings" element={<SettingsPage onStaff={(staff) => setData({ ...data, staff })} />} />
+        <Route path="settings/messages" element={<MessagesSettingsPage />} />
         <Route path="devices" element={<DevicesPage />} />
         <Route path="finances/balances" element={<BalancesPage />} />
         <Route path="finances/transactions" element={<TransactionsPage />} />

@@ -1,6 +1,7 @@
 // Account ▸ Settings: this person's theme and text size (saved to their login, so they follow them to
 // any device), and their password.
 import { useState } from 'react'
+import { NavLink } from 'react-router-dom'
 import { Check, ImageUp, KeyRound, Palette, RotateCcw, Type } from 'lucide-react'
 import { PageHead, useToast } from '../components/ui.jsx'
 import AccountPanel from '../components/AccountPanel.jsx'
@@ -71,6 +72,18 @@ function ClinicLogo() {
   )
 }
 
+// My Settings | Messages (owners and admins), above both pages.
+export function SettingsTabs() {
+  const staff = useStaff()
+  if (!canManage(staff)) return null
+  return (
+    <nav className="tabs settings-tabs" aria-label="Settings">
+      <NavLink end to="/settings" className="tab">My Settings</NavLink>
+      <NavLink to="/settings/messages" className="tab">Messages</NavLink>
+    </nav>
+  )
+}
+
 export default function SettingsPage({ onStaff }) {
   const staff = useStaff()
   const toast = useToast()
@@ -94,6 +107,7 @@ export default function SettingsPage({ onStaff }) {
   return (
     <>
       <PageHead crumbs={[{ label: 'Account' }, { label: 'Settings' }]} title="Account Settings" intro="How the app looks for you. Saved to your login, so it follows you to any device." />
+      <SettingsTabs />
       <div className="stack settings">
         <section className="card">
           <div className="card-head"><div className="settings-head"><span className="settings-icon"><Palette aria-hidden /></span><div><h2>Theme</h2><p>The app’s colours.</p></div></div></div>

@@ -44,3 +44,11 @@ it was saved; `inbox save failed (the email was still forwarded)` shows why it w
 
 The same Worker also receives the Facebook Page's messages at `https://hooks.hannapetwellnesscenter.com/meta`
 (Meta's webhook, refused unless signed by Meta). Setup: `docs/MESSENGER-SETUP.md`.
+
+## Day-before visit reminders
+
+The same Worker runs every day at 9 AM Manila and sends the **Visit Reminder** (Account ▸ Settings ▸ Messages)
+to owners with a visit the next day, if its Text or Email is switched on there. It needs, on this Worker:
+`npx wrangler secret put RESEND_API_KEY` (email; the same key as the app), and once the SMS sender name is approved,
+`SEMAPHORE_API_KEY` and `SEMAPHORE_SENDER_NAME` (texts). Then `npx wrangler deploy`.
+Logs: Workers & Pages ▸ hanna-inbox-intake ▸ Logs (`visit reminders {…}`).
