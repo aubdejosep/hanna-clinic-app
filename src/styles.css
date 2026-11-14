@@ -67,8 +67,8 @@
 
 /* Themes (Settings ▸ Theme). "Hanna Pet - Brand Colors" is :root above.
    High Contrast keeps the brand navy and teal with darker text, stronger outlines and a cool light page.
-   Classic Navy looks like the old system the staff know: a deep royal-navy sidebar with white text, a white
-   page, navy buttons and squarer corners. Text Size (Settings) scales everything on top. */
+   Teal Sidebar keeps the old system's layout the staff know (a dark sidebar with white text, a white page,
+   squarer corners) in the clinic's own deep teal: white on #0E7C78 is 5:1, easy to read. Text Size (Settings) scales everything on top. */
 :root[data-theme="contrast"] {
   --heading: #0A1A4F;
   --text: #1E2740;
@@ -84,20 +84,19 @@
   --focus: 0 0 0 3px rgba(10, 106, 102, .45);
 }
 :root[data-theme="classic"] {
-  --navy: #0A0A86;
-  --heading: #111827;
-  --text: #374151;
-  --teal: #2B3FD6;
-  --teal-deep: #0A0A86;
-  --teal-deeper: #06065F;
-  --teal-tint: #E8EBFB;
+  --heading: #0F2A33;
+  --text: #33464C;
+  --teal: #0E7C78;
+  --teal-deep: #0B6B67;
+  --teal-deeper: #08524F;
+  --teal-tint: #E3F3F1;
   --page: #FFFFFF;
-  --surface-alt: #F4F6FB;
-  --border: rgba(17, 24, 39, .10);
-  --border-strong: rgba(17, 24, 39, .22);
+  --surface-alt: #F2F7F6;
+  --border: rgba(15, 42, 51, .10);
+  --border-strong: rgba(15, 42, 51, .22);
   --shadow-sm: none;
-  --shadow: 0 1px 3px rgba(17, 24, 39, .06);
-  --focus: 0 0 0 3px rgba(43, 63, 214, .30);
+  --shadow: 0 1px 3px rgba(15, 42, 51, .06);
+  --focus: 0 0 0 3px rgba(14, 124, 120, .32);
   --radius-card: 12px;
   --radius-sm: 8px;
   --radius-field: 6px;
@@ -106,10 +105,10 @@
 :root[data-text="larger"] { font-size: 125%; }
 :root[data-theme="contrast"] .label { letter-spacing: .06em; }
 :root[data-theme="contrast"] .cal-cell.is-outside, :root[data-theme="classic"] .cal-cell.is-outside { background: #F7F8FA; }
-/* Classic Navy: the dark sidebar */
-:root[data-theme="classic"] .sidebar { background: #0A0A86; border-right-color: #0A0A86; color: #fff; }
+/* Teal Sidebar: the dark sidebar */
+:root[data-theme="classic"] .sidebar { background: #0E7C78; border-right-color: #0E7C78; color: #fff; }
 :root[data-theme="classic"] .sidebar .brand img { padding: 6px; border-radius: 14px; background: #fff; }
-:root[data-theme="classic"] .sidebar .nav-link { color: #F1F2FF; }
+:root[data-theme="classic"] .sidebar .nav-link { color: #FFFFFF; }
 :root[data-theme="classic"] .sidebar .nav-link svg, :root[data-theme="classic"] .sidebar .nav-chevron { color: #fff !important; }
 :root[data-theme="classic"] .sidebar .nav-link:hover { background: rgba(255, 255, 255, .10); }
 :root[data-theme="classic"] .sidebar .nav-link.active, :root[data-theme="classic"] .sidebar .nav-parent.inside { background: rgba(255, 255, 255, .16); color: #fff; }
@@ -118,10 +117,10 @@
 :root[data-theme="classic"] .sidebar .icon-btn { color: #fff; border-color: rgba(255, 255, 255, .3); background: transparent; }
 :root[data-theme="classic"] .sidebar-foot { border-top-color: rgba(255, 255, 255, .18); }
 :root[data-theme="classic"] .sidebar-foot .account-btn, :root[data-theme="classic"] .sidebar-foot .account-btn .who strong { color: #fff; }
-:root[data-theme="classic"] .sidebar-foot .account-btn .who span, :root[data-theme="classic"] .sidebar-foot .account-chev { color: #D6D9FF; }
+:root[data-theme="classic"] .sidebar-foot .account-btn .who span, :root[data-theme="classic"] .sidebar-foot .account-chev { color: #E6F6F4; }
 :root[data-theme="classic"] .sidebar-foot .account-btn:hover { background: rgba(255, 255, 255, .10); }
 :root[data-theme="classic"] .sidebar .account-menu { color: var(--text); }
-:root[data-theme="classic"] .topbar { background: #0A0A86; }
+:root[data-theme="classic"] .topbar { background: #0E7C78; }
 :root[data-theme="classic"] .topbar .icon-btn { color: #fff; border-color: rgba(255, 255, 255, .3); background: transparent; }
 :root[data-theme="classic"] .topbar .brand img { padding: 3px; border-radius: 10px; background: #fff; }
 
@@ -1442,12 +1441,12 @@ button.content-flag:disabled { cursor: default; }
 .swatch-contrast .sw-line { background: #4A5370; }
 .swatch-contrast .sw-card { border: 1px solid rgba(10, 26, 79, .35); }
 .swatch-contrast .sw-btn { background: #0A6A66; }
-.swatch-classic .sw-side { background: #0A0A86; border-right-color: #0A0A86; }
+.swatch-classic .sw-side { background: #0E7C78; border-right-color: #0E7C78; }
 .swatch-classic .sw-main { background: #fff; }
 .swatch-classic .sw-card { border: 1px solid rgba(17, 24, 39, .14); border-radius: 5px; }
 .swatch-classic .sw-title { background: #111827; }
 .swatch-classic .sw-line { background: #9CA3AF; }
-.swatch-classic .sw-btn { background: #0A0A86; border-radius: 4px; }
+.swatch-classic .sw-btn { background: #0E7C78; border-radius: 4px; }
 .device-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
 .device { display: grid; align-content: start; overflow: hidden; }
 .device.is-current { border-color: var(--teal-deep); box-shadow: var(--focus); }
