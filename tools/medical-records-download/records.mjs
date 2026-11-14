@@ -160,6 +160,20 @@ if (!existsSync(ZIPS)) {
 }
 const progress = existsSync(PROGRESS) ? JSON.parse(readFileSync(PROGRESS, 'utf8')) : { done: {}, failed: {} }
 const saveProgress = () => { writeFileSync(PROGRESS + '.tmp', JSON.stringify(progress)); renameSync(PROGRESS + '.tmp', PROGRESS) }
+// --redo-zips <last-run.json>: read these zips again (downloaded again by npm run sync): their old lines go.
+if (args.redoZips && args.redoZips !== true) {
+  const again = new Set(JSON.parse(readFileSync(resolve(args.redoZips), 'utf8')).zips || [])
+  if (again.size) {
+    for (const z of again) { delete progress.done[z]; delete progress.failed[z] }
+    if (existsSync(JSONL)) {
+      const keep = readFileSync(JSONL, 'utf8').split('\n').filter((l) => { if (!l.trim()) return false; try { return !again.has(JSON.parse(l).zip) } catch { return false } })
+      writeFileSync(JSONL + '.tmp', keep.length ? keep.join('\n') + '\n' : '')
+      renameSync(JSONL + '.tmp', JSONL)
+    }
+    saveProgress()
+    log(`Reading ${again.size} downloaded zip${again.size === 1 ? '' : 's'} again.`)
+  }
+}
 const zips = readdirSync(ZIPS).filter((f) => /\.zip$/i.test(f) && !/\.part/i.test(f)).sort()
 log(`${zips.length} pet zips in ${ZIPS}. Already read: ${Object.keys(progress.done).length}.`)
 

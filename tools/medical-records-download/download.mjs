@@ -6,6 +6,11 @@
 //   npm start             -> everything (resumes by itself if it was stopped)
 //
 // Options: --test  --limit N  --out <folder>  --start-page N  --rows 100  --browser-path <chrome.exe>  --url <list url>
+//   --redo <changed.json>   also download again the pets listed there ({pet, owner}, from appointments.mjs --refresh),
+//                           into their same zip file, so the clinic app sees their new records (npm run sync)
+//   --auto                  don't wait for Enter if the saved login still works
+//   --login-state <file>    where the old-system login is kept (default: in the output folder)
+// Every run also writes last-run.json: the zips it downloaded (new pets and --redo pets), for records.mjs.
 //
 // Output (default: ./output):
 //   zips/0001-paris-09178806850.zip   one zip per pet (the PDFs inside name the pet, owner and record IDs)
@@ -53,6 +58,15 @@ function parseArgs(list) {
 const progress = existsSync(PROGRESS)
   ? JSON.parse(readFileSync(PROGRESS, 'utf8'))
   : { done: {}, failed: {}, noRecords: {}, lastPage: 1, seq: 0, startedAt: new Date().toISOString() }
+// This run: the zips downloaded (new or again). A finished run starts a new list.
+if (!progress.run || progress.run.finished) progress.run = { startedAt: new Date().toISOString(), zips: [] }
+// --redo: pets to download again, matched by pet and owner name (the appointments list shows no phone).
+const redoKey = (pet, owner) => `${String(pet).toLowerCase().trim()}|${String(owner).toLowerCase().trim()}`
+if (args.redo && args.redo !== true && existsSync(resolve(args.redo))) {
+  const list = JSON.parse(readFileSync(resolve(args.redo), 'utf8'))
+  if (!progress.redo || progress.redo.finished) progress.redo = { want: {}, done: {} }
+  for (const x of list) progress.redo.want[redoKey(x.pet, x.owner)] = true // an unfinished run keeps its list and adds these
+}
 function save() {
   writeFileSync(PROGRESS + '.tmp', JSON.stringify(progress, null, 2))
   renameSync(PROGRESS + '.tmp', PROGRESS)
@@ -263,7 +277,7 @@ function keyOf(row, occurrence) {
   return `${row.pet.toLowerCase()}|${digits(row.phone) || row.owner.toLowerCase()}|${occurrence}`
 }
 
-async function downloadPet(listPage, row, pageNo, key) {
+async function downloadPet(listPage, row, pageNo, key, sameFile = null) {
   let page = listPage
   if (row.href) {
     page = petTab
@@ -285,8 +299,8 @@ async function downloadPet(listPage, row, pageNo, key) {
     return
   }
 
-  const seq = ++progress.seq
-  const file = `${String(seq).padStart(4, '0')}-${slug(row.pet)}-${digits(row.phone) || slug(row.owner)}.zip`
+  const seq = sameFile ? Number(sameFile.match(/^\d+/)?.[0]) || ++progress.seq : ++progress.seq
+  const file = sameFile || `${String(seq).padStart(4, '0')}-${slug(row.pet)}-${digits(row.phone) || slug(row.owner)}.zip`
   const part = join(ZIPS, file + '.part')
   // The old system first asks "Download All Medical Records: You are about to download N medical
   // records for <pet>…" with Cancel / Download All. Confirm it, and note N to check the zip later.
@@ -309,6 +323,7 @@ async function downloadPet(listPage, row, pageNo, key) {
 
   progress.done[key] = { file, pet: row.pet, owner: row.owner, phone: row.phone, page: pageNo, records: expected, at: new Date().toISOString() }
   delete progress.failed[key]
+  if (!progress.run.zips.includes(file)) progress.run.zips.push(file)
   save()
   appendFileSync(CSV, [seq, pageNo, row.pet, row.owner, row.phone, expected ?? '', file, progress.done[key].at].map(csvCell).join(',') + '\n')
   log(`  Saved ${file}${expected ? ` (${expected} record${expected === 1 ? '' : 's'})` : ''}`)
@@ -331,7 +346,8 @@ async function pass(page, { startPage, onlyFailed }) {
       const base = `${row.pet.toLowerCase()}|${digits(row.phone) || row.owner.toLowerCase()}`
       seen[base] = (seen[base] || 0) + 1
       const key = keyOf(row, seen[base])
-      if (progress.done[key] || progress.noRecords[key]) continue
+      const again = progress.redo && progress.redo.want[redoKey(row.pet, row.owner)] && !progress.redo.done[key]
+      if (!again && (progress.done[key] || progress.noRecords[key])) continue
       if (onlyFailed && !progress.failed[key]) continue
       if ((progress.failed[key]?.tries || 0) >= MAX_TRIES) continue
       if (Object.keys(progress.done).length >= LIMIT) return { newThisPass, stopped: true }
@@ -339,7 +355,9 @@ async function pass(page, { startPage, onlyFailed }) {
       log(`  ${row.pet} · ${row.owner} · ${row.phone}`)
       const listUrl = page.url()
       try {
-        await downloadPet(page, row, pageNo, key)
+        if (again) delete progress.noRecords[key]
+        await downloadPet(page, row, pageNo, key, again ? progress.done[key]?.file : null)
+        if (again) { progress.redo.done[key] = true; save() }
         newThisPass++
       } catch (err) {
         if (isClosed(err)) throw Object.assign(err, { browserClosed: true })
@@ -378,7 +396,7 @@ async function pass(page, { startPage, onlyFailed }) {
 // A fresh Chrome window each time (reopening a saved Chrome profile made downloads crash in
 // testing). The old system's login is kept in login-state.json instead, so reopening Chrome after
 // a crash doesn't need you to log in again. Delete that file when the download is finished.
-const LOGIN_STATE = join(OUT, 'login-state.json')
+const LOGIN_STATE = resolve(args.loginState || join(OUT, 'login-state.json'))
 const launch = {
   headless: !!args.headless, // --headless is only for testing; normally you see the window
   // Only this automated window: no download bubble or download scanning popups getting in the way.
@@ -419,7 +437,7 @@ console.log(`
  3. Come back here and press Enter.
  Already done: ${Object.keys(progress.done).length} pets. Saving to: ${OUT}
 ------------------------------------------------------------------`)
-await ask('Press Enter when the list is showing… ')
+if (!(args.auto && await waitForTable(page).then(() => true).catch(() => false) && !(await onLoginPage(page)))) await ask('Press Enter when the list is showing… ')
 await rememberLogin()
 
 let startPage = Number(args.startPage) || progress.lastPage || 1
@@ -467,6 +485,11 @@ while (true) {
   }
 }
 
+progress.run.finished = new Date().toISOString()
+if (progress.redo) progress.redo.finished = progress.run.finished
+save()
+writeFileSync(join(OUT, 'last-run.json'), JSON.stringify(progress.run, null, 1))
+log(`This run downloaded ${progress.run.zips.length} zip${progress.run.zips.length === 1 ? '' : 's'} (listed in last-run.json).`)
 const failed = Object.values(progress.failed)
 console.log(`
 ------------------------------------------------------------------

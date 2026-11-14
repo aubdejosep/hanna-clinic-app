@@ -25,7 +25,7 @@ const LIMIT = args.limit ? Number(args.limit) : Infinity
 const DEBUG = join(OUT, 'debug')
 const JSON_FILE = join(OUT, 'services.json')
 const CSV = join(OUT, 'services.csv')
-const LOGIN_STATE = join(OUT, 'login-state.json')
+const LOGIN_STATE = resolve(args.loginState || join(OUT, 'login-state.json')) // --login-state: shared with npm run sync
 mkdirSync(DEBUG, { recursive: true })
 
 function parseArgs(list) {
@@ -209,7 +209,7 @@ console.log(`
  3. Come back here and press Enter.
  Already read: ${results.length} services. Saving to: ${OUT}
 ------------------------------------------------------------------`)
-await ask('Press Enter when the list is showing… ')
+if (!(args.auto && await waitForTable(page).then(() => true).catch(() => false))) await ask('Press Enter when the list is showing… ') // --auto: npm run sync
 try { await context.storageState({ path: LOGIN_STATE }) } catch { /* fine */ }
 
 if (!/\/services\b/.test(new URL(page.url()).pathname)) await page.goto(LIST_URL)

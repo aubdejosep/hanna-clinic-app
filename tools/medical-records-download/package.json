@@ -15,7 +15,9 @@
     "photos-test": "node photos.mjs --limit 20",
     "photos": "node photos.mjs",
     "medications-test": "node medications.mjs --limit 3",
-    "medications": "node medications.mjs"
+    "medications": "node medications.mjs",
+    "sync": "node sync.mjs",
+    "sync-all": "node sync.mjs --services --medications"
   },
   "dependencies": {
     "playwright-core": "1.63.0",

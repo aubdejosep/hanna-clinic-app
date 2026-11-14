@@ -30,7 +30,7 @@ const DEBUG = join(OUT, 'debug')
 const IMAGES = join(OUT, 'images')
 const JSON_FILE = join(OUT, 'medications.json')
 const CSV = join(OUT, 'medications.csv')
-const LOGIN_STATE = join(OUT, 'login-state.json')
+const LOGIN_STATE = resolve(args.loginState || join(OUT, 'login-state.json')) // --login-state: shared with npm run sync
 mkdirSync(DEBUG, { recursive: true })
 mkdirSync(IMAGES, { recursive: true })
 
@@ -232,7 +232,7 @@ console.log(`
  3. Come back here and press Enter.
  Already read: ${results.length} medications. Saving to: ${OUT}
 ------------------------------------------------------------------`)
-await ask('Press Enter when the list is showing… ')
+if (!(args.auto && await waitForTable(page).then(() => true).catch(() => false))) await ask('Press Enter when the list is showing… ') // --auto: npm run sync
 try { await context.storageState({ path: LOGIN_STATE }) } catch { /* fine */ }
 
 async function toList() {

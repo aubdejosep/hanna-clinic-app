@@ -4,6 +4,13 @@
 //
 //   npm run appointments-test   -> the first page only, to check it works
 //   npm run appointments        -> everything (resumes by itself if it was stopped)
+//   --refresh                   -> read the whole list again for the clinic app's sync (npm run sync):
+//                                  rows that look the same as last time reuse what was read then (no hovering),
+//                                  so it's quick. Writes a fresh appointments.jsonl (the old one is kept as
+//                                  appointments-previous.jsonl) and changed.json: the pets with a new or
+//                                  changed appointment (their medical records are downloaded again).
+//   --auto                      -> don't wait for Enter if the saved login still works (used by npm run sync)
+//   --login-state <file>        -> where the old-system login is kept (default: in the output folder)
 //
 // Options: --pages N  --out <folder>  --start-page N  --rows 100  --browser-path <chrome.exe>  --url <list url>
 //
@@ -31,7 +38,10 @@ const DEBUG = join(OUT, 'debug')
 const PROGRESS = join(OUT, 'progress.json')
 const CSV = join(OUT, 'appointments.csv')
 const JSONL = join(OUT, 'appointments.jsonl')
-const LOGIN_STATE = join(OUT, 'login-state.json')
+const LOGIN_STATE = resolve(args.loginState || join(OUT, 'login-state.json'))
+const REFRESH = !!args.refresh
+const REFRESH_JSONL = join(OUT, 'appointments-refresh.jsonl')
+const CHANGED = join(OUT, 'changed.json')
 mkdirSync(DEBUG, { recursive: true })
 
 function parseArgs(list) {
@@ -79,6 +89,17 @@ function readJsonl() {
 }
 // Rows written just before a crash are in the .jsonl but not yet in progress.json: count them as saved.
 for (const rec of readJsonl()) if (rec.key && !progress.keys[rec.key]) progress.keys[rec.key] = rec.seq
+
+// --refresh: what the last full read saw, to reuse the hover text of rows that haven't changed.
+const looks = (r) => JSON.stringify([r.status, r.services, r.more || '', r.packages || '', !!r.hasInfo])
+const previous = REFRESH ? new Map(readJsonl().map((r) => [r.key, r])) : new Map()
+if (REFRESH && !progress.refresh) {
+  progress.refresh = { startedAt: new Date().toISOString(), seen: {}, changed: {}, lastPage: 1 }
+  writeFileSync(REFRESH_JSONL, '')
+}
+if (REFRESH && existsSync(REFRESH_JSONL)) { // resume: rows saved before a crash count as seen
+  for (const line of readFileSync(REFRESH_JSONL, 'utf8').split('\n')) { try { const r = JSON.parse(line); if (r.key && !progress.refresh.seen[r.key]) progress.refresh.seen[r.key] = r.seq } catch { /* cut off */ } }
+}
 let csvLockedSaid = false
 function writeCsv(final = false) {
   const lines = readJsonl().map((r) => [r.seq, r.page, r.pet, r.owner, r.bookedBy, r.date, r.time, r.status, (r.services || []).join(' / '), r.moreText || r.more, r.info || '', [...(r.hints || []), ...(r.extra || [])].join(' | ')].map(csvCell).join(','))
@@ -311,7 +332,8 @@ async function pass(page, startPage) {
   let added = 0
   let pagesRead = 0
   while (true) {
-    progress.lastPage = pageNo
+    if (REFRESH) progress.refresh.lastPage = pageNo
+    else progress.lastPage = pageNo
     await backToList(page)
     const rows = await readRows(page)
     const of = await lastPageNumber(page)
@@ -321,23 +343,32 @@ async function pass(page, startPage) {
       const base = keyOf(r, 0)
       seen[base] = (seen[base] || 0) + 1
       const key = keyOf(r, seen[base])
-      if (progress.keys[key]) continue
-      const moreText = [r.more && await peek(page, r, r.more), r.packages && await peek(page, r, r.packages)].filter(Boolean).join(' | ') || null
-      const info = r.hasInfo ? await peek(page, r, 'info') : null
-      await backToList(page)
-      const seq = Object.keys(progress.keys).length + 1
+      const keys = REFRESH ? progress.refresh.seen : progress.keys
+      if (keys[key]) continue
+      const before = previous.get(key)
+      const same = before && looks(before) === looks(r)
+      let moreText = same ? before.moreText ?? null : null
+      let info = same ? before.info ?? null : null
+      if (!same) {
+        moreText = [r.more && await peek(page, r, r.more), r.packages && await peek(page, r, r.packages)].filter(Boolean).join(' | ') || null
+        info = r.hasInfo ? await peek(page, r, 'info') : null
+        await backToList(page)
+        if (REFRESH) progress.refresh.changed[`${r.pet.toLowerCase()}|${r.owner.toLowerCase()}`] = { pet: r.pet, owner: r.owner }
+      }
+      const seq = Object.keys(keys).length + 1
       const rec = { seq, page: pageNo, key, ...r, moreText, info, savedAt: new Date().toISOString() }
-      appendFileSync(JSONL, JSON.stringify(rec) + '\n')
-      progress.keys[key] = seq
+      appendFileSync(REFRESH ? REFRESH_JSONL : JSONL, JSON.stringify(rec) + '\n')
+      keys[key] = seq
       newHere++
     }
     if (!progress.pagesDone.includes(pageNo)) progress.pagesDone.push(pageNo)
     progress.totalShown = of || progress.totalShown
     save()
-    writeCsv()
+    if (!REFRESH) writeCsv()
     added += newHere
     pagesRead++
-    log(`Page ${pageNo}${of ? ` of ${of}` : ''}: ${rows.length} rows, ${newHere} new (total ${Object.keys(progress.keys).length})`)
+    log(REFRESH ? `Page ${pageNo}${of ? ` of ${of}` : ''}: ${rows.length} rows read (total ${Object.keys(progress.refresh.seen).length}, ${Object.keys(progress.refresh.changed).length} pets with something new)`
+      : `Page ${pageNo}${of ? ` of ${of}` : ''}: ${rows.length} rows, ${newHere} new (total ${Object.keys(progress.keys).length})`)
     if (pagesRead >= MAX_PAGES) return { added, stopped: true }
     await backToList(page)
     if (!(await goToPage(page, pageNo + 1, pageNo))) {
@@ -383,10 +414,10 @@ console.log(`
  3. Come back here and press Enter.
  Already saved: ${Object.keys(progress.keys).length} appointments. Saving to: ${OUT}
 ------------------------------------------------------------------`)
-await ask('Press Enter when the list is showing… ')
+if (!(args.auto && await waitForTable(page).then(() => true).catch(() => false) && !(await onLoginPage(page)))) await ask('Press Enter when the list is showing… ')
 await rememberLogin()
 
-let startPage = Number(args.startPage) || progress.lastPage || 1
+let startPage = Number(args.startPage) || (REFRESH ? progress.refresh.lastPage : progress.lastPage) || 1
 let checking = false
 let tries = 0
 while (true) {
@@ -401,7 +432,7 @@ while (true) {
     }
     break
   } catch (err) {
-    startPage = progress.lastPage || 1
+    startPage = (REFRESH ? progress.refresh.lastPage : progress.lastPage) || 1
     if (isClosed(err)) {
       log('Chrome closed. Reopening it and carrying on from the same page…')
       await browser.close().catch(() => {})
@@ -421,6 +452,17 @@ while (true) {
 }
 
 await rememberLogin()
+if (REFRESH) { // the fresh read becomes the list; the last one is kept beside it
+  const r = progress.refresh
+  if (existsSync(JSONL)) renameSync(JSONL, join(OUT, 'appointments-previous.jsonl'))
+  renameSync(REFRESH_JSONL, JSONL)
+  writeFileSync(CHANGED, JSON.stringify(Object.values(r.changed), null, 1))
+  progress.keys = r.seen
+  progress.lastRefresh = { startedAt: r.startedAt, finishedAt: new Date().toISOString(), rows: Object.keys(r.seen).length, changedPets: Object.keys(r.changed).length }
+  delete progress.refresh
+  save()
+  log(`Refreshed: ${progress.lastRefresh.rows} appointments; ${progress.lastRefresh.changedPets} pets with a new or changed appointment (changed.json).`)
+}
 const sheet = writeCsv(true)
 console.log(`
 ------------------------------------------------------------------

@@ -8,6 +8,34 @@ so the new app can put every record back on the right pet later.
 It runs on your PC in its own Chrome window. **You log in yourself**; the script never sees your
 password.
 
+## Keeping the app up to date until go-live: `npm run sync`
+
+Once everything has been downloaded once, this one command gets **only what changed** in VetAssist since
+the last time. Run it every few days, and the evening before go-live. In PowerShell:
+
+```
+cd hanna-clinic-app
+git pull
+cd tools\medical-records-download
+npm install
+npm run sync
+```
+
+1. A Chrome window opens on VetAssist. **Log in** if it asks, wait for the list, and press **Enter** in PowerShell.
+   The other steps reuse that login.
+2. It then works by itself, usually in under an hour:
+   - reads the Appointments list again (quick: rows that look the same as last time aren't hovered again);
+   - downloads the medical records of **new pets** and of **pets with a new or changed appointment**
+     (into the same zip names as before);
+   - reads those records, takes out their photos, and uploads the new photos (your wrangler login).
+3. It ends with a list of files. In the app, open **Clinic Operations ▸ Import from VetAssist** and, step by
+   step, choose each file, click **Check for Changes**, look at what will change, then **Import**.
+   VetAssist's own **Masterlist ▸ Export** files (owners, pets, deceased) are part of it: export them the same day.
+
+**If it stops** (internet, restart, Chrome closing): run `npm run sync` again. It carries on from the step it was on.
+`npm run sync-all` also reads the Services list and the Medication List again (a few minutes more).
+Nothing in VetAssist is ever changed: the tools only read.
+
 ## What you need
 
 - This PC with **Google Chrome** and **Node.js** (the same Node you use for `wrangler`).

@@ -44,6 +44,29 @@ const PROGRESS = join(OUT, 'progress.json')
 // --redo: start the list again (the photos already saved are simply overwritten; uploads are kept).
 if (process.argv.includes('--redo')) { writeFileSync(MANIFEST, ''); writeFileSync(PROGRESS, JSON.stringify({ done: {} })) }
 const progress = existsSync(PROGRESS) ? JSON.parse(readFileSync(PROGRESS, 'utf8')) : { done: {} }
+// --redo-zips <last-run.json>: take the photos out of these zips again (downloaded again by npm run sync).
+// Their old lines go from photos.jsonl and from the uploaded lists, so changed photos are uploaded again.
+const redoAt = process.argv.indexOf('--redo-zips')
+if (redoAt > 0 && process.argv[redoAt + 1]) {
+  const again = new Set(JSON.parse(readFileSync(resolve(process.argv[redoAt + 1]), 'utf8')).zips || [])
+  if (again.size) {
+    for (const k of Object.keys(progress.done)) if (again.has(k.split('/')[0])) delete progress.done[k]
+    const gone = new Set()
+    if (existsSync(MANIFEST)) {
+      const keep = []
+      for (const l of readFileSync(MANIFEST, 'utf8').split('\n')) {
+        if (!l.trim()) continue
+        try { const p = JSON.parse(l); if (again.has(p.zip)) gone.add(p.key); else keep.push(l) } catch { /* cut off */ }
+      }
+      writeFileSync(MANIFEST, keep.length ? keep.join('\n') + '\n' : '')
+    }
+    for (const f of ['uploaded.txt', 'uploaded-local.txt'].map((n) => join(OUT, n)).filter(existsSync)) {
+      writeFileSync(f, readFileSync(f, 'utf8').split('\n').filter((k) => k && !gone.has(k)).map((k) => k + '\n').join(''))
+    }
+    writeFileSync(PROGRESS, JSON.stringify(progress))
+    log(`Taking the photos out of ${again.size} downloaded zip${again.size === 1 ? '' : 's'} again.`)
+  }
+}
 const summary = { failed: [], records: 0, photos: 0, bytes: 0, mismatched: [], unreadable: [], converted: 0, missingPdf: 0 }
 
 // A picture stored as compressed pixels (not JPEG) -> a PNG file, or null if it's a kind we can't convert.
