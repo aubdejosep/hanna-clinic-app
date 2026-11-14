@@ -7,6 +7,9 @@ import { ToastProvider } from './components/ui.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import './styles.css'
 
+// Lets Chrome install the app full-screen (public/sw.js stores nothing; it only shows an offline page).
+if ('serviceWorker' in navigator && import.meta.env.PROD) navigator.serviceWorker.register('/sw.js').catch(() => {})
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
