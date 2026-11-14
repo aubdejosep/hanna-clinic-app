@@ -4,7 +4,7 @@ One **Inbox** in the clinic app for the clinic's conversations: email to and fro
 **hello@hannapetwellnesscenter.com**, and SMS to and from the clinic's SMS number. Staff read, reply,
 see who the client is (Masterlist), and mark conversations done.
 
-Status: **phase 1 (email) built.** Free consult sign-ups from the website also come in as conversations (`lib/website-signups.js`, read only). Setup: `workers/inbox-intake/README.md`. SMS provider still to choose (Semaphore or Promotexter).
+Status: **phase 1 (email) built.** Free consult sign-ups from the website also come in as conversations (`lib/website-signups.js`, read only). Setup: `workers/inbox-intake/README.md`. SMS: **Semaphore**, sender name **HANNAPETVET** (requested Nov 2026, about two weeks). A sender name can only send, so texts are outbound only (clients reply on Messenger or by phone). Message wording: Account ▸ Settings ▸ Messages (`message_templates`); texting starts when `SEMAPHORE_API_KEY` and `SEMAPHORE_SENDER_NAME` are set. Next, once approved: send a text from a conversation and from an owner's page, logged in the Inbox.
 
 ## Decisions (Nov 2026)
 
