@@ -36,7 +36,7 @@ import { StaffContext } from './lib/staff.js'
 export default function App() {
   const { data, error, reload, setData } = useApi('me')
   // The person's theme and text size (Settings) follow their login to any device.
-  useEffect(() => { if (data?.staff) applyDisplay(data.staff) }, [data?.staff?.theme, data?.staff?.textSize]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (data?.staff) applyDisplay(data.staff) }, [data?.staff?.theme, data?.staff?.textSize, JSON.stringify(data?.staff?.fonts || null)]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (data) setLogoVersion(data.logoVersion) }, [data?.logoVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   const [loggedOut, setLoggedOut] = useState(false)
   useEffect(() => {

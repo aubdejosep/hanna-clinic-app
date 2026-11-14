@@ -2,7 +2,7 @@
 // any device), and their password.
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { Check, ImageUp, KeyRound, Palette, RotateCcw, Type } from 'lucide-react'
+import { CaseSensitive, Check, ImageUp, KeyRound, Palette, RotateCcw, Type } from 'lucide-react'
 import { PageHead, useToast } from '../components/ui.jsx'
 import AccountPanel from '../components/AccountPanel.jsx'
 import { api } from '../lib/api.js'
@@ -10,6 +10,11 @@ import { canManage, useStaff } from '../lib/staff.js'
 import { setLogoVersion, useLogo } from '../lib/logo.js'
 import LogoCropper from '../components/LogoCropper.jsx'
 import { THEMES, TEXT_SIZES, applyDisplay } from '../lib/theme.js'
+import { DEFAULT_FONTS, FONTS, FONT_PARTS, MENU_WEIGHTS, cleanFonts } from '../../lib/fonts.js'
+
+const FONT_STACK = { heros: 'var(--stack-heros)', montserrat: 'var(--stack-montserrat)', system: 'var(--stack-system)' }
+// The gym app's look: Montserrat headings, the system font (Segoe UI) everywhere else, a regular-weight menu.
+const GYM_LOOK = { head: 'montserrat', menu: 'system', text: 'system', button: 'system', menuWeight: 'regular' }
 
 function Swatch({ theme }) {
   return (
@@ -87,7 +92,7 @@ export function SettingsTabs() {
 export default function SettingsPage({ onStaff }) {
   const staff = useStaff()
   const toast = useToast()
-  const [display, setDisplay] = useState({ theme: staff.theme || 'brand', textSize: staff.textSize || 'standard' })
+  const [display, setDisplay] = useState({ theme: staff.theme || 'brand', textSize: staff.textSize || 'standard', fonts: cleanFonts(staff.fonts) })
   const [password, setPassword] = useState(false)
   async function save(patch, msg) {
     const prev = display
@@ -131,6 +136,37 @@ export default function SettingsPage({ onStaff }) {
               ))}
             </div>
             <p className="field-hint" style={{ marginBottom: 0 }}>Example: <span style={{ fontSize: 'var(--fs-body)' }}>Peach · Cat · 4 yrs</span> <span className="cell-sub" style={{ display: 'inline' }}>· Booked online</span></p>
+          </div>
+        </section>
+        <section className="card">
+          <div className="card-head">
+            <div className="settings-head"><span className="settings-icon"><CaseSensitive aria-hidden /></span><div><h2>Font</h2><p>Choose a font for each part of the app. Each option is shown in its own font.</p></div></div>
+          </div>
+          <div className="card-pad font-rows">
+            {FONT_PARTS.map((p) => (
+              <div key={p.key} className="font-row">
+                <div><strong>{p.label}</strong><span className="cell-sub">{p.text}</span></div>
+                <div className="tabs tab-scroll" role="radiogroup" aria-label={`${p.label} font`}>
+                  {FONTS.map((f) => (
+                    <button key={f.key} type="button" role="radio" className="tab" title={f.text} aria-checked={display.fonts[p.key] === f.key} aria-pressed={display.fonts[p.key] === f.key} style={{ fontFamily: FONT_STACK[f.key] }}
+                      onClick={() => display.fonts[p.key] !== f.key && save({ fonts: { ...display.fonts, [p.key]: f.key } }, `${p.label}: ${f.label}`)}>{f.label}</button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div className="font-row">
+              <div><strong>Menu Weight</strong><span className="cell-sub">How bold the menu items are. The selected one is always a step bolder.</span></div>
+              <div className="tabs" role="radiogroup" aria-label="Menu weight">
+                {MENU_WEIGHTS.map((w) => (
+                  <button key={w.key} type="button" role="radio" className="tab" aria-checked={display.fonts.menuWeight === w.key} aria-pressed={display.fonts.menuWeight === w.key} style={{ fontFamily: 'var(--font-menu)', fontWeight: { regular: 400, semibold: 600, bold: 700 }[w.key] }}
+                    onClick={() => display.fonts.menuWeight !== w.key && save({ fonts: { ...display.fonts, menuWeight: w.key } }, `Menu weight: ${w.label}`)}>{w.label}</button>
+                ))}
+              </div>
+            </div>
+            <div className="inline-row">
+              <button type="button" className="btn btn-quiet" onClick={() => save({ fonts: GYM_LOOK }, 'Fonts: the gym’s look')} disabled={JSON.stringify(display.fonts) === JSON.stringify(GYM_LOOK)}>Use the Gym’s Look</button>
+              <button type="button" className="btn btn-quiet" onClick={() => save({ fonts: DEFAULT_FONTS }, 'Fonts back to TeX Gyre Heros')} disabled={JSON.stringify(display.fonts) === JSON.stringify(DEFAULT_FONTS)}><RotateCcw aria-hidden /> Reset Fonts</button>
+            </div>
           </div>
         </section>
         {canManage(staff) && <ClinicLogo />}

@@ -11,13 +11,29 @@ export const TEXT_SIZES = [
   { key: 'larger', label: 'Larger' },
 ]
 
-export function applyDisplay({ theme, textSize }) {
+import { cleanFonts, FONT_PARTS } from '../../lib/fonts.js'
+
+// Fonts: data-font-head="montserrat" etc. on <html> (default TeX Gyre Heros has none), and data-menu-weight.
+function applyFonts(root, fonts) {
+  const f = cleanFonts(fonts)
+  for (const p of FONT_PARTS) {
+    const attr = `font${p.key[0].toUpperCase()}${p.key.slice(1)}`
+    if (f[p.key] !== 'heros') root.dataset[attr] = f[p.key]
+    else delete root.dataset[attr]
+  }
+  if (f.menuWeight !== 'bold') root.dataset.menuWeight = f.menuWeight
+  else delete root.dataset.menuWeight
+  return f
+}
+
+export function applyDisplay({ theme, textSize, fonts }) {
   const root = document.documentElement
+  const f = applyFonts(root, fonts)
   if (theme && theme !== 'brand') root.dataset.theme = theme
   else delete root.dataset.theme
   if (textSize && textSize !== 'standard') root.dataset.text = textSize
   else delete root.dataset.text
-  try { localStorage.setItem('hpw.display', JSON.stringify({ theme, textSize })) } catch { /* private window */ }
+  try { localStorage.setItem('hpw.display', JSON.stringify({ theme, textSize, fonts: f })) } catch { /* private window */ }
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) meta.content = theme && theme !== 'brand' ? '#F1F3F6' : '#FBF7F0'
 }
