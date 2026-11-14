@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Activity, Bell, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Pill, Settings, UserRound, Wallet, X } from 'lucide-react'
+import { Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Pill, Settings, UserRound, Wallet, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { useLogo } from '../lib/logo.js'
@@ -96,13 +96,12 @@ function useMobile() {
   return m
 }
 
-// The account button at the foot of the sidebar opens: Notifications, Settings, Device Management, Log Out.
+// The account button at the foot of the sidebar opens: Settings, Device Management, Log Out.
+// (Notifications live in the bell, whose See All opens the full page.)
 function AccountMenu({ staff }) {
   const [open, setOpen] = useState(false)
   const box = useRef(null)
   const { pathname } = useLocation()
-  const { data } = useApi('reminders')
-  const count = data?.reminders?.length || 0
   useEffect(() => setOpen(false), [pathname])
   useEffect(() => {
     if (!open) return undefined
@@ -113,7 +112,6 @@ function AccountMenu({ staff }) {
     box.current?.querySelector('.account-menu a, .account-menu button')?.focus()
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
   }, [open])
-  const badge = count > 0 && <span className="menu-count">{count > 99 ? '99+' : count}</span>
   return (
     <div className="account" ref={box}>
       {open && (
@@ -122,7 +120,6 @@ function AccountMenu({ staff }) {
             <span className="avatar">{initials(staff.name)}</span>
             <span className="who"><strong>{staff.name}</strong><span>{staff.email}</span></span>
           </div>
-          <Link role="menuitem" to="/notifications" className="account-item"><Bell aria-hidden /> Notifications {badge}</Link>
           <Link role="menuitem" to="/settings" className="account-item"><Settings aria-hidden /> Settings</Link>
           <Link role="menuitem" to="/devices" className="account-item"><MonitorSmartphone aria-hidden /> Device Management</Link>
           <button role="menuitem" type="button" className="account-item account-out" onClick={logOut}><LogOut aria-hidden /> Log Out</button>
@@ -134,7 +131,6 @@ function AccountMenu({ staff }) {
           <strong>{staff.name}</strong>
           <span>{staff.title || ROLE_LABEL[staff.role] || staff.role}</span>
         </span>
-        {badge}
         <ChevronsUpDown className="account-chev" aria-hidden />
       </button>
     </div>

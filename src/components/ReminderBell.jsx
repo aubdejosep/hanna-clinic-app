@@ -63,6 +63,7 @@ export default function ReminderBell({ align = 'right' }) {
     }
   }
   const list = (data?.reminders || []).filter((r) => r.inBell !== false) // balances: Notifications page only
+  const hidden = (data?.reminders || []).length - list.length
   return (
     <div className="bell" ref={box}>
       <button type="button" className="icon-btn bell-btn" onClick={() => { setOpen(!open); if (!open) refresh() }} aria-expanded={open}
@@ -96,6 +97,7 @@ export default function ReminderBell({ align = 'right' }) {
               })}
             </ul>
           )}
+          <div className="bell-foot"><Link className="text-btn" to="/notifications" onClick={() => setOpen(false)}>See All Notifications{hidden ? ` (${hidden} more)` : ''}</Link></div>
         </div>
       )}
     </div>
