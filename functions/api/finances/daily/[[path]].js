@@ -1,13 +1,14 @@
 // Finances ▸ Ledger (owners and admins): the cash ledger, typed in like a spreadsheet. Math: lib/daily-cash.js.
 //   GET    /api/finances/daily?from=YYYY-MM-DD&to=YYYY-MM-DD -> receipts, expenses and remits in that range
-//   POST   /api/finances/daily/lines     {day, receiptNo, clientName, petNames, note, amountCents, method, commissionCents}
+//   POST   /api/finances/daily/lines     {day, receiptNo, receiptQr, clientName, petNames, note, amountCents (Total Per Receipt),
+//                                          onlineCents, depositCents, balanceCents, incomeCents, commissionCents}
 //   PATCH  /api/finances/daily/lines/:id (the same)            DELETE -> soft-deleted
 //   POST   /api/finances/daily/expenses  {day, category, description, amountCents}   PATCH / DELETE /expenses/:id
 //   POST   /api/finances/daily/remits    {day, kind: first|second, amountCents, remittedBy}   PATCH / DELETE /remits/:id
 // Rows can be saved half-filled (a spreadsheet is typed cell by cell); blanks count as 0.
 
 import { json, fail, readJson, clean, canManage, audit } from '../../../../lib/http.js'
-import { EXPENSE_TYPES, METHODS } from '../../../../lib/daily-cash.js'
+import { EXPENSE_TYPES } from '../../../../lib/daily-cash.js'
 
 const isDay = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d || '')
 const money = (v) => { if (v === null || v === undefined || v === '') return null; const n = Math.round(Number(v)); return Number.isFinite(n) && n >= 0 && n <= 1e10 ? n : NaN }
@@ -17,16 +18,19 @@ const TABLES = {
   lines: {
     table: 'cash_lines', entity: 'cash_line',
     fields(b, errors) {
-      const amount = money(b.amountCents)
-      const commission = money(b.commissionCents)
-      if (Number.isNaN(amount)) errors.amountCents = 'Enter the amount as a number, e.g. 1500.'
-      if (Number.isNaN(commission)) errors.commissionCents = 'Enter the commission as a number, e.g. 150.'
-      const method = METHODS.some((m) => m.key === b.method) ? b.method : 'cash'
-      return { receipt_no: clean(b.receiptNo, 40) || null, client_name: clean(b.clientName, 120) || null, pet_names: clean(b.petNames, 200) || null,
-        note: clean(b.note, 300) || null, amount_cents: amount ?? 0, method, commission_cents: commission }
+      const m = {}
+      for (const [k, col, label] of [['amountCents', 'amount_cents', 'Total Per Receipt'], ['onlineCents', 'online_cents', 'Online Payments'], ['depositCents', 'deposit_cents', 'Deposit'],
+        ['balanceCents', 'balance_cents', 'Balance'], ['incomeCents', 'income_cents', 'Total Income'], ['commissionCents', 'commission_cents', 'Commissions']]) {
+        const v = money(b[k])
+        if (Number.isNaN(v)) errors[k] = `Enter ${label} as a number, e.g. 1500.`
+        m[col] = Number.isNaN(v) ? null : v
+      }
+      return { receipt_no: clean(b.receiptNo, 40) || null, receipt_qr: clean(b.receiptQr, 40) || null, client_name: clean(b.clientName, 120) || null,
+        pet_names: clean(b.petNames, 200) || null, note: clean(b.note, 300) || null, ...m, amount_cents: m.amount_cents ?? 0 }
     },
-    shape: (r) => ({ id: r.id, day: r.day, receiptNo: r.receipt_no || '', clientName: r.client_name || '', petNames: r.pet_names || '', note: r.note || '',
-      amountCents: r.amount_cents, method: r.method, commissionCents: r.commission_cents }),
+    shape: (r) => ({ id: r.id, day: r.day, receiptNo: r.receipt_no || '', receiptQr: r.receipt_qr || '', clientName: r.client_name || '', petNames: r.pet_names || '',
+      note: r.note || '', amountCents: r.amount_cents || null, onlineCents: r.online_cents, depositCents: r.deposit_cents, balanceCents: r.balance_cents,
+      incomeCents: r.income_cents, commissionCents: r.commission_cents }),
   },
   expenses: {
     table: 'cash_expenses', entity: 'cash_expense',

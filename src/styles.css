@@ -1797,7 +1797,7 @@ th[aria-sort="ascending"] .th-sort svg, th[aria-sort="descending"] .th-sort svg 
 .lg-card { overflow: hidden; }
 .lg-scroll { overflow-x: auto; }
 .lg-table { border-collapse: collapse; table-layout: fixed; min-width: 100%; font-variant-numeric: tabular-nums; }
-.lg-table th { position: sticky; top: 0; padding: 8px 8px; background: var(--surface-alt); border: 1px solid var(--border); text-align: left; font: 700 var(--fs-label)/1.3 var(--font-button); letter-spacing: .06em; text-transform: uppercase; color: var(--text); white-space: nowrap; }
+.lg-table th { position: sticky; top: 0; padding: 8px 8px; background: var(--surface-alt); border: 1px solid var(--border); text-align: left; vertical-align: bottom; font: 700 var(--fs-label)/1.3 var(--font-button); letter-spacing: .04em; text-transform: uppercase; color: var(--text); }
 .lg-table td { padding: 0; border: 1px solid var(--border); height: 38px; }
 .lg-table tfoot td { padding: 8px; font-weight: 700; color: var(--heading); background: var(--surface-alt); }
 .lg-rownum { width: 44px; text-align: center; color: var(--text); font-size: var(--fs-small); background: var(--surface-alt); }
@@ -1829,3 +1829,18 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
   .lg-cell { color: #000; }
   .lg-scroll { overflow: visible; }
 }
+/* Ledger: the date calendar (tap or drag) and day groups */
+.rc-wrap { position: relative; }
+.rc-pop { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; padding: 14px; width: 320px; max-width: calc(100vw - 32px); }
+.rc { display: grid; gap: 10px; }
+.rc-head { display: flex; align-items: center; justify-content: space-between; color: var(--heading); }
+.rc-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; touch-action: none; user-select: none; }
+.rc-dow { text-align: center; font: 700 var(--fs-label)/2 var(--font-body); color: var(--text); text-transform: uppercase; }
+.rc-day { height: 38px; border: 0; border-radius: 8px; background: transparent; color: var(--heading); font: 400 var(--fs-small)/1 var(--font-body); cursor: pointer; }
+.rc-day:hover { background: var(--surface-alt); }
+.rc-day.is-out { opacity: .4; }
+.rc-day.is-today { box-shadow: inset 0 0 0 1px var(--teal); }
+.rc-day.is-in { background: var(--teal-tint); border-radius: 0; }
+.rc-day.is-end { background: var(--teal-deep); color: #fff; font-weight: 700; border-radius: 8px; }
+.lg-day td { padding: 6px 10px; background: var(--teal-tint); color: var(--heading); font-weight: 700; font-size: var(--fs-small); }
+@media print { .rc-wrap .btn { border: 0; padding: 0; } .text-btn { display: none; } }
