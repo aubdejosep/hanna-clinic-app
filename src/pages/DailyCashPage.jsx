@@ -11,7 +11,7 @@ import { canManage, useStaff } from '../lib/staff.js'
 import { prettyDay } from '../lib/format.js'
 import { EXPENSE_TYPES, METHODS, summarize } from '../../lib/daily-cash.js'
 
-const peso = (c) => `₱${(Number(c || 0) / 100).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+const peso = (c) => `${Number(c || 0) < 0 ? '−' : ''}₱${(Math.abs(Number(c || 0)) / 100).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 const toPesos = (c) => (c == null ? '' : String(Math.round(c) / 100))
 const toCents = (v) => { const t = String(v ?? '').replace(/[₱,\s]/g, ''); if (t === '') return null; const n = Number(t); return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : NaN }
 const today = () => new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10)
@@ -52,6 +52,7 @@ const GRIDS = {
   },
   remits: {
     title: 'Remits',
+    hint: 'Cash handed over only. Online payments are already taken out under Onlines.',
     columns: [
       { key: 'day', label: 'Date', type: 'date', width: 150 },
       { key: 'kind', label: 'Remit', type: 'select', options: [['first', '1st (3 PM)'], ['second', '2nd (End of Day)']], width: 190 },
@@ -146,7 +147,7 @@ function Grid({ kind, rows, defaultDay, onSaved }) {
   const totals = Object.fromEntries(g.columns.filter((c) => c.total).map((c) => [c.key, all.reduce((sum, r) => sum + (r[c.key] || 0), 0)]))
   return (
     <section className="card lg-card">
-      <div className="card-head"><h2>{g.title}</h2><span className="cell-sub">{saved.length} row{saved.length === 1 ? '' : 's'} · type in the last row to add one</span></div>
+      <div className="card-head"><h2>{g.title}</h2><span className="cell-sub">{g.hint ? `${g.hint} ` : ''}{saved.length} row{saved.length === 1 ? '' : 's'} · type in the last row to add one</span></div>
       <div className="lg-scroll">
         <table className="lg-table">
           <colgroup><col style={{ width: 44 }} />{g.columns.map((c) => <col key={c.key} style={{ width: c.width }} />)}<col style={{ width: 44 }} /></colgroup>
@@ -217,6 +218,7 @@ export default function DailyCashPage() {
               <div><dt>Less Expenses</dt><dd>− {peso(s.expenses)}</dd></div>
               <div><dt>Less 1st Remit</dt><dd>− {peso(s.firstRemit)}</dd></div>
               <div className="dc-coh"><dt>Cash On Hand</dt><dd>{peso(s.cashOnHand)}</dd></div>
+              {s.cashOnHand < 0 && <div className="lg-off"><dt>The expenses and 1st Remit are more than the cash collected ({peso(s.cash)}). Online payments are already taken out under Onlines: only enter cash handed over as a remit.</dt></div>}
               <div><dt>2nd Remit</dt><dd>{s.hasSecond ? peso(s.secondRemit) : '—'}</dd></div>
               {s.hasSecond && <div className={s.difference === 0 ? 'lg-ok' : 'lg-off'}><dt>{s.difference === 0 ? '✓ Matches Cash On Hand' : s.difference < 0 ? 'Short' : 'Over'}</dt><dd>{s.difference === 0 ? '' : peso(Math.abs(s.difference))}</dd></div>}
               <div className="dc-coh"><dt>Total Commission</dt><dd>{peso(s.commission)}</dd></div>
