@@ -50,14 +50,13 @@ const NAV = [
 
 const isInside = (group, pathname) => group.children.some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`) || (c.to === '/clients' && pathname.startsWith('/pets')))
 
-function NavGroup({ group, pathname, staff }) {
+// Only one group is open at a time: opening one closes the other (the page's own group opens on arrival).
+function NavGroup({ group, pathname, staff, open, onToggle }) {
   const inside = isInside(group, pathname)
-  const [open, setOpen] = useState(inside)
-  useEffect(() => { if (inside) setOpen(true) }, [inside])
   const Chevron = open ? ChevronDown : ChevronRight
   return (
     <div className="nav-groupbox">
-      <button type="button" className={`nav-link nav-parent ${inside ? 'inside' : ''}`} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+      <button type="button" className={`nav-link nav-parent ${inside ? 'inside' : ''}`} onClick={onToggle} aria-expanded={open}>
         <group.icon aria-hidden /> {group.label}
         {group.soon && <span className="badge badge-soft soon">Soon</span>}
         <Chevron className="nav-chevron" aria-hidden />
@@ -162,6 +161,9 @@ export default function Layout({ staff }) {
   const { pathname } = useLocation()
   const mobile = useMobile()
   useEffect(() => setOpen(false), [pathname])
+  const groupFor = (path) => NAV.find((g) => g.children && isInside(g, path))?.label || null
+  const [openGroup, setOpenGroup] = useState(() => groupFor(pathname))
+  useEffect(() => { const g = groupFor(pathname); if (g) setOpenGroup(g) }, [pathname])
 
   return (
     <div className="shell" data-nav={open ? 'open' : 'closed'}>
@@ -183,7 +185,8 @@ export default function Layout({ staff }) {
           )}
         </div>
         {NAV.map((item) => item.children ? (
-          <NavGroup key={item.label} group={item} pathname={pathname} staff={staff} />
+          <NavGroup key={item.label} group={item} pathname={pathname} staff={staff} open={openGroup === item.label}
+            onToggle={() => setOpenGroup((g) => (g === item.label ? null : item.label))} />
         ) : (
           <NavLink key={item.to} to={item.to} end={item.end} className="nav-link">
             <item.icon aria-hidden /> {item.label}
