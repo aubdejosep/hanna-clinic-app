@@ -1,0 +1,126 @@
+// Finances ▸ Ledger ▸ Import File: an Excel file in the Ledger template's layout (Receipts, Expenses, Remits sheets),
+// typed by hand or made by Claude from the receipt photos. Shows what will happen to every row first (add, skip
+// because it's already in the Ledger, or a problem) and each day's totals; nothing is saved until Import.
+import { useRef, useState } from 'react'
+import { Download, FileSpreadsheet, X } from 'lucide-react'
+import { ErrorNote, useToast } from './ui.jsx'
+import { api } from '../lib/api.js'
+import { readXlsx } from '../lib/xlsx.js'
+import { readLedgerSheets } from '../../lib/ledger-import.js'
+import { prettyDay } from '../lib/format.js'
+
+const peso = (c) => (c == null ? '' : `${c < 0 ? '−' : ''}₱${(Math.abs(c) / 100).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`)
+const STATUS = { add: ['Add', 'badge'], skip: ['Skip', 'badge badge-soft'], error: ['Problem', 'badge badge-warn'] }
+const KINDS = {
+  lines: { title: 'Receipts', cols: [['receiptNo', 'OR'], ['receiptQr', 'QR'], ['clientName', 'Owner'], ['petNames', 'Pet'], ['amountCents', 'Total', 1], ['onlineCents', 'Online', 1], ['incomeCents', 'Income', 1], ['note', 'Notes']] },
+  expenses: { title: 'Expenses', cols: [['category', 'Type'], ['description', 'What For'], ['amountCents', 'Amount', 1]] },
+  remits: { title: 'Remits', cols: [['kind', 'Remit'], ['amountCents', 'Amount', 1], ['remittedBy', 'Remitted By']] },
+}
+const show = (k, v) => (k === 'kind' ? (v === 'second' ? '2nd' : '1st') : k.endsWith('Cents') ? peso(v) : v)
+
+export default function LedgerImport({ fallbackDay, onClose, onDone }) {
+  const toast = useToast()
+  const input = useRef(null)
+  const [file, setFile] = useState(null)
+  const [rows, setRows] = useState(null) // what was read from the file, sent again on Import
+  const [result, setResult] = useState(null)
+  const [busy, setBusy] = useState(null)
+  const [error, setError] = useState(null)
+
+  async function choose(f) {
+    if (!f) return
+    setFile(f); setResult(null); setRows(null); setError(null); setBusy('read')
+    try {
+      if (!/\.xlsx$/i.test(f.name)) throw new Error('Choose an Excel file (.xlsx). In Google Sheets: File ▸ Download ▸ Microsoft Excel.')
+      const read = readLedgerSheets(await readXlsx(f), fallbackDay)
+      if (read.problems.length && !read.lines.length && !read.expenses.length && !read.remits.length) throw new Error(read.problems.join(' '))
+      const body = { file: f.name, lines: read.lines, expenses: read.expenses, remits: read.remits }
+      setRows({ ...body, problems: read.problems })
+      setResult(await api('finances/daily/import', { method: 'POST', body }))
+    } catch (err) { setError(err) }
+    setBusy(null)
+  }
+  async function commit() {
+    setBusy('import'); setError(null)
+    try {
+      const { problems, ...body } = rows
+      const r = await api('finances/daily/import', { method: 'POST', body: { ...body, commit: true } })
+      toast(`Imported ${r.imported} row${r.imported === 1 ? '' : 's'}`)
+      onDone(r.summary.days.map((d) => d.day))
+    } catch (err) { setError(err); setBusy(null) }
+  }
+
+  const s = result?.summary
+  return (
+    <section className="card card-pad stack li-panel" aria-labelledby="li-title">
+      <div className="li-head">
+        <div>
+          <h2 id="li-title">Import From a File</h2>
+          <p className="field-hint">An Excel file (.xlsx) in the Ledger template’s layout: Receipts, Expenses and Remits sheets. You’ll see every row before anything is saved, and receipts already in the Ledger are skipped.</p>
+        </div>
+        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close Import" title="Close"><X /></button>
+      </div>
+      <div className="inline-row">
+        <input ref={input} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={(e) => { choose(e.target.files[0]); e.target.value = '' }} />
+        <button type="button" className="btn" onClick={() => input.current.click()} disabled={!!busy}><FileSpreadsheet aria-hidden /> {file ? 'Choose Another File' : 'Choose File'}</button>
+        <a className="btn btn-quiet" href="/ledger-template.xlsx" download="Hanna Ledger Template.xlsx"><Download aria-hidden /> Download Template</a>
+        {file && <span className="field-hint">{file.name}</span>}
+      </div>
+      {busy === 'read' && <p className="field-hint">Reading the file…</p>}
+      <ErrorNote error={error} />
+      {rows?.problems?.length > 0 && <div className="lg-off">{rows.problems.join(' ')}</div>}
+      {s && (
+        <>
+          <p className="li-counts">
+            <span className="badge">{s.add} to add</span>
+            {s.skip > 0 && <span className="badge badge-soft">{s.skip} already in the Ledger</span>}
+            {s.error > 0 && <span className="badge badge-warn">{s.error} with a problem (not imported)</span>}
+          </p>
+          {s.days.length > 0 && (
+            <div className="lg-scroll">
+              <table className="li-table">
+                <caption className="field-hint">Totals of the rows being added. Check them against the paper summary.</caption>
+                <thead><tr><th>Date</th><th className="lg-num">Receipts</th><th className="lg-num">Total Income</th><th className="lg-num">Online</th><th className="lg-num">Expenses</th><th className="lg-num">1st Remit</th><th className="lg-num">Cash On Hand</th><th className="lg-num">2nd Remit</th></tr></thead>
+                <tbody>
+                  {s.days.map((d) => (
+                    <tr key={d.day}>
+                      <td>{prettyDay(d.day)}</td><td className="lg-num">{d.receipts}</td><td className="lg-num">{peso(d.income)}</td><td className="lg-num">{peso(d.online)}</td>
+                      <td className="lg-num">{peso(d.expenses)}</td><td className="lg-num">{peso(d.first)}</td>
+                      <td className="lg-num"><strong>{peso(d.income - d.online - d.expenses - d.first)}</strong></td><td className="lg-num">{d.second ? peso(d.second) : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {Object.entries(KINDS).map(([kind, k]) => result.plan[kind].length > 0 && (
+            <div key={kind} className="lg-scroll">
+              <table className="li-table">
+                <caption><strong>{k.title}</strong> · {result.plan[kind].length} row{result.plan[kind].length === 1 ? '' : 's'}</caption>
+                <thead><tr><th>Row</th><th>Date</th>{k.cols.map(([key, label, num]) => <th key={key} className={num ? 'lg-num' : ''}>{label}</th>)}<th /></tr></thead>
+                <tbody>
+                  {result.plan[kind].map((p, i) => (
+                    <tr key={i} className={`li-${p.status}`}>
+                      <td>{p.line}</td>
+                      <td>{p.day ? prettyDay(p.day) : '—'}</td>
+                      {k.cols.map(([key, , num]) => <td key={key} className={num ? 'lg-num' : ''}>{show(key, p.row[key])}</td>)}
+                      <td className="li-why">
+                        <span className={STATUS[p.status][1]}>{STATUS[p.status][0]}</span>
+                        {p.reason && <span>{p.reason}</span>}
+                        {p.warnings.map((w) => <span key={w} className="li-warn">{w}</span>)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+          <div className="inline-row">
+            <button type="button" className="btn" onClick={commit} disabled={!s.add || !!busy}>{busy === 'import' ? 'Importing…' : `Import ${s.add} Row${s.add === 1 ? '' : 's'}`}</button>
+            <button type="button" className="btn btn-quiet" onClick={onClose} disabled={!!busy}>Cancel</button>
+          </div>
+        </>
+      )}
+    </section>
+  )
+}

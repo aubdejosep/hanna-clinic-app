@@ -4,13 +4,14 @@
 // Remits, and the summary: Total Income - Online Payments - Expenses - 1st Remit = Cash On Hand, checked against the
 // 2nd Remit. The date comes from the calendar (one day, or several by dragging). Each cell saves when you leave it.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, Printer, Trash2 } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, FileUp, Printer, Trash2 } from 'lucide-react'
 import { ErrorNote, PageHead, PawLoader, useToast } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { canManage, useStaff } from '../lib/staff.js'
 import { prettyDay } from '../lib/format.js'
 import { EXPENSE_TYPES, summarize } from '../../lib/daily-cash.js'
+import LedgerImport from '../components/LedgerImport.jsx'
 
 const peso = (c) => `${Number(c || 0) < 0 ? '−' : ''}₱${(Math.abs(Number(c || 0)) / 100).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 const toPesos = (c) => (c == null ? '' : String(Math.round(c) / 100))
@@ -214,7 +215,11 @@ export default function DailyCashPage() {
   const [from, setFrom] = useState(today())
   const [to, setTo] = useState(today())
   const [calOpen, setCalOpen] = useState(false)
-  const { data, error } = useApi(canManage(staff) ? `finances/daily?from=${from}&to=${to}` : null)
+  const [importing, setImporting] = useState(false)
+  const [stamp, setStamp] = useState(0) // bumped after an import, to load the sheets again
+  const { data, error } = useApi(canManage(staff) ? `finances/daily?from=${from}&to=${to}${stamp ? `&v=${stamp}` : ''}` : null)
+  const [gen, setGen] = useState(0) // remounts the grids whenever fresh data arrives
+  useEffect(() => { if (data) setGen((g) => g + 1) }, [data])
   const [live, setLive] = useState(null) // the sheets as saved, for the summary without reloading
   useEffect(() => { if (data) setLive({ lines: data.lines, expenses: data.expenses, remits: data.remits }) }, [data])
   const single = from === to
@@ -233,12 +238,17 @@ export default function DailyCashPage() {
           {calOpen && <div className="rc-pop card"><RangeCalendar from={from} to={to} onPick={pick} /></div>}
         </div>
         {!(single && from === today()) && <button type="button" className="text-btn" onClick={() => pick(today(), today())}>Today</button>}
+        <button type="button" className="btn btn-quiet" onClick={() => setImporting((o) => !o)} aria-expanded={importing}><FileUp aria-hidden /> Import File</button>
         <button type="button" className="btn btn-quiet dc-print" onClick={() => window.print()}><Printer aria-hidden /> Print</button>
       </div>
+      {importing && (
+        <LedgerImport fallbackDay={single ? from : null} onClose={() => setImporting(false)}
+          onDone={(days) => { setImporting(false); if (days.length) { setFrom(days[0]); setTo(days[days.length - 1]) } setStamp(Date.now()) }} />
+      )}
       <ErrorNote error={error} />
       {!data || !live || data.from !== from || data.to !== to ? <PawLoader label="Loading the ledger…" /> : (
         <div className="stack" style={{ gap: 16 }}>
-          <Grid key={`l-${from}-${to}`} kind="lines" rows={data.lines} day={to} single={single} onSaved={refreshed} />
+          <Grid key={`l-${from}-${to}-${gen}`} kind="lines" rows={data.lines} day={to} single={single} onSaved={refreshed} />
           <section className="card card-pad lg-summary">
             <h2>Summary{single ? '' : ' for These Dates'}</h2>
             <dl>
@@ -259,8 +269,8 @@ export default function DailyCashPage() {
             <p className="field-hint" style={{ margin: 0 }}>Commissions aren’t taken out of the cash; when they’re paid, add them under Expenses (type Vet Commission).</p>
           </section>
           <div className="lg-pair">
-            <Grid key={`e-${from}-${to}`} kind="expenses" rows={data.expenses} day={to} single={single} onSaved={refreshed} />
-            <Grid key={`r-${from}-${to}`} kind="remits" rows={data.remits} day={to} single={single} onSaved={refreshed} />
+            <Grid key={`e-${from}-${to}-${gen}`} kind="expenses" rows={data.expenses} day={to} single={single} onSaved={refreshed} />
+            <Grid key={`r-${from}-${to}-${gen}`} kind="remits" rows={data.remits} day={to} single={single} onSaved={refreshed} />
           </div>
         </div>
       )}

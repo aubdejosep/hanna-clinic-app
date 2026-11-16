@@ -5,6 +5,9 @@
 //   PATCH  /api/finances/daily/lines/:id (the same)            DELETE -> soft-deleted
 //   POST   /api/finances/daily/expenses  {day, category, description, amountCents}   PATCH / DELETE /expenses/:id
 //   POST   /api/finances/daily/remits    {day, kind: first|second, amountCents, remittedBy}   PATCH / DELETE /remits/:id
+//   POST   /api/finances/daily/import    {file, commit, lines, expenses, remits} (rows from lib/ledger-import.js)
+//          -> what each row will do (add / skip: already in the Ledger / error) and each day's totals; with
+//             commit: true, adds the "add" rows in one go and logs it. Never changes or removes existing rows.
 // Rows can be saved half-filled (a spreadsheet is typed cell by cell); blanks count as 0.
 
 import { json, fail, readJson, clean, canManage, audit } from '../../../../lib/http.js'
@@ -70,6 +73,7 @@ export async function onRequest({ request, env, params, data }) {
     return json({ from, to, lines: l.results.map(TABLES.lines.shape), expenses: e.results.map(TABLES.expenses.shape), remits: r.results.map(TABLES.remits.shape) })
   }
 
+  if (what === 'import' && method === 'POST') return importRows(env, data.staff, (await readJson(request)) || {})
   const t = TABLES[what]
   if (!t) return fail(404, 'Not found.')
   if (method === 'DELETE' && id) {
@@ -100,4 +104,114 @@ export async function onRequest({ request, env, params, data }) {
     return json({ row: t.shape(row) })
   }
   return fail(405, 'Not allowed.')
+}
+
+// ---------- Import File ----------
+const MAX_IMPORT = 1000
+const short = (day) => new Date(`${day}T12:00:00Z`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+const sameText = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase()
+
+async function importRows(env, staff, b) {
+  const input = { lines: [].concat(b.lines || []), expenses: [].concat(b.expenses || []), remits: [].concat(b.remits || []) }
+  const total = input.lines.length + input.expenses.length + input.remits.length
+  if (!total) return fail(400, 'The file has no rows to import.')
+  if (total > MAX_IMPORT) return fail(400, `The file has ${total} rows; import up to ${MAX_IMPORT} at a time.`)
+  const days = [...new Set(Object.values(input).flat().map((r) => r && r.day).filter(isDay))].sort()
+
+  // What's already in the Ledger: receipt numbers anywhere, and these days' expenses and remits.
+  const nums = [...new Set(input.lines.flatMap((r) => [r && r.receiptNo, r && r.receiptQr]).map((x) => clean(x, 40)).filter(Boolean))]
+  const have = { no: new Map(), qr: new Map() }
+  for (let i = 0; i < nums.length; i += 40) {
+    const part = nums.slice(i, i + 40)
+    const q = part.map(() => '?').join(', ')
+    const { results } = await env.DB.prepare(`SELECT day, receipt_no, receipt_qr FROM cash_lines WHERE branch_id = 1 AND deleted_at IS NULL AND (receipt_no IN (${q}) OR receipt_qr IN (${q}))`).bind(...part, ...part).all()
+    for (const r of results) { if (r.receipt_no) have.no.set(r.receipt_no, r.day); if (r.receipt_qr) have.qr.set(r.receipt_qr, r.day) }
+  }
+  let oldExpenses = []
+  let oldRemits = []
+  if (days.length) {
+    const q = days.map(() => '?').join(', ')
+    ;[oldExpenses, oldRemits] = (await env.DB.batch([
+      env.DB.prepare(`SELECT day, description, amount_cents FROM cash_expenses WHERE branch_id = 1 AND deleted_at IS NULL AND day IN (${q})`).bind(...days),
+      env.DB.prepare(`SELECT day, kind FROM cash_remits WHERE branch_id = 1 AND deleted_at IS NULL AND day IN (${q})`).bind(...days),
+    ])).map((r) => r.results)
+  }
+
+  const plan = { lines: [], expenses: [], remits: [] }
+  const seen = { no: new Map(), qr: new Map(), remit: new Set() }
+  for (const kind of ['lines', 'expenses', 'remits']) {
+    input[kind].forEach((raw, i) => {
+      const r = raw && typeof raw === 'object' ? raw : {}
+      const errors = {}
+      const f = TABLES[kind].fields(r, errors)
+      const issues = [].concat(r.issues || []).map((x) => clean(String(x), 120)).filter(Boolean)
+      if (!isDay(r.day) && !issues.some((x) => /date/i.test(x))) issues.push('No date')
+      issues.push(...Object.values(errors))
+      const warnings = []
+      const out = { sheet: clean(r.sheet, 40), line: Number(r.line) || i + 1, day: isDay(r.day) ? r.day : null, row: TABLES[kind].shape({ ...f, day: r.day }), status: 'add', reason: '', warnings }
+      if (kind === 'expenses' && r.note) warnings.push(clean(r.note, 120))
+      if (kind === 'lines') {
+        if (!f.receipt_no && !f.receipt_qr && !f.client_name && !f.amount_cents && !f.income_cents) issues.push('Empty row')
+        const dup = (f.receipt_no && (have.no.get(f.receipt_no) ? `OR ${f.receipt_no} is already in the Ledger (${short(have.no.get(f.receipt_no))})` : seen.no.has(f.receipt_no) ? `OR ${f.receipt_no} is twice in this file (row ${seen.no.get(f.receipt_no)})` : ''))
+          || (f.receipt_qr && (have.qr.get(f.receipt_qr) ? `QR ${f.receipt_qr} is already in the Ledger (${short(have.qr.get(f.receipt_qr))})` : seen.qr.has(f.receipt_qr) ? `QR ${f.receipt_qr} is twice in this file (row ${seen.qr.get(f.receipt_qr)})` : ''))
+        if (dup) { out.status = 'skip'; out.reason = dup }
+        if (f.receipt_no) seen.no.set(f.receipt_no, out.line)
+        if (f.receipt_qr) seen.qr.set(f.receipt_qr, out.line)
+        if (f.income_cents == null && f.amount_cents) warnings.push('No Total Income: not counted in the totals')
+        if (f.online_cents && f.income_cents != null && f.online_cents > f.income_cents) warnings.push('Online is more than Total Income (a tip?)')
+        if (f.income_cents != null && f.amount_cents && f.income_cents !== f.amount_cents) warnings.push('Total Income differs from the receipt total')
+        if (/\(check|\?/i.test(`${f.client_name || ''} ${f.pet_names || ''}`)) warnings.push('A name to check')
+      }
+      if (kind === 'expenses') {
+        if (!f.amount_cents && !f.description) issues.push('Empty row')
+        if (oldExpenses.some((e) => e.day === r.day && e.amount_cents === f.amount_cents && sameText(e.description, f.description))) { out.status = 'skip'; out.reason = 'Already in the Ledger' }
+      }
+      if (kind === 'remits') {
+        const key = `${r.day}|${f.kind}`
+        const label = f.kind === 'second' ? '2nd' : '1st'
+        if (oldRemits.some((x) => x.day === r.day && x.kind === f.kind)) { out.status = 'skip'; out.reason = `There’s already a ${label} Remit for ${isDay(r.day) ? short(r.day) : 'that day'}. Change it on the page.` }
+        else if (seen.remit.has(key)) { out.status = 'skip'; out.reason = `A second ${label} Remit for the same day` }
+        seen.remit.add(key)
+      }
+      if (issues.length) { out.status = 'error'; out.reason = issues.join('. ') }
+      out.fields = f
+      plan[kind].push(out)
+    })
+  }
+
+  // Each day's totals for the rows being added, to check against the paper summary.
+  const byDay = {}
+  const dayOf = (d) => (byDay[d] ||= { day: d, receipts: 0, income: 0, online: 0, expenses: 0, first: 0, second: 0 })
+  for (const p of plan.lines) if (p.status === 'add') { const d = dayOf(p.day); d.receipts++; d.income += p.fields.income_cents || 0; d.online += p.fields.online_cents || 0 }
+  for (const p of plan.expenses) if (p.status === 'add') dayOf(p.day).expenses += p.fields.amount_cents || 0
+  for (const p of plan.remits) if (p.status === 'add') dayOf(p.day)[p.fields.kind] += p.fields.amount_cents || 0
+  const count = (s) => Object.values(plan).flat().filter((p) => p.status === s).length
+  const summary = { add: count('add'), skip: count('skip'), error: count('error'), days: Object.values(byDay).sort((a, c) => a.day.localeCompare(c.day)) }
+
+  let imported = 0
+  if (b.commit && summary.add) {
+    const who = `${staff.name} (import)`
+    const stmts = []
+    const nextSort = {}
+    const sorts = days.length ? (await env.DB.prepare(`SELECT day, MAX(sort) AS s FROM cash_lines WHERE branch_id = 1 AND day IN (${days.map(() => '?').join(', ')}) GROUP BY day`).bind(...days).all()).results : []
+    for (const x of sorts) nextSort[x.day] = x.s || 0
+    for (const kind of ['lines', 'expenses', 'remits']) {
+      for (const p of plan[kind]) {
+        if (p.status !== 'add') continue
+        const f = { ...p.fields, day: p.day }
+        if (kind === 'lines') f.sort = nextSort[p.day] = (nextSort[p.day] || 0) + 1
+        f.created_by = who
+        const cols = Object.keys(f)
+        stmts.push(env.DB.prepare(`INSERT INTO ${TABLES[kind].table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`).bind(...cols.map((c) => f[c])))
+      }
+    }
+    await env.DB.batch(stmts)
+    imported = stmts.length
+    await audit(env, staff.email, 'import', 'cash_ledger', null, {
+      file: clean(b.file, 120), receipts: plan.lines.filter((p) => p.status === 'add').length, expenses: plan.expenses.filter((p) => p.status === 'add').length,
+      remits: plan.remits.filter((p) => p.status === 'add').length, skipped: summary.skip, errors: summary.error, days,
+    })
+  }
+  for (const k of Object.keys(plan)) for (const p of plan[k]) delete p.fields
+  return json({ plan, summary, imported })
 }

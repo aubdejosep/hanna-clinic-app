@@ -1844,3 +1844,20 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .rc-day.is-end { background: var(--teal-deep); color: #fff; font-weight: 700; border-radius: 8px; }
 .lg-day td { padding: 6px 10px; background: var(--teal-tint); color: var(--heading); font-weight: 700; font-size: var(--fs-small); }
 @media print { .rc-wrap .btn { border: 0; padding: 0; } .text-btn { display: none; } }
+
+/* Ledger ▸ Import File */
+.li-panel { margin: 0 0 16px; gap: 12px; }
+.li-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.li-head h2 { margin: 0 0 4px; font-size: var(--fs-h3); }
+.li-head p { margin: 0; }
+.li-counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.li-table { width: 100%; border-collapse: collapse; font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
+.li-table caption { text-align: left; padding: 0 0 6px; color: var(--text); }
+.li-table th { padding: 6px 8px; text-align: left; background: var(--surface-alt); border-bottom: 1px solid var(--border); font: 700 var(--fs-label)/1.3 var(--font-button); letter-spacing: .04em; text-transform: uppercase; color: var(--text); white-space: nowrap; }
+.li-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--heading); vertical-align: top; }
+.li-table .lg-num { text-align: right; white-space: nowrap; }
+.li-why { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 220px; color: var(--text) !important; }
+.li-warn { padding: 1px 8px; border-radius: 999px; background: var(--apricot-tint); color: var(--heading); }
+.li-skip td, .li-error td { color: var(--text); }
+.li-skip td:not(.li-why) { opacity: .7; }
+.li-table td:nth-child(2) { white-space: nowrap; }
