@@ -1861,3 +1861,11 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .li-skip td, .li-error td { color: var(--text); }
 .li-skip td:not(.li-why) { opacity: .7; }
 .li-table td:nth-child(2) { white-space: nowrap; }
+.li-recent { border-top: 1px solid var(--border); padding-top: 12px; }
+.li-recent h3 { margin: 0 0 6px; }
+.li-recent ul { list-style: none; margin: 0 0 8px; padding: 0; }
+.li-recent li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); color: var(--text); }
+.li-recent li strong { color: var(--heading); }
+.li-recent .cell-sub { display: block; }
+.li-recent .is-confirm { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); }
+@media (max-width: 560px) { .li-recent li { flex-direction: column; align-items: stretch; } }

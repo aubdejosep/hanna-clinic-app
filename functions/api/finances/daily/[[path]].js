@@ -8,6 +8,8 @@
 //   POST   /api/finances/daily/import    {file, commit, lines, expenses, remits} (rows from lib/ledger-import.js)
 //          -> what each row will do (add / skip: already in the Ledger / error) and each day's totals; with
 //             commit: true, adds the "add" rows in one go and logs it. Never changes or removes existing rows.
+//   GET    /api/finances/daily/imports           -> the last 20 imports, with how many of their rows are still there
+//   POST   /api/finances/daily/imports/:id/undo  -> Undo Import: soft-deletes the rows that import added (only those)
 // Rows can be saved half-filled (a spreadsheet is typed cell by cell); blanks count as 0.
 
 import { json, fail, readJson, clean, canManage, audit } from '../../../../lib/http.js'
@@ -57,7 +59,7 @@ const TABLES = {
 
 export async function onRequest({ request, env, params, data }) {
   if (!canManage(data.staff)) return fail(403, 'Only an owner or admin can open the Ledger.')
-  const [what, rawId] = [].concat(params.path || [])
+  const [what, rawId, action] = [].concat(params.path || [])
   const id = rawId ? Number(rawId) : null
   const method = request.method
   const who = data.staff.name
@@ -74,6 +76,8 @@ export async function onRequest({ request, env, params, data }) {
   }
 
   if (what === 'import' && method === 'POST') return importRows(env, data.staff, (await readJson(request)) || {})
+  if (what === 'imports' && method === 'GET' && !id) return listImports(env)
+  if (what === 'imports' && method === 'POST' && id && action === 'undo') return undoImport(env, data.staff, id)
   const t = TABLES[what]
   if (!t) return fail(404, 'Not found.')
   if (method === 'DELETE' && id) {
@@ -191,6 +195,9 @@ async function importRows(env, staff, b) {
   let imported = 0
   if (b.commit && summary.add) {
     const who = `${staff.name} (import)`
+    const added = (k) => plan[k].filter((p) => p.status === 'add').length
+    const batch = await env.DB.prepare('INSERT INTO cash_imports (file, days, receipts, expenses, remits, created_by) VALUES (?, ?, ?, ?, ?, ?) RETURNING id')
+      .bind(clean(b.file, 120) || null, JSON.stringify([...new Set(Object.values(plan).flat().filter((p) => p.status === 'add').map((p) => p.day))].sort()), added('lines'), added('expenses'), added('remits'), staff.name).first()
     const stmts = []
     const nextSort = {}
     const sorts = days.length ? (await env.DB.prepare(`SELECT day, MAX(sort) AS s FROM cash_lines WHERE branch_id = 1 AND day IN (${days.map(() => '?').join(', ')}) GROUP BY day`).bind(...days).all()).results : []
@@ -201,17 +208,46 @@ async function importRows(env, staff, b) {
         const f = { ...p.fields, day: p.day }
         if (kind === 'lines') f.sort = nextSort[p.day] = (nextSort[p.day] || 0) + 1
         f.created_by = who
+        f.import_id = batch.id
         const cols = Object.keys(f)
         stmts.push(env.DB.prepare(`INSERT INTO ${TABLES[kind].table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`).bind(...cols.map((c) => f[c])))
       }
     }
     await env.DB.batch(stmts)
     imported = stmts.length
-    await audit(env, staff.email, 'import', 'cash_ledger', null, {
+    await audit(env, staff.email, 'import', 'cash_import', batch.id, {
       file: clean(b.file, 120), receipts: plan.lines.filter((p) => p.status === 'add').length, expenses: plan.expenses.filter((p) => p.status === 'add').length,
       remits: plan.remits.filter((p) => p.status === 'add').length, skipped: summary.skip, errors: summary.error, days,
     })
   }
   for (const k of Object.keys(plan)) for (const p of plan[k]) delete p.fields
   return json({ plan, summary, imported })
+}
+
+async function listImports(env) {
+  const { results } = await env.DB.prepare(`SELECT i.*,
+      (SELECT COUNT(*) FROM cash_lines WHERE import_id = i.id AND deleted_at IS NULL) +
+      (SELECT COUNT(*) FROM cash_expenses WHERE import_id = i.id AND deleted_at IS NULL) +
+      (SELECT COUNT(*) FROM cash_remits WHERE import_id = i.id AND deleted_at IS NULL) AS left_rows,
+      (SELECT COUNT(*) FROM cash_lines WHERE import_id = i.id AND deleted_at IS NULL AND updated_at IS NOT NULL) +
+      (SELECT COUNT(*) FROM cash_expenses WHERE import_id = i.id AND deleted_at IS NULL AND updated_at IS NOT NULL) +
+      (SELECT COUNT(*) FROM cash_remits WHERE import_id = i.id AND deleted_at IS NULL AND updated_at IS NOT NULL) AS edited_rows
+    FROM cash_imports i WHERE i.branch_id = 1 ORDER BY i.id DESC LIMIT 20`).all()
+  return json({ imports: results.map((r) => ({ id: r.id, file: r.file || '', days: JSON.parse(r.days || '[]'), receipts: r.receipts, expenses: r.expenses, remits: r.remits,
+    createdAt: r.created_at, createdBy: r.created_by || '', undoneAt: r.undone_at, undoneBy: r.undone_by || '', leftRows: r.left_rows, editedRows: r.edited_rows })) })
+}
+
+async function undoImport(env, staff, id) {
+  const imp = await env.DB.prepare('SELECT * FROM cash_imports WHERE id = ? AND branch_id = 1').bind(id).first()
+  if (!imp) return fail(404, 'This import was not found. Reload the page.')
+  if (imp.undone_at) return fail(409, 'This import was already undone.')
+  const now = new Date().toISOString()
+  const who = staff.name
+  const res = await env.DB.batch([
+    ...['cash_lines', 'cash_expenses', 'cash_remits'].map((t) => env.DB.prepare(`UPDATE ${t} SET deleted_at = ?, deleted_by = ? WHERE import_id = ? AND deleted_at IS NULL`).bind(now, `${who} (undo import)`, id)),
+    env.DB.prepare('UPDATE cash_imports SET undone_at = ?, undone_by = ? WHERE id = ?').bind(now, who, id),
+  ])
+  const removed = res.slice(0, 3).reduce((n, r) => n + (r.meta?.changes || 0), 0)
+  await audit(env, staff.email, 'undo', 'cash_import', id, { file: imp.file, removed })
+  return json({ ok: true, removed, days: JSON.parse(imp.days || '[]') })
 }

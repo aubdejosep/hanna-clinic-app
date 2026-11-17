@@ -1,10 +1,12 @@
 // Finances ▸ Ledger ▸ Import File: an Excel file in the Ledger template's layout (Receipts, Expenses, Remits sheets),
 // typed by hand or made by Claude from the receipt photos. Shows what will happen to every row first (add, skip
 // because it's already in the Ledger, or a problem) and each day's totals; nothing is saved until Import.
+// Recent Imports lists the last uploads with Undo Import, which takes out only the rows that upload added.
 import { useRef, useState } from 'react'
-import { Download, FileSpreadsheet, X } from 'lucide-react'
+import { Download, FileSpreadsheet, Undo2, X } from 'lucide-react'
 import { ErrorNote, useToast } from './ui.jsx'
 import { api } from '../lib/api.js'
+import { useApi } from '../lib/useApi.js'
 import { readXlsx } from '../lib/xlsx.js'
 import { readLedgerSheets } from '../../lib/ledger-import.js'
 import { prettyDay } from '../lib/format.js'
@@ -45,7 +47,7 @@ export default function LedgerImport({ fallbackDay, onClose, onDone }) {
     try {
       const { problems, ...body } = rows
       const r = await api('finances/daily/import', { method: 'POST', body: { ...body, commit: true } })
-      toast(`Imported ${r.imported} row${r.imported === 1 ? '' : 's'}`)
+      toast(`Imported ${r.imported} row${r.imported === 1 ? '' : 's'}. To take them out again: Import File ▸ Undo Import.`)
       onDone(r.summary.days.map((d) => d.day))
     } catch (err) { setError(err); setBusy(null) }
   }
@@ -121,6 +123,57 @@ export default function LedgerImport({ fallbackDay, onClose, onDone }) {
           </div>
         </>
       )}
+      {!s && <RecentImports onUndone={onDone} />}
     </section>
+  )
+}
+
+const when = (iso) => new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`
+
+function RecentImports({ onUndone }) {
+  const toast = useToast()
+  const { data, error, reload } = useApi('finances/daily/imports')
+  const [confirm, setConfirm] = useState(null)
+  const [busy, setBusy] = useState(null)
+  async function undo(imp) {
+    if (confirm !== imp.id) { setConfirm(imp.id); setTimeout(() => setConfirm((c) => (c === imp.id ? null : c)), 4000); return }
+    setBusy(imp.id)
+    try {
+      const r = await api(`finances/daily/imports/${imp.id}/undo`, { method: 'POST' })
+      toast(`Import undone: ${plural(r.removed, 'row')} taken out`)
+      onUndone(r.days)
+    } catch (err) { toast(err.message); reload() }
+    setBusy(null); setConfirm(null)
+  }
+  if (error) return <ErrorNote error={error} />
+  if (!data || !data.imports.length) return null
+  return (
+    <div className="li-recent">
+      <h3 className="label">Recent Imports</h3>
+      <ul>
+        {data.imports.map((imp) => {
+          const days = imp.days.length > 1 ? `${prettyDay(imp.days[0])} to ${prettyDay(imp.days[imp.days.length - 1])}` : imp.days[0] ? prettyDay(imp.days[0]) : ''
+          const parts = [imp.receipts && plural(imp.receipts, 'receipt'), imp.expenses && plural(imp.expenses, 'expense'), imp.remits && plural(imp.remits, 'remit')].filter(Boolean).join(', ')
+          return (
+            <li key={imp.id}>
+              <div>
+                <strong>{days}</strong> · {parts || 'no rows'}
+                <span className="cell-sub">{imp.file || 'File'} · {imp.createdBy} · {when(imp.createdAt)}</span>
+                {imp.undoneAt && <span className="cell-sub">Undone by {imp.undoneBy} · {when(imp.undoneAt)}</span>}
+                {!imp.undoneAt && imp.editedRows > 0 && <span className="cell-sub">{plural(imp.editedRows, 'row')} changed since: Undo takes {imp.editedRows === 1 ? 'it' : 'them'} out too.</span>}
+              </div>
+              {imp.undoneAt ? <span className="badge badge-soft">Undone</span> : (
+                <button type="button" className={`btn btn-quiet ${confirm === imp.id ? 'is-confirm' : ''}`} onClick={() => undo(imp)} disabled={!!busy || !imp.leftRows}
+                  title={imp.leftRows ? `Takes out the ${plural(imp.leftRows, 'row')} this import added; rows typed by hand stay` : 'Its rows were already removed'}>
+                  <Undo2 aria-hidden /> {busy === imp.id ? 'Undoing…' : confirm === imp.id ? `Tap Again to Remove ${plural(imp.leftRows, 'Row')}` : 'Undo Import'}
+                </button>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+      <p className="field-hint">Undo takes out only the rows that import added (they’re kept in the records, not erased). To put them back, import the same file again.</p>
+    </div>
   )
 }
