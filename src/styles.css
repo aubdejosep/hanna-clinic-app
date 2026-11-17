@@ -1880,3 +1880,13 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .lg-sum { display: block; text-align: right; font-size: var(--fs-small); color: var(--text); }
 .lg-sum.is-off { color: var(--heading); font-weight: 700; background: var(--apricot-tint); border-radius: 6px; padding: 2px 4px; }
 @media print { .lg-additem { display: none !important; } }
+/* Ledger: show or hide a receipt's items */
+.lg-itemtools { display: flex; align-items: center; gap: 4px; }
+.lg-toggle { display: inline-flex; align-items: center; gap: 2px; padding: 3px 6px; border: 0; border-radius: 999px; background: var(--teal-tint); color: var(--heading); font: 700 var(--fs-label)/1.3 var(--font-button); text-transform: uppercase; letter-spacing: .04em; cursor: pointer; white-space: nowrap; }
+.lg-toggle svg { width: 14px; height: 14px; color: var(--teal-deep); }
+.lg-allbtns { display: inline-flex; gap: 12px; margin-left: auto; }
+.lg-allbtns .text-btn { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-small); }
+.lg-allbtns svg { width: 14px; height: 14px; }
+.lg-card .card-head .lg-allbtns { margin: 0 12px 0 auto; }
+.lg-dayhead { display: flex; align-items: center; gap: 12px; }
+@media print { .lg-allbtns, .lg-toggle svg, .lg-additem { display: none !important; } }

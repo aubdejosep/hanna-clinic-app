@@ -6,7 +6,7 @@
 // Remits, and the summary: Total Income - Online Payments - Expenses - 1st Remit = Cash On Hand, checked against the
 // 2nd Remit. The date comes from the calendar (one day, or several by dragging). Each cell saves when you leave it.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, FileUp, Plus, Printer, Trash2 } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown, FileUp, Plus, Printer, Trash2 } from 'lucide-react'
 import { ErrorNote, PageHead, PawLoader, useToast } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
@@ -66,6 +66,10 @@ const GRIDS = {
 }
 // An empty row only gets saved once something besides its defaults is typed.
 const hasContent = (r) => Object.entries(r).some(([k, v]) => !['day', 'category', 'kind', 'id', 'ck', 'items'].includes(k) && v !== '' && v != null)
+// Collapse All / Expand All is remembered on this device (the next day opens the same way).
+const COLLAPSE_KEY = 'ledger-items-collapsed'
+const savedCollapsed = () => { try { return localStorage.getItem(COLLAPSE_KEY) === '1' } catch { return false } }
+const rememberCollapsed = (v) => { try { localStorage.setItem(COLLAPSE_KEY, v ? '1' : '0') } catch { /* private window */ } }
 const itemSum = (row) => (row.items || []).reduce((n, i) => n + (i.amountCents || 0), 0)
 
 // One calendar: tap a day, or drag across days (mouse or finger) for several.
@@ -153,6 +157,14 @@ function Grid({ kind, rows, day, single, onSaved }) {
   const [, redraw] = useState(0)
   const [confirm, setConfirm] = useState(null)
   const saving = useRef(Promise.resolve())
+  const [shut, setShut] = useState(() => (savedCollapsed() ? new Set(rows.map((r) => r.id)) : new Set())) // receipts with items hidden
+  const isShut = (row) => row.id && shut.has(row.id)
+  const toggle = (row) => setShut((s) => { const t = new Set(s); if (t.has(row.id)) t.delete(row.id); else t.add(row.id); return t })
+  function setAll(collapse, onDay) {
+    const ids = store.current.filter((r) => r.id && r.items?.length && (!onDay || r.day === onDay)).map((r) => r.id)
+    setShut((s) => { const t = new Set(s); ids.forEach((id) => (collapse ? t.add(id) : t.delete(id))); return t })
+    if (!onDay) rememberCollapsed(collapse)
+  }
   const keyed = (r) => withKey(kind === 'lines' ? { ...r, items: (r.items || []).map(withKey) } : r)
   if (!store.current) store.current = [...rows.map(keyed), ...(single ? [keyed(g.blank(day))] : [])]
   const rerender = () => redraw((n) => n + 1)
@@ -194,6 +206,7 @@ function Grid({ kind, rows, day, single, onSaved }) {
   function addItem(row) {
     const it = withKey({ item: '', amountCents: null })
     row.items = [...(row.items || []), it]
+    setShut((s) => { const t = new Set(s); t.delete(row.id); return t })
     rerender()
     requestAnimationFrame(() => document.querySelector(`[data-tag="${it.ck}"]`)?.focus())
   }
@@ -220,12 +233,26 @@ function Grid({ kind, rows, day, single, onSaved }) {
   let lastDay = null
   let n = 0
   let vr = 0 // on-screen row number, for moving between cells with Enter and the arrows
+  const anyItems = (onDay) => all.some((r) => r.items?.length && (!onDay || r.day === onDay))
+  const allBtns = (onDay) => anyItems(onDay) && (
+    <span className="lg-allbtns">
+      <button type="button" className="text-btn" onClick={() => setAll(false, onDay)}><ChevronsUpDown aria-hidden /> Expand All</button>
+      <button type="button" className="text-btn" onClick={() => setAll(true, onDay)}><ChevronsDownUp aria-hidden /> Collapse All</button>
+    </span>
+  )
   const delBtn = (key, label, onClick) => (
     <button type="button" className={`icon-btn lg-del ${confirm === key ? 'is-confirm' : ''}`} onClick={onClick} aria-label={confirm === key ? `Tap again to remove this ${label}` : `Remove ${label}`} title={confirm === key ? 'Tap again to remove' : `Remove ${label}`}>{confirm === key ? '?' : <Trash2 />}</button>
   )
   function receiptCell(row, col) {
     if (col.key === 'item') {
-      return <button type="button" className="lg-additem" onClick={() => addItem(row)} disabled={!row.id} title={row.id ? 'Split this receipt into its items' : 'Type the receipt first'}><Plus aria-hidden /> Item</button>
+      const count = row.items?.length || 0
+      const Chev = isShut(row) ? ChevronRight : ChevronDown
+      return (
+        <span className="lg-itemtools">
+          {count > 0 && <button type="button" className="lg-toggle" onClick={() => toggle(row)} aria-expanded={!isShut(row)} title={isShut(row) ? 'Show the items' : 'Hide the items'}><Chev aria-hidden /> {count} Item{count === 1 ? '' : 's'}</button>}
+          <button type="button" className="lg-additem" onClick={() => addItem(row)} disabled={!row.id} title={row.id ? 'Add an item to this receipt' : 'Type the receipt first'} aria-label="Add Item"><Plus aria-hidden />{count ? '' : ' Item'}</button>
+        </span>
+      )
     }
     if (!row.items?.length) return null
     const sum = itemSum(row)
@@ -235,7 +262,7 @@ function Grid({ kind, rows, day, single, onSaved }) {
   }
   return (
     <section className="card lg-card">
-      <div className="card-head"><h2>{g.title}</h2><span className="cell-sub">{g.hint ? `${g.hint} ` : ''}{saved.length} row{saved.length === 1 ? '' : 's'}{single ? ' · type in the last row to add one' : ' · pick one day to add rows'}{kind === 'lines' ? ' · + Item splits a receipt into its items' : ''}</span></div>
+      <div className="card-head"><h2>{g.title}</h2>{kind === 'lines' && allBtns()}<span className="cell-sub">{g.hint ? `${g.hint} ` : ''}{saved.length} row{saved.length === 1 ? '' : 's'}{single ? ' · type in the last row to add one' : ' · pick one day to add rows'}{kind === 'lines' ? ' · + Item splits a receipt into its items' : ''}</span></div>
       <div className="lg-scroll">
         <table className="lg-table" style={g.minWidth ? { width: '100%', minWidth: g.minWidth } : undefined}>
           <colgroup><col style={{ width: 44 }} />{g.columns.map((c) => <col key={c.key} style={{ width: c.width }} />)}<col style={{ width: 44 }} /></colgroup>
@@ -249,7 +276,7 @@ function Grid({ kind, rows, day, single, onSaved }) {
               n++
               const r = vr++
               return [
-                groupHead && <tr key={`d-${row.day}`} className="lg-day"><td colSpan={span}>{prettyDay(row.day)}</td></tr>,
+                groupHead && <tr key={`d-${row.day}`} className="lg-day"><td colSpan={span}><span className="lg-dayhead">{prettyDay(row.day)}{kind === 'lines' && allBtns(row.day)}</span></td></tr>,
                 <tr key={row.ck} className={`${isNew ? 'lg-new' : ''} ${row.items?.length ? 'lg-has-items' : ''}`}>
                   <td className="lg-rownum">{isNew ? '+' : n}</td>
                   {g.columns.map((col, c) => (
@@ -257,7 +284,7 @@ function Grid({ kind, rows, day, single, onSaved }) {
                   ))}
                   <td>{!isNew && delBtn(row.ck, 'row', () => remove(row))}</td>
                 </tr>,
-                ...(row.items || []).map((it) => {
+                ...(isShut(row) ? [] : row.items || []).map((it) => {
                   const ir = vr++
                   return (
                     <tr key={it.ck} className="lg-item">
