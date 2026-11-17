@@ -60,40 +60,103 @@ function Money({ m }) {
   )
 }
 
-// Finances ▸ Ledger on the Overview (owners and admins): income per day, with Expenses and Commissions as
-// lines you can switch on. The switches are remembered on this device.
+// Finances ▸ Ledger on the Overview (owners and admins): its own period (This Week … Last Year, or Custom
+// Dates), compared with the period before; income per day, with Expenses and Commissions as lines you can
+// switch on. The period and the switches are remembered on this device.
 const LEDGER_LINES = [['expenses', 'Expenses', 2], ['commissions', 'Commissions', 3]]
 const LEDGER_KEY = 'overview-ledger-lines'
-function LedgerOverview({ l }) {
-  const [on, setOn] = useState(() => { try { return JSON.parse(localStorage.getItem(LEDGER_KEY)) || {} } catch { return {} } })
-  const flip = (k) => setOn((o) => { const n = { ...o, [k]: !o[k] }; try { localStorage.setItem(LEDGER_KEY, JSON.stringify(n)) } catch { /* private window */ } return n })
+const LEDGER_RANGE_KEY = 'overview-ledger-range'
+const LEDGER_RANGES = [['this_week', 'This Week'], ['last_week', 'Last Week'], ['this_month', 'This Month'], ['last_month', 'Last Month'],
+  ['last_30', 'Last 30 Days'], ['ytd', 'Year to Date'], ['last_year', 'Last Year'], ['custom', 'Custom Dates']]
+const addD = (day, n) => { const d = new Date(`${day}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
+const manilaToday = () => new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10)
+const monthStart = (d) => `${d.slice(0, 8)}01`
+const spanDays = (a, b) => Math.round((new Date(`${b}T00:00:00Z`) - new Date(`${a}T00:00:00Z`)) / 864e5)
+const sameDayLastYear = (d) => { const t = `${Number(d.slice(0, 4)) - 1}${d.slice(4)}`; return t.endsWith('-02-29') ? t.replace('-02-29', '-02-28') : t }
+function ledgerRange(key, custom = {}, today = manilaToday()) {
+  const monday = addD(today, -((new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7))
+  const before = (from, to) => ({ from, to, prevFrom: addD(from, -(spanDays(from, to) + 1)), prevTo: addD(from, -1) })
+  const y = Number(today.slice(0, 4))
+  switch (key) {
+    case 'this_week': return { from: monday, to: today, prevFrom: addD(monday, -7), prevTo: addD(today, -7) }
+    case 'last_week': return before(addD(monday, -7), addD(monday, -1))
+    case 'last_month': { const to = addD(monthStart(today), -1); const from = monthStart(to); return { from, to, prevFrom: monthStart(addD(from, -1)), prevTo: addD(from, -1) } }
+    case 'last_30': return before(addD(today, -29), today)
+    case 'ytd': return { from: `${y}-01-01`, to: today, prevFrom: `${y - 1}-01-01`, prevTo: sameDayLastYear(today) }
+    case 'last_year': return { from: `${y - 1}-01-01`, to: `${y - 1}-12-31`, prevFrom: `${y - 2}-01-01`, prevTo: `${y - 2}-12-31` }
+    case 'custom': {
+      const from = custom.from || monthStart(today)
+      const to = custom.to && custom.to >= from ? custom.to : from
+      return before(from, to)
+    }
+    default: { // this_month: the same days of last month
+      const from = monthStart(today)
+      const prevFrom = monthStart(addD(from, -1))
+      const prevTo = [addD(prevFrom, spanDays(from, today)), addD(from, -1)].sort()[0]
+      return { from, to: today, prevFrom, prevTo }
+    }
+  }
+}
+const remembered = (k, fallback) => { try { return JSON.parse(localStorage.getItem(k)) ?? fallback } catch { return fallback } }
+const remember = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch { /* private window */ } }
+
+function LedgerOverview() {
+  const [on, setOn] = useState(() => remembered(LEDGER_KEY, {}))
+  const [pick, setPick] = useState(() => remembered(LEDGER_RANGE_KEY, { key: 'this_month' }))
+  const choose = (p) => { setPick(p); remember(LEDGER_RANGE_KEY, p) }
+  const flip = (k) => setOn((o) => { const n = { ...o, [k]: !o[k] }; remember(LEDGER_KEY, n); return n })
+  const r = ledgerRange(pick.key, pick)
+  const { data: l, error } = useApi(`finances/daily/overview?from=${r.from}&to=${r.to}&prevFrom=${r.prevFrom}&prevTo=${r.prevTo}`)
   const vs = (cur, prev) => { const p = percentChange(cur, prev); return p === null ? `${peso(prev)} the period before` : <><span className={p >= 0 ? 'trend-up' : 'trend-down'}>{p >= 0 ? '+' : ''}{p}%</span> vs {peso(prev)}</> }
-  const points = (k) => l.perDay.map((d) => ({ day: d.day, n: d[k] }))
+  const points = (k) => (l?.perDay || []).map((d) => ({ day: d.day, n: d[k] }))
   const series = [{ key: 'income', label: 'Income', color: 1, points: points('income') },
     ...LEDGER_LINES.filter(([k]) => on[k]).map(([k, label, color]) => ({ key: k, label, color, points: points(k) }))]
+  const fresh = l && l.range.from === r.from && l.range.to === r.to
   return (
     <section className="card">
-      <div className="card-head"><div><h2>Ledger</h2><p>From Finances ▸ Ledger: Total Income, Expenses and Commissions as typed or imported there. Owners and admins only.</p></div>
-        <Link className="text-btn" to="/finances/daily">Open Ledger</Link></div>
-      <div className="card-pad">
-        {!l.days && !l.prev.income ? <p className="muted" style={{ margin: 0 }}>Nothing in the Ledger for this period yet.</p> : (
-          <div className="ledger-totals">
-            <div><span className="label">Income</span><strong>{peso(l.cur.income)}</strong><span className="stat-note">{vs(l.cur.income, l.prev.income)}</span></div>
-            <div><span className="label">Expenses</span><strong>{peso(l.cur.expenses)}</strong><span className="stat-note">{vs(l.cur.expenses, l.prev.expenses)}</span></div>
-            <div><span className="label">Commissions</span><strong>{peso(l.cur.commissions)}</strong><span className="stat-note">{vs(l.cur.commissions, l.prev.commissions)}</span></div>
-            <div><span className="label">Income Less Expenses</span><strong>{peso(l.cur.income - l.cur.expenses)}</strong><span className="stat-note">{l.days} day{l.days === 1 ? '' : 's'} in the Ledger</span></div>
-          </div>
+      <div className="card-head ledger-head">
+        <div><h2>Ledger</h2><p>From Finances ▸ Ledger: Total Income, Expenses and Commissions as typed or imported there. Owners and admins only.</p></div>
+        <Link className="text-btn" to="/finances/daily">Open Ledger</Link>
+      </div>
+      <div className="card-pad ledger-range">
+        <label className="ledger-range-pick"><span className="sr-only">Period</span>
+          <select className="select" value={pick.key} onChange={(e) => choose({ ...pick, key: e.target.value, ...(e.target.value === 'custom' && !pick.from ? { from: r.from, to: r.to } : {}) })}>
+            {LEDGER_RANGES.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+          </select>
+        </label>
+        {pick.key === 'custom' && (
+          <span className="ledger-custom">
+            <label><span className="sr-only">From</span><input type="date" className="select" value={pick.from || r.from} max={pick.to || undefined} onChange={(e) => e.target.value && choose({ ...pick, from: e.target.value })} /></label>
+            <span aria-hidden>to</span>
+            <label><span className="sr-only">To</span><input type="date" className="select" value={pick.to || r.to} min={pick.from || undefined} onChange={(e) => e.target.value && choose({ ...pick, to: e.target.value })} /></label>
+          </span>
         )}
+        <span className="cell-sub">{prettyDay(r.from)}{r.to !== r.from ? ` – ${prettyDay(r.to)}` : ''}, compared with {prettyDay(r.prevFrom)}{r.prevTo !== r.prevFrom ? ` – ${prettyDay(r.prevTo)}` : ''}</span>
       </div>
-      <div className="card-pad" style={{ borderTop: '1px solid var(--border)' }}>
-        <div className="ledger-toggles">
-          <span className="label" style={{ marginRight: 'auto' }}>Income per Day</span>
-          {LEDGER_LINES.map(([k, label, color]) => (
-            <button key={k} type="button" className="chip-btn" aria-pressed={!!on[k]} onClick={() => flip(k)}><i className={`key key-${color}`} /> {label}</button>
-          ))}
+      <ErrorNote error={error} />
+      {!l ? <div className="card-pad"><PawLoader label="Adding up the Ledger…" /></div> : (
+        <div style={{ opacity: fresh ? 1 : 0.5, transition: 'opacity .15s' }}>
+          <div className="card-pad" style={{ paddingTop: 0 }}>
+            {!l.days && !l.prev.income && !l.prev.expenses ? <p className="muted" style={{ margin: 0 }}>Nothing in the Ledger for these dates.</p> : (
+              <div className="ledger-totals">
+                <div><span className="label">Income</span><strong>{peso(l.cur.income)}</strong><span className="stat-note">{vs(l.cur.income, l.prev.income)}</span></div>
+                <div><span className="label">Expenses</span><strong>{peso(l.cur.expenses)}</strong><span className="stat-note">{vs(l.cur.expenses, l.prev.expenses)}</span></div>
+                <div><span className="label">Commissions</span><strong>{peso(l.cur.commissions)}</strong><span className="stat-note">{vs(l.cur.commissions, l.prev.commissions)}</span></div>
+                <div><span className="label">Income Less Expenses</span><strong>{peso(l.cur.income - l.cur.expenses)}</strong><span className="stat-note">{l.days} day{l.days === 1 ? '' : 's'} in the Ledger</span></div>
+              </div>
+            )}
+          </div>
+          <div className="card-pad" style={{ borderTop: '1px solid var(--border)' }}>
+            <div className="ledger-toggles">
+              <span className="label" style={{ marginRight: 'auto' }}>Income per Day</span>
+              {LEDGER_LINES.map(([k, label, color]) => (
+                <button key={k} type="button" className="chip-btn" aria-pressed={!!on[k]} onClick={() => flip(k)}><i className={`key key-${color}`} /> {label}</button>
+              ))}
+            </div>
+            <MultiLine series={series} labelOf={shortDay} />
+          </div>
         </div>
-        <MultiLine series={series} labelOf={shortDay} />
-      </div>
+      )}
     </section>
   )
 }
@@ -124,7 +187,7 @@ function Overview({ range, setRange }) {
         ) : Array.from({ length: 5 }, (_, i) => <div key={i} className="card stat"><span className="skeleton" style={{ width: '60%' }} /></div>)}
       </div>
       {d?.money && <Money m={d.money} />}
-      {d?.money?.ledger && <LedgerOverview l={d.money.ledger} />}
+      {d?.money && <LedgerOverview />}
       <div className="overview-row">
         <section className="card overview-main">
           <div className="card-head"><div><h2>Visits per Day</h2><p>A visit is a pet seen that day: a checked-out appointment or a medical record.</p></div></div>

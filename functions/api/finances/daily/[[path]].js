@@ -9,12 +9,14 @@
 //   POST   /api/finances/daily/import    {file, commit, lines, expenses, remits} (rows from lib/ledger-import.js)
 //          -> what each row will do (add / skip: already in the Ledger / error) and each day's totals; with
 //             commit: true, adds the "add" rows in one go and logs it. Never changes or removes existing rows.
+//   GET    /api/finances/daily/overview?from&to&prevFrom&prevTo -> the Overview's Ledger section (lib/ledger-overview.js)
 //   GET    /api/finances/daily/imports           -> the last 20 imports, with how many of their rows are still there
 //   POST   /api/finances/daily/imports/:id/undo  -> Undo Import: soft-deletes the rows that import added (only those)
 // Rows can be saved half-filled (a spreadsheet is typed cell by cell); blanks count as 0.
 
 import { json, fail, readJson, clean, canManage, audit } from '../../../../lib/http.js'
 import { EXPENSE_TYPES } from '../../../../lib/daily-cash.js'
+import { ledgerOverview } from '../../../../lib/ledger-overview.js'
 
 const isDay = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d || '')
 const money = (v) => { if (v === null || v === undefined || v === '') return null; const n = Math.round(Number(v)); return Number.isFinite(n) && n >= 0 && n <= 1e10 ? n : NaN }
@@ -82,6 +84,13 @@ export async function onRequest({ request, env, params, data }) {
   if (what === 'items') return itemRoute(env, data.staff, method, id, method === 'DELETE' ? {} : (await readJson(request)) || {})
   if (what === 'import' && method === 'POST') return importRows(env, data.staff, (await readJson(request)) || {})
   if (what === 'imports' && method === 'GET' && !id) return listImports(env)
+  if (what === 'overview' && method === 'GET') {
+    const u = new URL(request.url).searchParams
+    const r = Object.fromEntries(['from', 'to', 'prevFrom', 'prevTo'].map((k) => [k, u.get(k)]))
+    if (!Object.values(r).every(isDay) || r.from > r.to || r.prevFrom > r.prevTo) return fail(400, 'Choose the dates to show.')
+    if ((new Date(r.to) - new Date(r.from)) / 864e5 > 1100) return fail(400, 'Choose up to 3 years at a time.')
+    return json(await ledgerOverview(env, r))
+  }
   if (what === 'imports' && method === 'POST' && id && action === 'undo') return undoImport(env, data.staff, id)
   const t = TABLES[what]
   if (!t) return fail(404, 'Not found.')

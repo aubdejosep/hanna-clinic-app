@@ -1902,3 +1902,6 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 @media print { .lg-allbtns, .lg-toggle svg, .lg-additem { display: none !important; } }
 .chip-btn[aria-pressed="true"] { background: var(--teal-tint); border-color: var(--teal-deep); }
 .chip-btn .key { width: 14px; }
+.ledger-range { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.ledger-range .select { min-height: 38px; font: inherit; color: var(--heading); }
+.ledger-custom { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }

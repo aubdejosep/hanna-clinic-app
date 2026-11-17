@@ -69,31 +69,11 @@ async function money(env, r) {
   const days = (from, to) => { const out = []; for (let d = from; d <= to; d = addDays(d, 1)) out.push({ day: d, n: byDay[d] || 0 }); return out }
   const at = (p) => byPeriod.results.find((x) => x.p === p) || { cents: 0, n: 0 }
   return {
-    ledger: await ledger(env, r),
     taken: { cur: at('cur').cents / 100, prev: at('prev').cents / 100 },
     payments: at('cur').n,
     methods: byMethod.results.map((x) => ({ method: x.method, amount: x.cents / 100, n: x.n })),
     perDay: { current: days(r.from, r.to), previous: days(r.prevFrom, r.prevTo) },
   }
-}
-
-// Finances ▸ Ledger, per day: Total Income and Commissions from the receipts, Expenses from the expenses
-// (soft-deleted rows left out). Owners and admins only, like the Ledger itself.
-async function ledger(env, r) {
-  const [lines, expenses] = await env.DB.batch([
-    env.DB.prepare(`SELECT day, SUM(COALESCE(income_cents, 0)) AS income, SUM(COALESCE(commission_cents, 0)) AS commissions, COUNT(*) AS n
-      FROM cash_lines WHERE branch_id = 1 AND deleted_at IS NULL AND day BETWEEN ?1 AND ?2 GROUP BY day`).bind(r.prevFrom, r.to),
-    env.DB.prepare(`SELECT day, SUM(amount_cents) AS expenses FROM cash_expenses WHERE branch_id = 1 AND deleted_at IS NULL AND day BETWEEN ?1 AND ?2 GROUP BY day`).bind(r.prevFrom, r.to),
-  ])
-  const by = {}
-  for (const x of lines.results) by[x.day] = { income: x.income / 100, commissions: x.commissions / 100, expenses: 0 }
-  for (const x of expenses.results) (by[x.day] ||= { income: 0, commissions: 0, expenses: 0 }).expenses = x.expenses / 100
-  const perDay = []
-  for (let d = r.from; d <= r.to; d = addDays(d, 1)) perDay.push({ day: d, income: 0, expenses: 0, commissions: 0, ...by[d] })
-  const total = (from, to) => Object.entries(by).filter(([d]) => d >= from && d <= to).reduce((t, [, v]) => ({
-    income: t.income + v.income, expenses: t.expenses + v.expenses, commissions: t.commissions + v.commissions }), { income: 0, expenses: 0, commissions: 0 })
-  const cur = total(r.from, r.to)
-  return { cur, prev: total(r.prevFrom, r.prevTo), perDay, days: perDay.filter((d) => by[d.day]).length }
 }
 
 // Worked out at most every 10 minutes per period (these read the whole history).
