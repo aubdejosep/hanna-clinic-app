@@ -1,8 +1,9 @@
+import { useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { CalendarCheck, PawPrint, Stethoscope, Syringe, TriangleAlert, UserPlus, Users } from 'lucide-react'
 import { ErrorNote, PageHead, PawLoader } from '../components/ui.jsx'
 import ClinicBoard from '../components/ClinicBoard.jsx'
-import { BarList, Columns, CompareLine, Split } from '../components/Charts.jsx'
+import { BarList, Columns, CompareLine, MultiLine, Split } from '../components/Charts.jsx'
 import { ReaderSwitch } from '../components/TagCheckIn.jsx'
 import { useApi } from '../lib/useApi.js'
 import { canManage, useStaff } from '../lib/staff.js'
@@ -59,6 +60,44 @@ function Money({ m }) {
   )
 }
 
+// Finances ▸ Ledger on the Overview (owners and admins): income per day, with Expenses and Commissions as
+// lines you can switch on. The switches are remembered on this device.
+const LEDGER_LINES = [['expenses', 'Expenses', 2], ['commissions', 'Commissions', 3]]
+const LEDGER_KEY = 'overview-ledger-lines'
+function LedgerOverview({ l }) {
+  const [on, setOn] = useState(() => { try { return JSON.parse(localStorage.getItem(LEDGER_KEY)) || {} } catch { return {} } })
+  const flip = (k) => setOn((o) => { const n = { ...o, [k]: !o[k] }; try { localStorage.setItem(LEDGER_KEY, JSON.stringify(n)) } catch { /* private window */ } return n })
+  const vs = (cur, prev) => { const p = percentChange(cur, prev); return p === null ? `${peso(prev)} the period before` : <><span className={p >= 0 ? 'trend-up' : 'trend-down'}>{p >= 0 ? '+' : ''}{p}%</span> vs {peso(prev)}</> }
+  const points = (k) => l.perDay.map((d) => ({ day: d.day, n: d[k] }))
+  const series = [{ key: 'income', label: 'Income', color: 1, points: points('income') },
+    ...LEDGER_LINES.filter(([k]) => on[k]).map(([k, label, color]) => ({ key: k, label, color, points: points(k) }))]
+  return (
+    <section className="card">
+      <div className="card-head"><div><h2>Ledger</h2><p>From Finances ▸ Ledger: Total Income, Expenses and Commissions as typed or imported there. Owners and admins only.</p></div>
+        <Link className="text-btn" to="/finances/daily">Open Ledger</Link></div>
+      <div className="card-pad">
+        {!l.days && !l.prev.income ? <p className="muted" style={{ margin: 0 }}>Nothing in the Ledger for this period yet.</p> : (
+          <div className="ledger-totals">
+            <div><span className="label">Income</span><strong>{peso(l.cur.income)}</strong><span className="stat-note">{vs(l.cur.income, l.prev.income)}</span></div>
+            <div><span className="label">Expenses</span><strong>{peso(l.cur.expenses)}</strong><span className="stat-note">{vs(l.cur.expenses, l.prev.expenses)}</span></div>
+            <div><span className="label">Commissions</span><strong>{peso(l.cur.commissions)}</strong><span className="stat-note">{vs(l.cur.commissions, l.prev.commissions)}</span></div>
+            <div><span className="label">Income Less Expenses</span><strong>{peso(l.cur.income - l.cur.expenses)}</strong><span className="stat-note">{l.days} day{l.days === 1 ? '' : 's'} in the Ledger</span></div>
+          </div>
+        )}
+      </div>
+      <div className="card-pad" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="ledger-toggles">
+          <span className="label" style={{ marginRight: 'auto' }}>Income per Day</span>
+          {LEDGER_LINES.map(([k, label, color]) => (
+            <button key={k} type="button" className="chip-btn" aria-pressed={!!on[k]} onClick={() => flip(k)}><i className={`key key-${color}`} /> {label}</button>
+          ))}
+        </div>
+        <MultiLine series={series} labelOf={shortDay} />
+      </div>
+    </section>
+  )
+}
+
 function Overview({ range, setRange }) {
   const { data: d, error } = useApi(`dashboard?range=${range}`)
   const review = useApi('stats').data
@@ -85,6 +124,7 @@ function Overview({ range, setRange }) {
         ) : Array.from({ length: 5 }, (_, i) => <div key={i} className="card stat"><span className="skeleton" style={{ width: '60%' }} /></div>)}
       </div>
       {d?.money && <Money m={d.money} />}
+      {d?.money?.ledger && <LedgerOverview l={d.money.ledger} />}
       <div className="overview-row">
         <section className="card overview-main">
           <div className="card-head"><div><h2>Visits per Day</h2><p>A visit is a pet seen that day: a checked-out appointment or a medical record.</p></div></div>

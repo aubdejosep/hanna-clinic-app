@@ -25,6 +25,52 @@ function niceMax(v) {
   return [1, 2, 2.5, 5, 10].map((m) => m * p).find((m) => m >= v)
 }
 
+// Several money lines on one chart, one point per day (the Overview's Ledger: Income, Expenses,
+// Commissions). The first series gets the soft area under it; hover shows every line's value that day.
+export function MultiLine({ series, labelOf }) {
+  const fmt = (n) => `₱${Number(n || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}`
+  const [hover, setHover] = useState(null)
+  const id = useId()
+  const [box, W] = useWidth(640)
+  const H = 230
+  const pad = { l: 62, r: 12, t: 12, b: 26 }
+  const days = series[0]?.points || []
+  const n = Math.max(days.length, 2)
+  const max = niceMax(Math.max(1, ...series.flatMap((s) => s.points.map((d) => d.n))))
+  const x = (i) => pad.l + (i * (W - pad.l - pad.r)) / (n - 1)
+  const y = (v) => H - pad.b - (v / max) * (H - pad.t - pad.b)
+  const path = (pts) => pts.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d.n).toFixed(1)}`).join('')
+  const step = Math.ceil(n / Math.max(2, Math.floor((W - pad.l) / 80)))
+  return (
+    <div className="chart" ref={box} onMouseLeave={() => setHover(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-labelledby={`${id}-t`}>
+        <title id={`${id}-t`}>{series.map((s) => `${s.label}: ${fmt(s.points.reduce((t, d) => t + d.n, 0))}`).join(', ')}</title>
+        {[0, max / 2, max].map((t) => (
+          <g key={t}>
+            <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} className="chart-grid" />
+            <text x={pad.l - 6} y={y(t) + 4} textAnchor="end" className="chart-axis">{fmt(t)}</text>
+          </g>
+        ))}
+        {days.map((d, i) => (i % step === 0 || i === days.length - 1) && <text key={d.day} x={x(i)} y={H - 8} textAnchor="middle" className="chart-axis">{labelOf(d.day)}</text>)}
+        {series[0] && <path d={`${path(series[0].points)}L${x(days.length - 1)},${y(0)}L${x(0)},${y(0)}Z`} className="chart-area" />}
+        {series.map((s) => <path key={s.key} d={path(s.points)} className={`chart-line chart-line-${s.color}`} />)}
+        {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={H - pad.b} className="chart-cross" />}
+        {hover !== null && series.map((s) => s.points[hover] && <circle key={s.key} cx={x(hover)} cy={y(s.points[hover].n)} r="4" className={`chart-dot chart-dot-${s.color}`} />)}
+        {Array.from({ length: n }, (_, i) => (
+          <rect key={i} x={x(i) - (W - pad.l - pad.r) / (n - 1) / 2} y={pad.t} width={(W - pad.l - pad.r) / (n - 1)} height={H - pad.t - pad.b} fill="transparent" onMouseEnter={() => setHover(i)} />
+        ))}
+      </svg>
+      {hover !== null && days[hover] && (
+        <div className="chart-tip" style={{ left: `${(x(hover) / W) * 100}%` }}>
+          <strong>{labelOf(days[hover].day)}</strong>
+          {series.map((s) => <span key={s.key}><i className={`key key-${s.color}`} /> {fmt(s.points[hover]?.n)} {s.label.toLowerCase()}</span>)}
+        </div>
+      )}
+      <div className="chart-legend">{series.map((s) => <span key={s.key}><i className={`key key-${s.color}`} /> {s.label}</span>)}</div>
+    </div>
+  )
+}
+
 // This period against the last, one point per day.
 export function CompareLine({ current, previous, labelOf, money }) {
   const fmt = money ? (n) => `₱${Number(n || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 })}` : fmtN
