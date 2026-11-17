@@ -169,6 +169,7 @@ async function importRows(env, staff, b) {
       if (kind === 'expenses') {
         if (!f.amount_cents && !f.description) issues.push('Empty row')
         if (oldExpenses.some((e) => e.day === r.day && e.amount_cents === f.amount_cents && sameText(e.description, f.description))) { out.status = 'skip'; out.reason = 'Already in the Ledger' }
+        else if (oldExpenses.some((e) => e.day === r.day && e.amount_cents === f.amount_cents)) warnings.push('An expense of the same amount is already on this day: a duplicate?')
       }
       if (kind === 'remits') {
         const key = `${r.day}|${f.kind}`
