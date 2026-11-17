@@ -146,8 +146,16 @@ function RecentImports({ onUndone }) {
     } catch (err) { toast(err.message); reload() }
     setBusy(null); setConfirm(null)
   }
-  if (error) return <ErrorNote error={error} />
-  if (!data || !data.imports.length) return null
+  if (error) return <div className="li-recent"><h3 className="label">Recent Imports</h3><ErrorNote error={error} /></div>
+  if (!data) return null
+  if (!data.imports.length) {
+    return (
+      <div className="li-recent">
+        <h3 className="label">Recent Imports</h3>
+        <p className="field-hint">No files imported yet. Each file you import shows here with an Undo Import button, which takes out only the rows it added.</p>
+      </div>
+    )
+  }
   return (
     <div className="li-recent">
       <h3 className="label">Recent Imports</h3>
