@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { announceCheckIn } from '../lib/checkin-alert.js'
 import { Link } from 'react-router-dom'
 import { ArrowRight, BedDouble, CalendarClock, Wallet, CircleCheck, Hourglass, LogOut, Megaphone, Pill, Siren, Stethoscope, TriangleAlert } from 'lucide-react'
 import { ErrorNote, PetAvatar, useToast, PawLoader } from './ui.jsx'
@@ -111,7 +112,8 @@ export default function ClinicBoard() {
   async function move(a, to, extra = {}) {
     setBusy(a.id)
     try {
-      await api(`appointments/${a.id}/status`, { method: 'POST', body: { to, ...extra } })
+      const res = await api(`appointments/${a.id}/status`, { method: 'POST', body: { to, ...extra } })
+      if (['arrived', 'inpatient'].includes(to) && !a.checkedInAt) announceCheckIn(res.appointment)
       toast(to === 'started' ? `${a.pet.name} is with you now` : to === 'completed' ? `${a.pet.name} checked out` : `${a.pet.name} sent to Dispense`)
       appointmentsChanged()
     } catch (err) {

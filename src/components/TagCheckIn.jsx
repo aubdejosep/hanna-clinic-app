@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
+import { announceCheckIn } from '../lib/checkin-alert.js'
 import { useNavigate } from 'react-router-dom'
 import { CalendarPlus, LogIn, LogOut, Nfc, TriangleAlert, UserCheck, Wallet, X } from 'lucide-react'
 import { ErrorNote, Field, Panel, useToast } from './ui.jsx'
@@ -133,6 +134,7 @@ export default function TagCheckIn() {
       const res = await api('checkin/tap', { method: 'POST', body: { uid } })
       setTap(res)
       appointmentsChanged()
+      if (res.result === 'checked_in') announceCheckIn(res.appointment)
     } catch (err) {
       setTap({ result: 'error', message: err.message })
     }

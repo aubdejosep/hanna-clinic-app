@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { announceCheckIn } from '../lib/checkin-alert.js'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Check, Search, Siren, UserPlus } from 'lucide-react'
 import { ServicePicker, toSend } from './QuickAdd.jsx'
@@ -207,6 +208,7 @@ export function WalkInPanel({ pet: givenPet, admit, onClose, onDone }) {
     try {
       const res = await api('appointments', { method: 'POST', body: { petId: pet.id, walkIn: true, admit: !!admit, items: toSend(items), reason } })
       onDone(res.appointment)
+      announceCheckIn(res.appointment)
     } catch (err) {
       setError(err)
       setBusy(false)

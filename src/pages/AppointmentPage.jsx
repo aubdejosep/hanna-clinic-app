@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { announceCheckIn } from '../lib/checkin-alert.js'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Ban, CalendarClock, ChevronDown, Wallet, CalendarDays, CircleX, Clock, History, MessageSquare, Nfc, Plus, Siren, Stethoscope, Trash2, TriangleAlert, Undo2, User, UserRound } from 'lucide-react'
 import { ErrorNote, Field, PageHead, Panel, PetAvatar, useToast, PawLoader } from '../components/ui.jsx'
@@ -51,6 +52,7 @@ function StatusControl({ a, onChange, setPanel }) {
     try {
       const res = await api(`appointments/${a.id}/status`, { method: 'POST', body })
       onChange(res.appointment, body.undo ? 'Step undone' : `${a.pet.name}: ${STATUS[body.to].label}`)
+      if (!body.undo && ['arrived', 'inpatient'].includes(body.to) && !a.checkedInAt) announceCheckIn(res.appointment)
     } catch (err) {
       setError(err)
     } finally {

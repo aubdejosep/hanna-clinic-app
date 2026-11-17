@@ -1,14 +1,15 @@
 // Balances on an owner's page (and a visit's): what they still owe, with Record Payment, and for owners
 // and admins, Clear. Also the panels used by Finances ▸ Balances.
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Wallet } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Wallet, X } from 'lucide-react'
 import { ErrorNote, Field, Panel, useToast } from './ui.jsx'
 import { METHODS, peso } from './QuickAdd.jsx'
 import { api, ApiError } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { canManage, useStaff } from '../lib/staff.js'
 import { prettyDay } from '../lib/format.js'
+import { useCheckIns } from '../lib/checkin-alert.js'
 
 const TYPE_LABEL = { unpaid: 'Not paid', owed: 'Part paid', invoice: 'Old system' }
 
@@ -22,7 +23,7 @@ export function BalanceItems({ items, onChanged }) {
           <li key={`${i.type}${i.id}`}>
             <span className="balance-what">
               <strong>{peso(i.left)}</strong>
-              <span className="cell-sub">{i.label}{i.petName ? ` · ${i.petName}` : ''}{i.day ? ` · ${prettyDay(i.day)}` : ''}{i.paid ? ` · ${peso(i.paid)} of ${peso(i.total)} paid` : ''}</span>
+              <span className="cell-sub">{i.label}{i.petName ? ` · ${i.petName}` : ''}{i.day ? ` · since ${prettyDay(i.day)}` : ''}{i.paid ? ` · ${peso(i.paid)} of ${peso(i.total)} paid` : ''}</span>
             </span>
             <span className="badge badge-soft">{TYPE_LABEL[i.type]}</span>
             <span className="balance-actions">
@@ -134,5 +135,72 @@ export function ClearBalancePanel({ item, onClose, onDone }) {
         <Field label="Reason" error={errors.reason}>{(f) => <input {...f} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} placeholder="e.g. paid in cash in 2025, old system not updated" />}</Field>
       </div>
     </Panel>
+  )
+}
+
+// Where an invoice number leads: the app's visits open their appointment (every staff member); the old
+// system's invoices open Finances ▸ Transactions, which only owners and admins can see.
+export function InvoiceLink({ item, onGo }) {
+  const staff = useStaff()
+  if (!item.invoiceNo) return null
+  if (item.type !== 'invoice') return <Link to={`/appointments/${item.id}`} onClick={onGo}>Invoice {item.invoiceNo}</Link>
+  if (canManage(staff)) return <Link to={`/finances/transactions?q=${encodeURIComponent(item.invoiceNo.replace(/^#/, ''))}`} onClick={onGo}>Invoice {item.invoiceNo}</Link>
+  return <span title="Only an owner or admin can open old-system invoices">Invoice {item.invoiceNo}</span>
+}
+
+// The pop-up when a pet is checked in and its owner still owes money: what, since when, and which invoice,
+// with what the front desk should do. Mounted once in the Layout.
+export function BalanceCheckInAlert() {
+  const navigate = useNavigate()
+  const [alert, setAlert] = useState(null) // { ownerName, petName, owner }
+  const button = useRef(null)
+  const onCheckIn = useCallback(async ({ ownerId, ownerName, petName }) => {
+    try {
+      const o = (await api(`balances?ownerId=${ownerId}`)).owners?.[0]
+      if (o?.items?.length) setAlert({ ownerName: ownerName || o.name, petName, owner: o })
+    } catch { /* the owner's page still shows the balance */ }
+  }, [])
+  useCheckIns(onCheckIn)
+  useEffect(() => {
+    if (!alert) return undefined
+    button.current?.focus()
+    const onKey = (e) => { if (e.key === 'Escape') setAlert(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [alert])
+  if (!alert) return null
+  const { owner: o } = alert
+  const close = () => setAlert(null)
+  return (
+    <div className="bal-alert-backdrop">
+      <div className="bal-alert card" role="alertdialog" aria-modal="true" aria-labelledby="bal-alert-title" aria-describedby="bal-alert-text">
+        <div className="bal-alert-head">
+          <span className="balance-icon"><Wallet aria-hidden /></span>
+          <div>
+            <h2 id="bal-alert-title">Collect an Open Balance: {peso(o.total)}</h2>
+            <p id="bal-alert-text">{alert.petName ? `${alert.petName} just checked in. ` : ''}<strong>{alert.ownerName}</strong> still owes <strong>{peso(o.total)}</strong>{o.items.length > 1 ? ` on ${o.items.length} invoices` : ''}.</p>
+          </div>
+          <button type="button" className="icon-btn" onClick={close} aria-label="Close" title="Close"><X /></button>
+        </div>
+        <ul className="bal-alert-items">
+          {o.items.map((i) => (
+            <li key={`${i.type}${i.id}`}>
+              <span>
+                <strong>{peso(i.left)}</strong>
+                <span className="cell-sub">{i.day ? `Since ${prettyDay(i.day)}` : 'No date'} · <InvoiceLink item={i} onGo={close} />{i.petName ? ` · ${i.petName}` : ''}{i.paid ? ` · ${peso(i.paid)} of ${peso(i.total)} paid` : ''}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="bal-alert-todo">
+          <strong>What to do</strong>
+          <span>Tell the owner about the balance now, and collect it with today’s payment. Record it with <strong>Record Payment</strong> (or <strong>Take Payment</strong>) on the owner’s page. If they can’t pay today, note when they will.</span>
+        </div>
+        <div className="inline-row">
+          <button type="button" className="btn" onClick={() => { close(); navigate(`/clients/${o.id}`) }}><Wallet aria-hidden /> Open Owner to Collect</button>
+          <button type="button" className="btn btn-quiet" ref={button} onClick={close}>Got It</button>
+        </div>
+      </div>
+    </div>
   )
 }
