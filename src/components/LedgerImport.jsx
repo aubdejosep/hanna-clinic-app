@@ -14,11 +14,11 @@ import { prettyDay } from '../lib/format.js'
 const peso = (c) => (c == null ? '' : `${c < 0 ? '−' : ''}₱${(Math.abs(c) / 100).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`)
 const STATUS = { add: ['Add', 'badge'], skip: ['Skip', 'badge badge-soft'], error: ['Problem', 'badge badge-warn'] }
 const KINDS = {
-  lines: { title: 'Receipts', cols: [['receiptNo', 'OR'], ['receiptQr', 'QR'], ['clientName', 'Owner'], ['petNames', 'Pet'], ['amountCents', 'Total', 1], ['onlineCents', 'Online', 1], ['incomeCents', 'Income', 1], ['note', 'Notes']] },
+  lines: { title: 'Receipts', cols: [['receiptNo', 'OR'], ['receiptQr', 'QR'], ['clientName', 'Owner'], ['petNames', 'Pet'], ['items', 'Items'], ['amountCents', 'Total', 1], ['discountCents', 'Disc.', 1], ['onlineCents', 'Online', 1], ['incomeCents', 'Income', 1], ['note', 'Notes']] },
   expenses: { title: 'Expenses', cols: [['category', 'Type'], ['description', 'What For'], ['amountCents', 'Amount', 1]] },
   remits: { title: 'Remits', cols: [['kind', 'Remit'], ['amountCents', 'Amount', 1], ['remittedBy', 'Remitted By']] },
 }
-const show = (k, v) => (k === 'kind' ? (v === 'second' ? '2nd' : '1st') : k.endsWith('Cents') ? peso(v) : v)
+const show = (k, v) => (k === 'kind' ? (v === 'second' ? '2nd' : '1st') : k === 'items' ? (v || []).map((i) => `${i.item}${i.amountCents != null ? ` ${peso(i.amountCents)}` : ''}`).join(', ') : k.endsWith('Cents') ? peso(v) : v)
 
 export default function LedgerImport({ fallbackDay, onClose, onDone }) {
   const toast = useToast()
@@ -58,7 +58,7 @@ export default function LedgerImport({ fallbackDay, onClose, onDone }) {
       <div className="li-head">
         <div>
           <h2 id="li-title">Import From a File</h2>
-          <p className="field-hint">An Excel file (.xlsx) in the Ledger template’s layout: Receipts, Expenses and Remits sheets. You’ll see every row before anything is saved, and receipts already in the Ledger are skipped.</p>
+          <p className="field-hint">An Excel file (.xlsx) in the Ledger template’s layout: Receipts, Items, Expenses and Remits sheets. You’ll see every row before anything is saved, and receipts already in the Ledger are skipped.</p>
         </div>
         <button type="button" className="icon-btn" onClick={onClose} aria-label="Close Import" title="Close"><X /></button>
       </div>

@@ -1,10 +1,12 @@
 // Finances ▸ Ledger (owners and admins): the clinic's cash ledger, in the clinic's own sheet layout, typed in like a
-// spreadsheet. Receipts: Receipt No. OR | Receipt No. QR | Owner's Name | Pet's Name | Total Per Receipt | Discounts and
-// Notes | Online Payments | Deposit | Balance | Total Income | Commissions, with totals at the bottom; then Expenses and
+// spreadsheet. Receipts: Receipt No. OR | Receipt No. QR | Owner's Name | Pet's Name | Item | Amount | Total Per Receipt |
+// Discounts | Notes | Online Payments | Deposit | Balance | Total Income | Commissions, with totals at the bottom. A receipt
+// can be split into its items (+ Item): they sit under it with just Item and Amount, and the receipt row checks that
+// items − discount = Total Per Receipt. Then Expenses and
 // Remits, and the summary: Total Income - Online Payments - Expenses - 1st Remit = Cash On Hand, checked against the
 // 2nd Remit. The date comes from the calendar (one day, or several by dragging). Each cell saves when you leave it.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, FileUp, Printer, Trash2 } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, FileUp, Plus, Printer, Trash2 } from 'lucide-react'
 import { ErrorNote, PageHead, PawLoader, useToast } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
@@ -23,21 +25,24 @@ const shift = (day, n) => { const d = new Date(`${day}T12:00:00Z`); d.setUTCDate
 const GRIDS = {
   lines: {
     title: 'Receipts',
-    minWidth: 1000,
+    minWidth: 1440,
     columns: [
-      { key: 'receiptNo', label: 'Receipt No. OR', width: '8%' },
-      { key: 'receiptQr', label: 'Receipt No. QR', width: '8%' },
-      { key: 'clientName', label: 'Owner’s Name', width: '12%' },
-      { key: 'petNames', label: 'Pet’s Name', width: '10%' },
-      { key: 'amountCents', label: 'Total Per Receipt', type: 'money', total: true, width: '9%' },
-      { key: 'note', label: 'Discounts and Notes', width: '12%' },
-      { key: 'onlineCents', label: 'Online Payments', type: 'money', total: true, width: '9%' },
-      { key: 'depositCents', label: 'Deposit', type: 'money', total: true, width: '7%' },
-      { key: 'balanceCents', label: 'Balance', type: 'money', total: true, width: '7%' },
-      { key: 'incomeCents', label: 'Total Income', type: 'money', total: true, width: '9%' },
-      { key: 'commissionCents', label: 'Commissions', type: 'money', total: true, width: '9%' },
+      { key: 'receiptNo', label: 'Receipt No. OR', width: '6.5%' },
+      { key: 'receiptQr', label: 'Receipt No. QR', width: '6.5%' },
+      { key: 'clientName', label: 'Owner’s Name', width: '10%' },
+      { key: 'petNames', label: 'Pet’s Name', width: '8%' },
+      { key: 'item', label: 'Item', width: '13%', item: true },
+      { key: 'itemAmount', label: 'Amount', type: 'money', width: '6.5%', item: true },
+      { key: 'amountCents', label: 'Total Per Receipt', type: 'money', total: true, width: '7.5%' },
+      { key: 'discountCents', label: 'Discounts', type: 'money', total: true, width: '6.5%' },
+      { key: 'note', label: 'Notes', width: '9%' },
+      { key: 'onlineCents', label: 'Online Payments', type: 'money', total: true, width: '7%' },
+      { key: 'depositCents', label: 'Deposit', type: 'money', total: true, width: '6%' },
+      { key: 'balanceCents', label: 'Balance', type: 'money', total: true, width: '6%' },
+      { key: 'incomeCents', label: 'Total Income', type: 'money', total: true, width: '7%' },
+      { key: 'commissionCents', label: 'Commissions', type: 'money', total: true, width: '7%' },
     ],
-    blank: (day) => ({ day, receiptNo: '', receiptQr: '', clientName: '', petNames: '', amountCents: null, note: '', onlineCents: null, depositCents: null, balanceCents: null, incomeCents: null, commissionCents: null }),
+    blank: (day) => ({ day, receiptNo: '', receiptQr: '', clientName: '', petNames: '', amountCents: null, discountCents: null, note: '', onlineCents: null, depositCents: null, balanceCents: null, incomeCents: null, commissionCents: null, items: [] }),
   },
   expenses: {
     title: 'Expenses',
@@ -60,7 +65,8 @@ const GRIDS = {
   },
 }
 // An empty row only gets saved once something besides its defaults is typed.
-const hasContent = (r) => Object.entries(r).some(([k, v]) => !['day', 'category', 'kind', 'id', 'ck'].includes(k) && v !== '' && v != null)
+const hasContent = (r) => Object.entries(r).some(([k, v]) => !['day', 'category', 'kind', 'id', 'ck', 'items'].includes(k) && v !== '' && v != null)
+const itemSum = (row) => (row.items || []).reduce((n, i) => n + (i.amountCents || 0), 0)
 
 // One calendar: tap a day, or drag across days (mouse or finger) for several.
 function RangeCalendar({ from, to, onPick }) {
@@ -98,7 +104,7 @@ function RangeCalendar({ from, to, onPick }) {
   )
 }
 
-function Cell({ col, value, onChange, onCommit, r, c, grid }) {
+function Cell({ col, value, onChange, onCommit, r, c, grid, tag }) {
   const [text, setText] = useState(col.type === 'money' ? toPesos(value) : value ?? '')
   const [focus, setFocus] = useState(false)
   useEffect(() => { if (!focus) setText(col.type === 'money' ? toPesos(value) : value ?? '') }, [value, focus]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -107,9 +113,15 @@ function Cell({ col, value, onChange, onCommit, r, c, grid }) {
     if (!move || (col.type === 'select' && e.key !== 'Enter')) return
     e.preventDefault()
     e.currentTarget.blur()
-    requestAnimationFrame(() => document.querySelector(`[data-grid="${grid}"][data-r="${r + move}"][data-c="${c}"]`)?.focus())
+    // The next row that has this column (item rows only have Item and Amount; receipt rows don't edit those).
+    requestAnimationFrame(() => {
+      for (let n = r + move, i = 0; i < 80 && n >= 0; n += move, i++) {
+        const el = document.querySelector(`[data-grid="${grid}"][data-r="${n}"][data-c="${c}"]`)
+        if (el) { el.focus(); return }
+      }
+    })
   }
-  const common = { 'data-grid': grid, 'data-r': r, 'data-c': c, 'aria-label': col.label, onKeyDown: nav, onFocus: () => setFocus(true) }
+  const common = { 'data-grid': grid, 'data-r': r, 'data-c': c, 'data-tag': tag, 'aria-label': col.label, onKeyDown: nav, onFocus: () => setFocus(true) }
   if (col.type === 'select') {
     return <select {...common} className="lg-cell" value={value} onChange={(e) => { onChange(e.target.value); onCommit({ [col.key]: e.target.value }) }} onBlur={() => setFocus(false)}>{col.options.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
   }
@@ -141,27 +153,49 @@ function Grid({ kind, rows, day, single, onSaved }) {
   const [, redraw] = useState(0)
   const [confirm, setConfirm] = useState(null)
   const saving = useRef(Promise.resolve())
-  if (!store.current) store.current = [...rows.map(withKey), ...(single ? [withKey(g.blank(day))] : [])]
+  const keyed = (r) => withKey(kind === 'lines' ? { ...r, items: (r.items || []).map(withKey) } : r)
+  if (!store.current) store.current = [...rows.map(keyed), ...(single ? [keyed(g.blank(day))] : [])]
   const rerender = () => redraw((n) => n + 1)
   const find = (ck) => store.current.find((x) => x.ck === ck)
+  const findItem = (row, ick) => row?.items?.find((x) => x.ck === ick)
   function set(ck, k, v) { const row = find(ck); if (row) { row[k] = v; rerender() } }
+  function setItem(ck, ick, k, v) { const it = findItem(find(ck), ick); if (it) { it[k] = v; rerender() } }
+  const queue = (job) => { saving.current = saving.current.then(job) }
   function save(ck) {
-    saving.current = saving.current.then(async () => {
+    queue(async () => {
       const row = find(ck)
       if (!row) return
-      const { ck: _ck, ...body } = row
+      const { ck: _ck, items: _items, ...body } = row
       try {
         if (row.id) await api(`finances/daily/${kind}/${row.id}`, { method: 'PATCH', body })
         else {
           if (!hasContent(row)) return
           const r = await api(`finances/daily/${kind}`, { method: 'POST', body })
           row.id = r.row.id
-          if (store.current[store.current.length - 1].ck === ck) store.current.push(withKey(g.blank(row.day)))
+          if (store.current[store.current.length - 1].ck === ck) store.current.push(keyed(g.blank(row.day)))
           rerender()
         }
         onSaved()
       } catch (err) { toast(err.message) }
     })
+  }
+  function saveItem(ck, ick) {
+    queue(async () => {
+      const row = find(ck)
+      const it = findItem(row, ick)
+      if (!row?.id || !it) return
+      const body = { lineId: row.id, item: it.item, amountCents: it.amountCents }
+      try {
+        if (it.id) await api(`finances/daily/items/${it.id}`, { method: 'PATCH', body })
+        else if (it.item || it.amountCents != null) { it.id = (await api('finances/daily/items', { method: 'POST', body })).row.id; rerender() }
+      } catch (err) { toast(err.message) }
+    })
+  }
+  function addItem(row) {
+    const it = withKey({ item: '', amountCents: null })
+    row.items = [...(row.items || []), it]
+    rerender()
+    requestAnimationFrame(() => document.querySelector(`[data-tag="${it.ck}"]`)?.focus())
   }
   async function remove(row) {
     if (confirm !== row.ck) { setConfirm(row.ck); setTimeout(() => setConfirm((c) => (c === row.ck ? null : c)), 3000); return }
@@ -171,35 +205,73 @@ function Grid({ kind, rows, day, single, onSaved }) {
       setConfirm(null); rerender(); onSaved(); toast('Row removed')
     } catch (err) { toast(err.message) }
   }
+  async function removeItem(row, it) {
+    if (confirm !== it.ck) { setConfirm(it.ck); setTimeout(() => setConfirm((c) => (c === it.ck ? null : c)), 3000); return }
+    try {
+      if (it.id) await api(`finances/daily/items/${it.id}`, { method: 'DELETE' })
+      row.items = row.items.filter((x) => x.ck !== it.ck)
+      setConfirm(null); rerender()
+    } catch (err) { toast(err.message) }
+  }
   const all = store.current
   const saved = all.filter((r) => r.id)
   const totals = Object.fromEntries(g.columns.filter((c) => c.total).map((c) => [c.key, all.reduce((sum, r) => sum + (r[c.key] || 0), 0)]))
   const span = g.columns.length + 2
   let lastDay = null
   let n = 0
+  let vr = 0 // on-screen row number, for moving between cells with Enter and the arrows
+  const delBtn = (key, label, onClick) => (
+    <button type="button" className={`icon-btn lg-del ${confirm === key ? 'is-confirm' : ''}`} onClick={onClick} aria-label={confirm === key ? `Tap again to remove this ${label}` : `Remove ${label}`} title={confirm === key ? 'Tap again to remove' : `Remove ${label}`}>{confirm === key ? '?' : <Trash2 />}</button>
+  )
+  function receiptCell(row, col) {
+    if (col.key === 'item') {
+      return <button type="button" className="lg-additem" onClick={() => addItem(row)} disabled={!row.id} title={row.id ? 'Split this receipt into its items' : 'Type the receipt first'}><Plus aria-hidden /> Item</button>
+    }
+    if (!row.items?.length) return null
+    const sum = itemSum(row)
+    const due = sum - (row.discountCents || 0)
+    const ok = !row.amountCents || due === row.amountCents
+    return <span className={`lg-sum ${ok ? '' : 'is-off'}`} title={`Items ${peso(sum)}${row.discountCents ? ` − discount ${peso(row.discountCents)} = ${peso(due)}` : ''}${ok ? '' : `; Total Per Receipt is ${peso(row.amountCents)}`}`}>{ok ? '' : '≠ '}{peso(sum)}</span>
+  }
   return (
     <section className="card lg-card">
-      <div className="card-head"><h2>{g.title}</h2><span className="cell-sub">{g.hint ? `${g.hint} ` : ''}{saved.length} row{saved.length === 1 ? '' : 's'}{single ? ' · type in the last row to add one' : ' · pick one day to add rows'}</span></div>
+      <div className="card-head"><h2>{g.title}</h2><span className="cell-sub">{g.hint ? `${g.hint} ` : ''}{saved.length} row{saved.length === 1 ? '' : 's'}{single ? ' · type in the last row to add one' : ' · pick one day to add rows'}{kind === 'lines' ? ' · + Item splits a receipt into its items' : ''}</span></div>
       <div className="lg-scroll">
         <table className="lg-table" style={g.minWidth ? { width: '100%', minWidth: g.minWidth } : undefined}>
           <colgroup><col style={{ width: 44 }} />{g.columns.map((c) => <col key={c.key} style={{ width: c.width }} />)}<col style={{ width: 44 }} /></colgroup>
           <thead><tr><th className="lg-rownum">#</th>{g.columns.map((c) => <th key={c.key} className={c.type === 'money' ? 'lg-num' : ''}>{c.label}</th>)}<th><span className="sr-only">Remove</span></th></tr></thead>
           <tbody>
-            {all.map((row, r) => {
+            {all.map((row) => {
               const isNew = !row.id
               const groupHead = !single && row.day !== lastDay
               if (row.day !== lastDay) n = 0
               lastDay = row.day
               n++
+              const r = vr++
               return [
                 groupHead && <tr key={`d-${row.day}`} className="lg-day"><td colSpan={span}>{prettyDay(row.day)}</td></tr>,
-                <tr key={row.ck} className={isNew ? 'lg-new' : ''}>
+                <tr key={row.ck} className={`${isNew ? 'lg-new' : ''} ${row.items?.length ? 'lg-has-items' : ''}`}>
                   <td className="lg-rownum">{isNew ? '+' : n}</td>
                   {g.columns.map((col, c) => (
-                    <td key={col.key}><Cell col={col} value={row[col.key]} grid={kind} r={r} c={c} onChange={(v) => set(row.ck, col.key, v)} onCommit={() => save(row.ck)} /></td>
+                    <td key={col.key} className={col.item ? 'lg-itemcol' : ''}>{col.item ? receiptCell(row, col) : <Cell col={col} value={row[col.key]} grid={kind} r={r} c={c} onChange={(v) => set(row.ck, col.key, v)} onCommit={() => save(row.ck)} />}</td>
                   ))}
-                  <td>{!isNew && <button type="button" className={`icon-btn lg-del ${confirm === row.ck ? 'is-confirm' : ''}`} onClick={() => remove(row)} aria-label={confirm === row.ck ? 'Tap again to remove this row' : `Remove row ${n}`} title={confirm === row.ck ? 'Tap again to remove' : 'Remove Row'}>{confirm === row.ck ? '?' : <Trash2 />}</button>}</td>
+                  <td>{!isNew && delBtn(row.ck, 'row', () => remove(row))}</td>
                 </tr>,
+                ...(row.items || []).map((it) => {
+                  const ir = vr++
+                  return (
+                    <tr key={it.ck} className="lg-item">
+                      <td className="lg-rownum" aria-hidden>↳</td>
+                      {g.columns.map((col, c) => (
+                        <td key={col.key}>{col.item ? (
+                          <Cell col={col.key === 'item' ? { ...col, label: 'Item' } : { ...col, label: 'Item Amount' }} value={col.key === 'item' ? it.item : it.amountCents} grid={kind} r={ir} c={c} tag={col.key === 'item' ? it.ck : undefined}
+                            onChange={(v) => setItem(row.ck, it.ck, col.key === 'item' ? 'item' : 'amountCents', v)} onCommit={() => saveItem(row.ck, it.ck)} />
+                        ) : null}</td>
+                      ))}
+                      <td>{delBtn(it.ck, 'item', () => removeItem(row, it))}</td>
+                    </tr>
+                  )
+                }),
               ]
             })}
           </tbody>
@@ -265,6 +337,7 @@ export default function DailyCashPage() {
               <div className="dc-sub"><dt>Deposits</dt><dd>{peso(s.deposits)}</dd></div>
               <div className="dc-sub"><dt>Balances</dt><dd>{peso(s.balances)}</dd></div>
               <div className="dc-sub"><dt>Total Per Receipt</dt><dd>{peso(s.receiptsTotal)}</dd></div>
+              <div className="dc-sub"><dt>Discounts</dt><dd>{peso(s.discounts)}</dd></div>
             </dl>
             <p className="field-hint" style={{ margin: 0 }}>Commissions aren’t taken out of the cash; when they’re paid, add them under Expenses (type Vet Commission).</p>
           </section>

@@ -23,8 +23,8 @@ receipts and handwritten ledger pages into one Excel file for the clinic app's L
 
 ## How to fill the file
 
-Use the attached template **ledger-template.xlsx** exactly: the sheets **Receipts**, **Expenses** and **Remits**,
-the headers in row 1 unchanged, one row per item, no totals row, no extra columns. Keep the "How To Use" sheet.
+Use the attached template **ledger-template.xlsx** exactly: the sheets **Receipts**, **Items**, **Expenses** and
+**Remits**, the headers in row 1 unchanged, no totals row, no extra columns or sheets. Keep the "How To Use" sheet.
 
 **Receipts** (one row per receipt, in the order of the ledger page):
 
@@ -35,13 +35,28 @@ the headers in row 1 unchanged, one row per item, no totals row, no extra column
 | Receipt No. QR | Quotation slip number, as text: `05329`. Fill OR or QR, not both. |
 | Owner's Name | The client name. If the slip says "Cruz / Luna" or the ledger says "Cruz – Luna", the owner is Cruz. |
 | Pet's Name | The pet (Luna). Several pets: "Brulee & Semicolon". Blank if not written. |
-| Total Per Receipt | The total written on the receipt, a plain number (2600, not ₱2,600). |
-| Discounts and Notes | The items with their amounts, short ("Deworm 300, Bravecto 1500, Flu vaccine 500"), then the payment method if online ("GCash", "BDO", "Bank", "MariBank", "Card", "QRPH"), discounts ("less 20"), tips, and anything you weren't sure about. |
+| Total Per Receipt | The total written on the receipt, after any discount, a plain number (2600, not ₱2,600). |
+| Discounts | The peso amount taken off, a plain number: 20 for "less 20". Blank if none. |
+| Notes | Short: the payment method if online ("GCash", "BDO", "Bank", "MariBank", "Card", "QRPH"), the reason for a discount, tips, and anything you weren't sure about. Don't list the items here: they go on the Items sheet. |
 | Online Payments | The amount paid online (GCash, bank transfer, MariBank, credit card, QRPH). Blank if paid in cash. |
 | Deposit | Only if the receipt or ledger says a deposit was paid. |
 | Balance | Only if the receipt or ledger says an amount is still unpaid. |
 | Total Income | What counts in the day's income: normally the same as Total Per Receipt. |
 | Commissions | Leave blank unless the ledger page shows a commission for that receipt. |
+
+**Items** (one row per item on each receipt, in the receipt's order):
+
+| Column | What goes in it |
+|---|---|
+| Date | The receipt's date. |
+| Receipt No. | The receipt's OR or QR number, exactly as on the Receipts sheet (`05332`). |
+| Item | What it is, short: "Deworm", "Bravecto", "Confinement Nov 11-16". |
+| Qty, Unit Price | When the receipt shows a quantity: 7 and 150 for "7x150". Otherwise blank. |
+| Amount | The item's amount (1050). Can be left blank when Qty and Unit Price are filled. |
+
+Every receipt with items written on it gets its items here. The items less Discounts must add up to Total Per
+Receipt. Discounts go in the Receipts sheet's Discounts column, not as an item. Crossed-out items are left out
+(mention them in Notes).
 
 **Expenses** (from the summary's expenses list): Date, Type, What For, Amount. Type is exactly one of: Supplies,
 Medicines & Stock, Food, Transport, Utilities, Repairs & Maintenance, Vet Commission, Other. (Pet food, groceries
@@ -62,7 +77,7 @@ actually written.
 
 ## Special cases (these happen)
 
-- **Crossed-out items**: leave them out of the total and note them ("Mexidine 450 crossed out").
+- **Crossed-out items**: leave them off the Items sheet and out of the total, and note them ("Mexidine 450 crossed out").
 - **A slip that was redone or returned**: keep the first slip with Total Income blank and say why ("Pet Delight
   returned; redone as 05339"); the new slip counts normally. If the ledger mentions a slip with no photo, add it
   from the ledger and note "No photo of this slip".
@@ -80,6 +95,7 @@ actually written.
 
 Add up your rows and compare with the summary slip:
 
+- On every receipt: its items less Discounts = Total Per Receipt.
 - Total Income (the 1st cut-off subtotal plus the afternoon) = the sum of Total Income.
 - Online = the sum of Online Payments, and each online name on the summary matches a receipt.
 - Expenses and the 1st Remit match.

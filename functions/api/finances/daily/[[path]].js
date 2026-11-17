@@ -1,8 +1,9 @@
 // Finances ▸ Ledger (owners and admins): the cash ledger, typed in like a spreadsheet. Math: lib/daily-cash.js.
 //   GET    /api/finances/daily?from=YYYY-MM-DD&to=YYYY-MM-DD -> receipts, expenses and remits in that range
-//   POST   /api/finances/daily/lines     {day, receiptNo, receiptQr, clientName, petNames, note, amountCents (Total Per Receipt),
-//                                          onlineCents, depositCents, balanceCents, incomeCents, commissionCents}
+//   POST   /api/finances/daily/lines     {day, receiptNo, receiptQr, clientName, petNames, note (Notes), amountCents (Total Per
+//                                          Receipt), discountCents, onlineCents, depositCents, balanceCents, incomeCents, commissionCents}
 //   PATCH  /api/finances/daily/lines/:id (the same)            DELETE -> soft-deleted
+//   POST   /api/finances/daily/items     {lineId, item, amountCents}: one item of a receipt   PATCH / DELETE /items/:id
 //   POST   /api/finances/daily/expenses  {day, category, description, amountCents}   PATCH / DELETE /expenses/:id
 //   POST   /api/finances/daily/remits    {day, kind: first|second, amountCents, remittedBy}   PATCH / DELETE /remits/:id
 //   POST   /api/finances/daily/import    {file, commit, lines, expenses, remits} (rows from lib/ledger-import.js)
@@ -24,7 +25,7 @@ const TABLES = {
     table: 'cash_lines', entity: 'cash_line',
     fields(b, errors) {
       const m = {}
-      for (const [k, col, label] of [['amountCents', 'amount_cents', 'Total Per Receipt'], ['onlineCents', 'online_cents', 'Online Payments'], ['depositCents', 'deposit_cents', 'Deposit'],
+      for (const [k, col, label] of [['amountCents', 'amount_cents', 'Total Per Receipt'], ['discountCents', 'discount_cents', 'Discounts'], ['onlineCents', 'online_cents', 'Online Payments'], ['depositCents', 'deposit_cents', 'Deposit'],
         ['balanceCents', 'balance_cents', 'Balance'], ['incomeCents', 'income_cents', 'Total Income'], ['commissionCents', 'commission_cents', 'Commissions']]) {
         const v = money(b[k])
         if (Number.isNaN(v)) errors[k] = `Enter ${label} as a number, e.g. 1500.`
@@ -34,8 +35,8 @@ const TABLES = {
         pet_names: clean(b.petNames, 200) || null, note: clean(b.note, 300) || null, ...m, amount_cents: m.amount_cents ?? 0 }
     },
     shape: (r) => ({ id: r.id, day: r.day, receiptNo: r.receipt_no || '', receiptQr: r.receipt_qr || '', clientName: r.client_name || '', petNames: r.pet_names || '',
-      note: r.note || '', amountCents: r.amount_cents || null, onlineCents: r.online_cents, depositCents: r.deposit_cents, balanceCents: r.balance_cents,
-      incomeCents: r.income_cents, commissionCents: r.commission_cents }),
+      note: r.note || '', amountCents: r.amount_cents || null, discountCents: r.discount_cents ?? null, onlineCents: r.online_cents, depositCents: r.deposit_cents, balanceCents: r.balance_cents,
+      incomeCents: r.income_cents, commissionCents: r.commission_cents, items: r.items || [] }),
   },
   expenses: {
     table: 'cash_expenses', entity: 'cash_expense',
@@ -71,10 +72,14 @@ export async function onRequest({ request, env, params, data }) {
     const to = u.get('to') || from
     if (!isDay(from) || !isDay(to) || from > to) return fail(400, 'Choose the dates to show.')
     const q = (t, order) => env.DB.prepare(`SELECT * FROM ${t} WHERE branch_id = 1 AND day BETWEEN ? AND ? AND deleted_at IS NULL ORDER BY day, ${order}`).bind(from, to)
-    const [l, e, r] = await env.DB.batch([q('cash_lines', 'sort, id'), q('cash_expenses', 'id'), q('cash_remits', 'kind, id')])
-    return json({ from, to, lines: l.results.map(TABLES.lines.shape), expenses: e.results.map(TABLES.expenses.shape), remits: r.results.map(TABLES.remits.shape) })
+    const [l, e, r, it] = await env.DB.batch([q('cash_lines', 'sort, id'), q('cash_expenses', 'id'), q('cash_remits', 'kind, id'),
+      env.DB.prepare(`SELECT i.* FROM cash_line_items i JOIN cash_lines l ON l.id = i.line_id WHERE l.branch_id = 1 AND l.day BETWEEN ? AND ? AND l.deleted_at IS NULL AND i.deleted_at IS NULL ORDER BY i.sort, i.id`).bind(from, to)])
+    const items = {}
+    for (const i of it.results) (items[i.line_id] ||= []).push(itemShape(i))
+    return json({ from, to, lines: l.results.map((x) => TABLES.lines.shape({ ...x, items: items[x.id] })), expenses: e.results.map(TABLES.expenses.shape), remits: r.results.map(TABLES.remits.shape) })
   }
 
+  if (what === 'items') return itemRoute(env, data.staff, method, id, method === 'DELETE' ? {} : (await readJson(request)) || {})
   if (what === 'import' && method === 'POST') return importRows(env, data.staff, (await readJson(request)) || {})
   if (what === 'imports' && method === 'GET' && !id) return listImports(env)
   if (what === 'imports' && method === 'POST' && id && action === 'undo') return undoImport(env, data.staff, id)
@@ -165,6 +170,14 @@ async function importRows(env, staff, b) {
         if (f.online_cents && f.income_cents != null && f.online_cents > f.income_cents) warnings.push('Online is more than Total Income (a tip?)')
         if (f.income_cents != null && f.amount_cents && f.income_cents !== f.amount_cents) warnings.push('Total Income differs from the receipt total')
         if (/\(check|\?/i.test(`${f.client_name || ''} ${f.pet_names || ''}`)) warnings.push('A name to check')
+        const items = [].concat(r.items || []).slice(0, 60).map((x) => ({ item: clean(x && x.item, 120) || null, amount: money(x && x.amountCents) }))
+        if (items.some((x) => Number.isNaN(x.amount))) issues.push('An item amount isn’t a number')
+        out.items = items.filter((x) => !Number.isNaN(x.amount) && (x.item || x.amount))
+        out.row.items = out.items.map((x) => ({ item: x.item || '', amountCents: x.amount }))
+        if (out.items.length && f.amount_cents) {
+          const sum = out.items.reduce((n, x) => n + (x.amount || 0), 0) - (f.discount_cents || 0)
+          if (sum !== f.amount_cents) warnings.push(`Items less discount come to ₱${(sum / 100).toLocaleString('en-PH')}, not the receipt total`)
+        }
       }
       if (kind === 'expenses') {
         if (!f.amount_cents && !f.description) issues.push('Empty row')
@@ -212,16 +225,19 @@ async function importRows(env, staff, b) {
         f.import_id = batch.id
         const cols = Object.keys(f)
         stmts.push(env.DB.prepare(`INSERT INTO ${TABLES[kind].table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`).bind(...cols.map((c) => f[c])))
+        // Its items: the batch runs in order, so the newest receipt of this import is the one just added.
+        ;(p.items || []).forEach((x, n) => stmts.push(env.DB.prepare(`INSERT INTO cash_line_items (line_id, item, amount_cents, sort, created_by)
+          VALUES ((SELECT MAX(id) FROM cash_lines WHERE import_id = ?), ?, ?, ?, ?)`).bind(batch.id, x.item, x.amount, n + 1, who)))
       }
     }
     await env.DB.batch(stmts)
-    imported = stmts.length
+    imported = stmts.length - Object.values(plan).flat().reduce((n, p) => n + (p.status === 'add' ? (p.items || []).length : 0), 0)
     await audit(env, staff.email, 'import', 'cash_import', batch.id, {
       file: clean(b.file, 120), receipts: plan.lines.filter((p) => p.status === 'add').length, expenses: plan.expenses.filter((p) => p.status === 'add').length,
       remits: plan.remits.filter((p) => p.status === 'add').length, skipped: summary.skip, errors: summary.error, days,
     })
   }
-  for (const k of Object.keys(plan)) for (const p of plan[k]) delete p.fields
+  for (const k of Object.keys(plan)) for (const p of plan[k]) { delete p.fields; delete p.items }
   return json({ plan, summary, imported })
 }
 
@@ -251,4 +267,33 @@ async function undoImport(env, staff, id) {
   const removed = res.slice(0, 3).reduce((n, r) => n + (r.meta?.changes || 0), 0)
   await audit(env, staff.email, 'undo', 'cash_import', id, { file: imp.file, removed })
   return json({ ok: true, removed, days: JSON.parse(imp.days || '[]') })
+}
+
+// ---------- Items of a receipt ----------
+const itemShape = (i) => ({ id: i.id, lineId: i.line_id, item: i.item || '', amountCents: i.amount_cents })
+async function itemRoute(env, staff, method, id, b) {
+  const now = new Date().toISOString()
+  if (method === 'DELETE' && id) {
+    await env.DB.prepare('UPDATE cash_line_items SET deleted_at = ?, deleted_by = ? WHERE id = ? AND deleted_at IS NULL').bind(now, staff.name, id).run()
+    await audit(env, staff.email, 'delete', 'cash_line_item', id)
+    return json({ ok: true })
+  }
+  const amount = money(b.amountCents)
+  if (Number.isNaN(amount)) return fail(400, 'Enter the amount as a number, e.g. 300.', { errors: { amountCents: 'Enter the amount as a number, e.g. 300.' } })
+  const item = clean(b.item, 120) || null
+  if (method === 'POST') {
+    const line = await env.DB.prepare('SELECT id FROM cash_lines WHERE id = ? AND branch_id = 1 AND deleted_at IS NULL').bind(Number(b.lineId) || 0).first()
+    if (!line) return fail(404, 'This receipt was not found. Reload the page.')
+    const row = await env.DB.prepare(`INSERT INTO cash_line_items (line_id, item, amount_cents, sort, created_by)
+      VALUES (?, ?, ?, (SELECT COALESCE(MAX(sort), 0) + 1 FROM cash_line_items WHERE line_id = ?), ?) RETURNING *`).bind(line.id, item, amount, line.id, staff.name).first()
+    await audit(env, staff.email, 'create', 'cash_line_item', row.id, { line: line.id })
+    return json({ row: itemShape(row) }, 201)
+  }
+  if (method === 'PATCH' && id) {
+    const row = await env.DB.prepare('UPDATE cash_line_items SET item = ?, amount_cents = ?, updated_at = ?, updated_by = ? WHERE id = ? AND deleted_at IS NULL RETURNING *').bind(item, amount, now, staff.name, id).first()
+    if (!row) return fail(404, 'This item was not found. Reload the page.')
+    await audit(env, staff.email, 'update', 'cash_line_item', id)
+    return json({ row: itemShape(row) })
+  }
+  return fail(405, 'Not allowed.')
 }

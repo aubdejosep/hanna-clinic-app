@@ -1869,3 +1869,14 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .li-recent .cell-sub { display: block; }
 .li-recent .is-confirm { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); }
 @media (max-width: 560px) { .li-recent li { flex-direction: column; align-items: stretch; } }
+/* Ledger: a receipt's items, under it */
+.lg-item td { background: var(--page); }
+.lg-item .lg-rownum { color: var(--teal-deep); }
+.lg-itemcol { padding: 0 6px !important; }
+.lg-additem { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border: 1px dashed var(--border-strong); border-radius: 999px; background: transparent; color: var(--text); font: 700 var(--fs-label)/1.3 var(--font-button); text-transform: uppercase; letter-spacing: .04em; cursor: pointer; }
+.lg-additem svg { width: 12px; height: 12px; color: var(--teal-deep); }
+.lg-additem:hover:not(:disabled) { border-color: var(--teal); color: var(--heading); }
+.lg-additem:disabled { opacity: .4; cursor: default; }
+.lg-sum { display: block; text-align: right; font-size: var(--fs-small); color: var(--text); }
+.lg-sum.is-off { color: var(--heading); font-weight: 700; background: var(--apricot-tint); border-radius: 6px; padding: 2px 4px; }
+@media print { .lg-additem { display: none !important; } }
