@@ -17,7 +17,7 @@ import { prettyDay } from '../lib/format.js'
 import { summarize } from '../../lib/daily-cash.js'
 import { canManage, useStaff } from '../lib/staff.js'
 import { GRIDS, Grid, RangeCalendar, peso, shift, today } from './DailyCashPage.jsx'
-import { PhotoPanel, TypeFromPhotos, isTyped, saveRotation } from '../components/ReceiptTyping.jsx'
+import { PhotoPanel, isTyped, openTyping, saveRotation } from '../components/ReceiptTyping.jsx'
 import { ClearDayButton, ClearedBanner } from '../components/ClearDay.jsx'
 
 const PAID = [['', '—'], ['cash', 'Cash'], ['gcash', 'GCash'], ['bank', 'Bank Transfer'], ['maribank', 'MariBank'], ['card', 'Card'], ['qrph', 'QRPH'], ['none', 'Not Counted']]
@@ -217,7 +217,14 @@ export default function ReceiptsPage() {
   const refreshed = () => api(`finances/daily?from=${day}&to=${day}&book=staff`).then((d) => setLive({ lines: d.lines, expenses: d.expenses, remits: d.remits })).catch(() => {})
   const [open, setOpen] = useState(null)
   const [upload, setUpload] = useState(null) // {done, total}
-  const [typing, setTyping] = useState(null) // { startId } while Type From Photos is open
+  // Type From Photos lives in the Layout (so it can be minimized while staff use other pages); it tells this page
+  // when receipts changed, to load them again.
+  const startTyping = (startId) => openTyping({ day, lines: live.lines, startId })
+  useEffect(() => {
+    const on = (e) => { if (e.detail?.day === day) setStamp(Date.now()) }
+    window.addEventListener('hanna:receipts-changed', on)
+    return () => window.removeEventListener('hanna:receipts-changed', on)
+  }, [day])
   const [offer, setOffer] = useState(0) // photos just uploaded: offer to type them now
   const wide = useWide()
   const [panel, setPanel] = useState(() => { try { return localStorage.getItem('receipts-photo-panel') !== '0' } catch { return true } })
@@ -263,7 +270,7 @@ export default function ReceiptsPage() {
         {day !== today() && <button type="button" className="text-btn" onClick={() => go(today())}>Today</button>}
         <input ref={bulk} type="file" accept="image/*" multiple hidden onChange={(e) => { uploadMany(e.target.files); e.target.value = '' }} />
         {canManage(staff) && <Link className="btn btn-quiet" to={`/finances/daily${day === today() ? '' : `?day=${day}`}`} title="Your own Ledger for this day, with Compare with Staff"><ArrowLeftRight aria-hidden /> Owner Ledger</Link>}
-        {ready && live.lines.some((l) => l.photo) && <button type="button" className="btn btn-quiet" onClick={() => setTyping({})}><Keyboard aria-hidden /> Type From Photos</button>}
+        {ready && live.lines.some((l) => l.photo) && <button type="button" className="btn btn-quiet" onClick={() => startTyping()}><Keyboard aria-hidden /> Type From Photos</button>}
         {wide && !panel && <button type="button" className="btn btn-quiet" onClick={() => showPanel(true)}><PanelRight aria-hidden /> Photo Panel</button>}
         {canManage(staff) && ready && <ClearDayButton day={day} book="staff" data={data} onDone={() => setStamp(Date.now())} />}
         {canManage(staff) && ready && <ClearedBanner day={day} book="staff" cleared={data.cleared} onDone={() => setStamp(Date.now())} />}
@@ -275,7 +282,7 @@ export default function ReceiptsPage() {
           {offer > 0 && (
             <div className="rc-offer card card-pad">
               <span><strong>{offer} photo{offer === 1 ? '' : 's'} added.</strong> Type them one at a time, with each photo big on screen?</span>
-              <button type="button" className="btn" onClick={() => { setOffer(0); setTyping({}) }}><Keyboard aria-hidden /> Start Typing</button>
+              <button type="button" className="btn" onClick={() => { setOffer(0); startTyping() }}><Keyboard aria-hidden /> Start Typing</button>
               <button type="button" className="text-btn" onClick={() => setOffer(0)}>Later</button>
             </div>
           )}
@@ -291,7 +298,6 @@ export default function ReceiptsPage() {
         </div>
       )}
       {open && <Lightbox row={open} onClose={() => setOpen(null)} />}
-      {typing && ready && <TypeFromPhotos day={day} lines={live.lines} startId={typing.startId} onClose={() => { setTyping(null); setStamp(Date.now()) }} />}
     </>
   )
 }

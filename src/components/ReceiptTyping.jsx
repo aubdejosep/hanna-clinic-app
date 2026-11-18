@@ -2,11 +2,13 @@
 //   PhotoViewer     the photo, with zoom (wheel, pinch, buttons), drag to move, and rotate (saved per photo).
 //   TypeFromPhotos  one receipt at a time: big photo on the left, a short form on the right; Enter on the last field
 //                   saves and opens the next photo. Skip removes a photo that isn't a receipt (its blank row).
+//   TypingHost      keeps Type From Photos open across pages (in the Layout): Minimize shrinks it to a small button
+//                   so staff can search or open an owner or pet, then carry on where they were (unsaved typing kept).
 //   PhotoPanel      beside the grid on a computer: the photo of the row being typed in, changing as you move.
 // Everything saves into staff's own rows (book 'staff'), the same ones the grid shows.
 import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { ChevronLeft, ChevronRight, Minus, Plus, RotateCw, Scan, SkipForward, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Keyboard, Minimize2, Minus, Plus, RotateCw, Scan, SkipForward, Trash2, X } from 'lucide-react'
 import { ErrorNote, useToast } from './ui.jsx'
 import { api } from '../lib/api.js'
 
@@ -80,7 +82,36 @@ function formOf(l) {
   }
 }
 
-export function TypeFromPhotos({ day, lines: initial, startId, onClose }) {
+// Ask the Layout's TypingHost to open (or bring back) Type From Photos; the Receipts page listens for changes.
+export const openTyping = (detail) => window.dispatchEvent(new CustomEvent('hanna:type-photos-open', { detail }))
+const receiptsChanged = (day) => window.dispatchEvent(new CustomEvent('hanna:receipts-changed', { detail: { day } }))
+
+export function TypingHost() {
+  const [session, setSession] = useState(null) // { key, day, lines, startId, minimized, progress }
+  useEffect(() => {
+    const open = (e) => setSession((s) => (s && s.day === e.detail.day ? { ...s, minimized: false } : { key: Date.now(), ...e.detail, minimized: false, progress: null }))
+    window.addEventListener('hanna:type-photos-open', open)
+    return () => window.removeEventListener('hanna:type-photos-open', open)
+  }, [])
+  if (!session) return null
+  const p = session.progress
+  return (
+    <>
+      <TypeFromPhotos key={session.key} day={session.day} lines={session.lines} startId={session.startId} minimized={session.minimized}
+        onMinimize={() => { setSession((s) => ({ ...s, minimized: true })); receiptsChanged(session.day) }}
+        onProgress={(progress) => setSession((s) => (s ? { ...s, progress } : s))}
+        onClose={() => { setSession(null); receiptsChanged(session.day) }} />
+      {session.minimized && (
+        <button type="button" className="tfp-pill" onClick={() => setSession((s) => ({ ...s, minimized: false }))} title="Back to Type From Photos (your place and typing are kept)">
+          <Keyboard aria-hidden />
+          <span><strong>Type From Photos</strong>{p && <span>Receipt {p.at + 1} of {p.total}{p.left ? ` · ${p.left} left` : ''}</span>}</span>
+        </button>
+      )}
+    </>
+  )
+}
+
+export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimized, onMinimize, onProgress }) {
   const toast = useToast()
   const [lines, setLines] = useState(() => initial.filter((l) => l.photo))
   const first = Math.max(0, startId ? lines.findIndex((l) => l.id === startId) : lines.findIndex((l) => !isTyped(l)))
@@ -94,10 +125,14 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose }) {
   const formRef = useRef(null)
   useEffect(() => { if (line) { setF(formOf(line)); setError(null); setSkipAsk(false); requestAnimationFrame(() => firstField.current?.focus()) } }, [line?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (minimized) return undefined
     const k = (e) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', k)
     return () => window.removeEventListener('keydown', k)
-  }, [onClose])
+  }, [onClose, minimized])
+  useEffect(() => { if (!minimized && line) requestAnimationFrame(() => formRef.current?.querySelector('input:focus') || firstField.current?.focus()) }, [minimized]) // eslint-disable-line react-hooks/exhaustive-deps
+  const leftCount = lines.filter((l) => !isTyped(l)).length
+  useEffect(() => { onProgress?.({ at, total: lines.length, left: leftCount }) }, [at, lines.length, leftCount]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!lines.length) {
     return (
       <div className="tfp" role="dialog" aria-modal="true" aria-label="Type From Photos">
@@ -182,11 +217,12 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose }) {
     <label className="tfp-field"><span>{label}</span><input value={f[k]} onChange={(e) => set({ [k]: e.target.value })} {...props} /></label>
   )
   return (
-    <div className="tfp" role="dialog" aria-modal="true" aria-labelledby="tfp-title">
+    <div className="tfp" role="dialog" aria-modal="true" aria-labelledby="tfp-title" hidden={minimized}>
       <div className="tfp-bar">
         <strong id="tfp-title">Type From Photos</strong>
         <span className="tfp-progress"><span style={{ width: `${((lines.length - left) / lines.length) * 100}%` }} /></span>
         <span className="cell-sub">Receipt {at + 1} of {lines.length}{left ? ` · ${left} not typed yet` : ' · all typed'}</span>
+        {onMinimize && <button type="button" className="btn btn-quiet btn-sm tfp-min" onClick={onMinimize} title="Shrink to a small button to search or open an owner or pet; your place and typing are kept"><Minimize2 aria-hidden /> Minimize</button>}
         <button type="button" className="icon-btn" onClick={onClose} aria-label="Close" title="Close (Esc)"><X /></button>
       </div>
       <div className="tfp-body">

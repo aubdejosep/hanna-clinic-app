@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { BalanceCheckInAlert } from './Balances.jsx'
+import { TypingHost } from './ReceiptTyping.jsx'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { PanelLeftClose, PanelLeftOpen, Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Pill, Settings, UserRound, Wallet, X } from 'lucide-react'
 import { api } from '../lib/api.js'
@@ -237,6 +238,7 @@ export default function Layout({ staff }) {
       </div>
       <TagCheckIn />
       <BalanceCheckInAlert />
+      <TypingHost />
       <QuickActions />
     </div>
   )

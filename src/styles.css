@@ -2066,3 +2066,17 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 :root[data-theme="classic"] .shell[data-mini="1"] .nav-children .nav-link.active { background: var(--teal-tint); color: var(--heading) !important; }
 /* The collapsed menu's pop-out list must sit above the page (e.g. the Ledger's pinned table header). */
 @media (min-width: 861px) { .shell[data-mini="1"] .sidebar { z-index: 45; } }
+/* Type From Photos: minimized */
+.tfp[hidden] { display: none; }
+.tfp-min { margin-left: auto; }
+.tfp-min + .icon-btn { margin-left: 0 !important; }
+.tfp-pill {
+  position: fixed; left: calc(var(--sidebar-w) + 24px); bottom: 24px; z-index: 94; display: inline-flex; align-items: center; gap: 10px;
+  padding: 10px 16px 10px 12px; border: 0; border-radius: 999px; background: var(--teal-deep); color: #fff; box-shadow: var(--shadow-lg); cursor: pointer; text-align: left;
+}
+.tfp-pill svg { width: 20px; height: 20px; flex: none; }
+.tfp-pill strong { display: block; font: 700 var(--fs-small)/1.2 var(--font-button); text-transform: uppercase; letter-spacing: .04em; }
+.tfp-pill span span { display: block; font-size: var(--fs-label); opacity: .9; }
+.tfp-pill:hover { filter: brightness(1.08); }
+@media (max-width: 860px) { .tfp-pill { left: 16px; bottom: 16px; } }
+.tfp-pill strong, .tfp-pill span { color: #fff; }
