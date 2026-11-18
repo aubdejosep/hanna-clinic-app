@@ -184,7 +184,7 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
       const row = find(ck)
       if (!row) return
       if (prepare) Object.assign(row, prepare(row))
-      const { ck: _ck, items: _items, photo: _photo, ...body } = row
+      const { ck: _ck, items: _items, photo: _photo, photoRotate: _rot, photoV: _v, staffPhoto: _sp, ...body } = row
       try {
         if (row.id) await api(`finances/daily/${kind}/${row.id}`, { method: 'PATCH', body })
         else {
@@ -285,7 +285,7 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
               const r = vr++
               return [
                 groupHead && <tr key={`d-${row.day}`} className="lg-day"><td colSpan={span}><span className="lg-dayhead">{prettyDay(row.day)}{kind === 'lines' && allBtns(row.day)}</span></td></tr>,
-                <tr key={row.ck} id={row.id ? `receipt-${row.id}` : undefined} className={`${isNew ? 'lg-new' : ''} ${row.items?.length ? 'lg-has-items' : ''} ${highlight && row.id === highlight ? 'lg-highlight' : ''}`}>
+                <tr key={row.ck} id={row.id ? `receipt-${row.id}` : undefined} data-line={row.id || undefined} className={`${isNew ? 'lg-new' : ''} ${row.items?.length ? 'lg-has-items' : ''} ${highlight && row.id === highlight ? 'lg-highlight' : ''}`}>
                   <td className="lg-rownum">{isNew ? '+' : n}</td>
                   {g.columns.map((col, c) => (
                     <td key={col.key} className={col.item ? 'lg-itemcol' : col.type === 'custom' ? 'lg-customcol' : incomeOff(row, col) ? 'lg-flag' : ''} title={incomeOff(row, col) ? `Total Income goes before the discount: Total Per Receipt ${peso(row.amountCents)} + Discounts ${peso(row.discountCents || 0)} = ${peso(row.amountCents + (row.discountCents || 0))}` : undefined}>{col.item ? receiptCell(row, col) : col.type === 'custom' ? col.render(row, { rerender, saved: !!row.id }) : <Cell col={col} value={row[col.key]} grid={kind} r={r} c={c} onChange={(v) => set(row.ck, col.key, v)} onCommit={() => save(row.ck)} />}</td>
@@ -295,7 +295,7 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
                 ...(isShut(row) ? [] : row.items || []).map((it) => {
                   const ir = vr++
                   return (
-                    <tr key={it.ck} className="lg-item">
+                    <tr key={it.ck} className="lg-item" data-line={row.id || undefined}>
                       <td className="lg-rownum" aria-hidden>↳</td>
                       {g.columns.map((col, c) => (
                         <td key={col.key}>{col.item ? (

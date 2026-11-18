@@ -47,11 +47,12 @@ const TABLES = {
       }
       return { receipt_no: clean(b.receiptNo, 40) || null, receipt_qr: clean(b.receiptQr, 40) || null, client_name: clean(b.clientName, 120) || null,
         pet_names: clean(b.petNames, 200) || null, note: clean(b.note, 300) || null, ...m, amount_cents: m.amount_cents ?? 0,
-        paid_with: PAID_WITH.includes(b.paidWith) ? b.paidWith : null }
+        paid_with: PAID_WITH.includes(b.paidWith) ? b.paidWith : null,
+        ...(b.photoRotate !== undefined ? { photo_rotate: [90, 180, 270].includes(Number(b.photoRotate)) ? Number(b.photoRotate) : 0 } : {}) }
     },
     shape: (r) => ({ id: r.id, day: r.day, receiptNo: r.receipt_no || '', receiptQr: r.receipt_qr || '', clientName: r.client_name || '', petNames: r.pet_names || '',
       note: r.note || '', amountCents: r.amount_cents || null, discountCents: r.discount_cents ?? null, onlineCents: r.online_cents, depositCents: r.deposit_cents, balanceCents: r.balance_cents,
-      incomeCents: r.income_cents, commissionCents: r.commission_cents, paidWith: r.paid_with || '', photo: !!r.photo_key, items: r.items || [] }),
+      incomeCents: r.income_cents, commissionCents: r.commission_cents, paidWith: r.paid_with || '', photo: !!r.photo_key, photoRotate: r.photo_rotate || 0, items: r.items || [] }),
   },
   expenses: {
     table: 'cash_expenses', entity: 'cash_expense',

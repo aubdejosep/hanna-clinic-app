@@ -9,7 +9,7 @@
 //            and Grooming lists, each checked against the rows ("Receipts add up to …").
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowLeftRight, Camera, CalendarDays, ChevronLeft, ChevronRight, ImagePlus, Plus, Trash2, X } from 'lucide-react'
+import { ArrowLeftRight, Camera, CalendarDays, Keyboard, PanelRight, ChevronLeft, ChevronRight, ImagePlus, Plus, Trash2, X } from 'lucide-react'
 import { ErrorNote, Field, PageHead, PawLoader, useToast } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
@@ -17,6 +17,7 @@ import { prettyDay } from '../lib/format.js'
 import { summarize } from '../../lib/daily-cash.js'
 import { canManage, useStaff } from '../lib/staff.js'
 import { GRIDS, Grid, RangeCalendar, peso, shift, today } from './DailyCashPage.jsx'
+import { PhotoPanel, TypeFromPhotos, isTyped, saveRotation } from '../components/ReceiptTyping.jsx'
 
 const PAID = [['', '—'], ['cash', 'Cash'], ['gcash', 'GCash'], ['bank', 'Bank Transfer'], ['maribank', 'MariBank'], ['card', 'Card'], ['qrph', 'QRPH'], ['none', 'Not Counted']]
 const ONLINE = ['gcash', 'bank', 'maribank', 'card', 'qrph']
@@ -60,7 +61,7 @@ function Lightbox({ row, onClose }) {
   }, [onClose])
   return (
     <div className="lightbox" role="dialog" aria-modal="true" aria-label="Receipt photo" onClick={onClose}>
-      <img src={photoUrl(row)} alt={`Receipt ${row.receiptNo || row.receiptQr || ''}`} onClick={(e) => e.stopPropagation()} />
+      <img src={photoUrl(row)} alt={`Receipt ${row.receiptNo || row.receiptQr || ''}`} onClick={(e) => e.stopPropagation()} style={row.photoRotate ? { transform: `rotate(${row.photoRotate}deg)` } : undefined} />
       <button type="button" className="icon-btn rc-lightbox-close" onClick={onClose} aria-label="Close" title="Close"><X /></button>
     </div>
   )
@@ -80,8 +81,9 @@ function PhotoCell({ row, tools, onOpen }) {
     <span className="rc-photo">
       <input ref={input} type="file" accept="image/*" hidden onChange={(e) => { pick(e.target.files[0]); e.target.value = '' }} />
       {row.photo
-        ? <button type="button" className="rc-thumb" onClick={() => onOpen(row)} title="Open the photo"><img src={photoUrl(row)} alt="" loading="lazy" /></button>
+        ? <button type="button" className="rc-thumb" onClick={() => onOpen(row)} title="Open the photo"><img src={photoUrl(row)} alt="" loading="lazy" style={row.photoRotate ? { transform: `rotate(${row.photoRotate}deg)` } : undefined} /></button>
         : <button type="button" className="lg-additem" onClick={() => input.current.click()} disabled={!tools.saved || busy} title={tools.saved ? 'Add the receipt photo' : 'Type the receipt first'} aria-label="Add Photo"><Camera aria-hidden />{busy ? '…' : ''}</button>}
+      {row.photo && !isTyped(row) && <span className="badge badge-warn rc-totype" title="This photo’s receipt isn’t typed yet">To Type</span>}
       {row.photo && <button type="button" className="rc-replace" onClick={() => input.current.click()} disabled={busy} title="Replace the photo" aria-label="Replace Photo"><Camera aria-hidden /></button>}
     </span>
   )
@@ -180,7 +182,7 @@ const STAFF_LINES = {
   ...GRIDS.lines,
   minWidth: 1180,
   columns: [
-    { key: 'photo', label: 'Photo', type: 'custom', width: '6%' },
+    { key: 'photo', label: 'Photo', type: 'custom', width: '9%' },
     ...GRIDS.lines.columns.filter((c) => ['receiptNo', 'receiptQr', 'clientName', 'petNames', 'item', 'itemAmount', 'amountCents', 'discountCents'].includes(c.key)),
     { key: 'paidWith', label: 'Paid With', type: 'select', options: PAID, width: '9%' },
     { ...GRIDS.lines.columns.find((c) => c.key === 'note'), width: '13%' },
@@ -188,6 +190,14 @@ const STAFF_LINES = {
   blank: (day) => ({ ...GRIDS.lines.blank(day), paidWith: '', book: 'staff' }),
 }
 const STAFF_EXPENSES = { ...GRIDS.expenses, blank: (day) => ({ ...GRIDS.expenses.blank(day), book: 'staff' }) }
+
+// The photo panel needs room beside the grid: computers only.
+function useWide() {
+  const q = '(min-width: 1180px)'
+  const [w, setW] = useState(() => window.matchMedia(q).matches)
+  useEffect(() => { const m = window.matchMedia(q); const on = () => setW(m.matches); m.addEventListener('change', on); return () => m.removeEventListener('change', on) }, [])
+  return w
+}
 
 export default function ReceiptsPage() {
   const toast = useToast()
@@ -206,6 +216,13 @@ export default function ReceiptsPage() {
   const refreshed = () => api(`finances/daily?from=${day}&to=${day}&book=staff`).then((d) => setLive({ lines: d.lines, expenses: d.expenses, remits: d.remits })).catch(() => {})
   const [open, setOpen] = useState(null)
   const [upload, setUpload] = useState(null) // {done, total}
+  const [typing, setTyping] = useState(null) // { startId } while Type From Photos is open
+  const [offer, setOffer] = useState(0) // photos just uploaded: offer to type them now
+  const wide = useWide()
+  const [panel, setPanel] = useState(() => { try { return localStorage.getItem('receipts-photo-panel') !== '0' } catch { return true } })
+  const showPanel = (v) => { setPanel(v); try { localStorage.setItem('receipts-photo-panel', v ? '1' : '0') } catch { /* private window */ } }
+  const [focusId, setFocusId] = useState(null)
+  const focusLine = live?.lines.find((l) => l.id === focusId) || null
   const bulk = useRef(null)
   const ready = data && live && data.from === day
   useEffect(() => { if (ready && highlight) requestAnimationFrame(() => document.getElementById(`receipt-${highlight}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })) }, [ready, highlight, gen])
@@ -224,6 +241,7 @@ export default function ReceiptsPage() {
     }
     setUpload(null)
     setStamp(Date.now())
+    if (list.length > failed) setOffer(list.length - failed)
     toast(failed ? `${list.length - failed} photos added; ${failed} didn’t upload. Add those with the camera button on their row.` : `${list.length} photo${list.length === 1 ? '' : 's'} added: type each receipt next to its photo.`)
   }
 
@@ -244,12 +262,25 @@ export default function ReceiptsPage() {
         {day !== today() && <button type="button" className="text-btn" onClick={() => go(today())}>Today</button>}
         <input ref={bulk} type="file" accept="image/*" multiple hidden onChange={(e) => { uploadMany(e.target.files); e.target.value = '' }} />
         {canManage(staff) && <Link className="btn btn-quiet" to={`/finances/daily${day === today() ? '' : `?day=${day}`}`} title="Your own Ledger for this day, with Compare with Staff"><ArrowLeftRight aria-hidden /> Owner Ledger</Link>}
+        {ready && live.lines.some((l) => l.photo) && <button type="button" className="btn btn-quiet" onClick={() => setTyping({})}><Keyboard aria-hidden /> Type From Photos</button>}
+        {wide && !panel && <button type="button" className="btn btn-quiet" onClick={() => showPanel(true)}><PanelRight aria-hidden /> Photo Panel</button>}
         <button type="button" className="btn" onClick={() => bulk.current.click()} disabled={!!upload || !ready}><ImagePlus aria-hidden /> {upload ? `Uploading ${upload.done} of ${upload.total}…` : 'Upload Photos'}</button>
       </div>
       <ErrorNote error={error} />
       {!ready ? <PawLoader label="Loading the receipts…" /> : (
         <div className="stack" style={{ gap: 16 }}>
-          <Grid key={`l-${day}-${gen}`} kind="lines" rows={data.lines} day={day} single onSaved={refreshed} config={config} prepare={prepare} highlight={highlight} />
+          {offer > 0 && (
+            <div className="rc-offer card card-pad">
+              <span><strong>{offer} photo{offer === 1 ? '' : 's'} added.</strong> Type them one at a time, with each photo big on screen?</span>
+              <button type="button" className="btn" onClick={() => { setOffer(0); setTyping({}) }}><Keyboard aria-hidden /> Start Typing</button>
+              <button type="button" className="text-btn" onClick={() => setOffer(0)}>Later</button>
+            </div>
+          )}
+          <div className={wide && panel ? 'rc-split' : ''} onFocus={(e) => { const id = Number(e.target.closest('tr[data-line]')?.dataset.line); if (id) setFocusId(id) }}>
+            <Grid key={`l-${day}-${gen}`} kind="lines" rows={data.lines} day={day} single onSaved={refreshed} config={config} prepare={prepare} highlight={highlight} />
+            {wide && panel && <PhotoPanel line={focusLine} onClose={() => showPanel(false)}
+              onRotate={async (r) => { if (!focusLine) return; setLive((x) => ({ ...x, lines: x.lines.map((l) => (l.id === focusLine.id ? { ...l, photoRotate: r } : l)) })); try { await saveRotation(focusLine, r) } catch (err) { toast(err.message) } }} />}
+          </div>
           <div className="rs-layout">
             <Summary key={`s-${day}-${gen}`} day={day} saved={data.summary} live={live} />
             <Grid key={`e-${day}-${gen}`} kind="expenses" rows={data.expenses} day={day} single onSaved={refreshed} config={STAFF_EXPENSES} />
@@ -257,6 +288,7 @@ export default function ReceiptsPage() {
         </div>
       )}
       {open && <Lightbox row={open} onClose={() => setOpen(null)} />}
+      {typing && ready && <TypeFromPhotos day={day} lines={live.lines} startId={typing.startId} onClose={() => { setTyping(null); setStamp(Date.now()) }} />}
     </>
   )
 }
