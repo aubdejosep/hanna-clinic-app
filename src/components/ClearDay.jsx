@@ -59,21 +59,86 @@ export function ClearDayButton({ day, book, data, onDone }) {
   )
 }
 
+const peso = (c) => `₱${((c || 0) / 100).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`
+
+// Restore Day: a button in the top bar (who cleared the day and when, on hover). It opens a small window listing
+// what will come back, with the Restore button there.
 export function ClearedBanner({ day, book, cleared, onDone }) {
   const toast = useToast()
-  const [ask, setAsk] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [list, setList] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  useEffect(() => {
+    if (!open || !cleared) return undefined
+    setList(null); setError(null)
+    api('finances/daily/restore', { method: 'POST', body: { day, book, tag: cleared.tag, preview: true } }).then(setList).catch(setError)
+    const k = (e) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [open, day, book, cleared])
   if (!cleared) return null
+  const about = `${short(day)} was cleared by ${cleared.by} on ${when(cleared.at)}.`
   async function restore() {
-    if (!ask) { setAsk(true); setTimeout(() => setAsk(false), 4000); return }
-    setBusy(true)
-    try { const r = await api('finances/daily/restore', { method: 'POST', body: { day, book, tag: cleared.tag } }); toast(`${short(day)} restored: ${n(r.restored, 'row')} back`); onDone() } catch (err) { toast(err.message) }
-    setBusy(false); setAsk(false)
+    setBusy(true); setError(null)
+    try { const r = await api('finances/daily/restore', { method: 'POST', body: { day, book, tag: cleared.tag } }); toast(`${short(day)} restored: ${n(r.restored, 'row')} back`); setOpen(false); onDone() } catch (err) { setError(err) }
+    setBusy(false)
   }
-  const about = `${short(day)} was cleared by ${cleared.by} on ${when(cleared.at)}${cleared.receipts || cleared.expenses ? ` (${[cleared.receipts && n(cleared.receipts, 'receipt'), cleared.expenses && n(cleared.expenses, 'expense')].filter(Boolean).join(', ')})` : ''}. Restore Day puts those rows back; anything typed since is kept.`
+  const total = list ? list.receipts.length + list.expenses.length + list.remits.length + (list.summary?.kept ? 1 : 0) : 0
+  const again = list ? list.receipts.filter((r) => r.again).length : 0
   return (
-    <button type="button" className={`btn btn-quiet ${ask ? 'is-confirm' : ''}`} onClick={restore} disabled={busy} title={about} aria-label={ask ? 'Tap again to restore the cleared rows' : about}>
-      <RotateCcw aria-hidden /> {busy ? 'Restoring…' : ask ? 'Tap Again to Restore' : 'Restore Day'}
-    </button>
+    <>
+      <button type="button" className="btn btn-quiet" onClick={() => setOpen(true)} title={`${about} Click to see what Restore Day brings back.`}><RotateCcw aria-hidden /> Restore Day</button>
+      {open && (
+        <div className="bal-alert-backdrop" onClick={() => !busy && setOpen(false)}>
+          <div className="card clear-dialog restore-dialog" role="dialog" aria-modal="true" aria-labelledby="restore-title" onClick={(e) => e.stopPropagation()}>
+            <h2 id="restore-title">Restore {short(day)} in {book === 'owner' ? 'your Ledger' : 'staff’s Receipts'}?</h2>
+            <p className="field-hint" style={{ margin: 0 }}>{about} Anything typed since stays as it is.</p>
+            {!list && !error && <p className="field-hint" style={{ margin: 0 }}>Loading what was cleared…</p>}
+            {list && (
+              <div className="restore-list">
+                {list.receipts.length > 0 && (
+                  <section>
+                    <h3 className="label">{n(list.receipts.length, 'Receipt')} · {peso(list.receipts.reduce((t, r) => t + (r.amountCents || 0), 0))}</h3>
+                    <ul>
+                      {list.receipts.map((r, i) => (
+                        <li key={i}>
+                          <span>{r.receiptQr ? `QR ${r.receiptQr}` : r.receiptNo ? `OR ${r.receiptNo}` : 'No receipt no.'}{r.client ? ` · ${r.client}` : ''}{r.items ? ` · ${n(r.items, 'item')}` : ''}{r.again && <span className="li-warn">typed again since</span>}</span>
+                          <strong>{peso(r.amountCents)}</strong>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+                {list.expenses.length > 0 && (
+                  <section>
+                    <h3 className="label">{n(list.expenses.length, 'Expense')}</h3>
+                    <ul>{list.expenses.map((e, i) => <li key={i}><span>{e.description || e.category}</span><strong>{peso(e.amountCents)}</strong></li>)}</ul>
+                  </section>
+                )}
+                {list.remits.length > 0 && (
+                  <section>
+                    <h3 className="label">Remits</h3>
+                    <ul>{list.remits.map((r, i) => <li key={i}><span>{r.kind === 'second' ? '2nd Remit' : '1st Remit'}</span><strong>{peso(r.amountCents)}</strong></li>)}</ul>
+                  </section>
+                )}
+                {list.summary && (
+                  <p className={list.summary.kept ? 'field-hint' : 'tfp-warn'} style={{ margin: 0 }}>
+                    {list.summary.kept ? `Staff’s typed summary comes back too (Total Income ${peso(list.summary.incomeCents)}).` : 'Staff typed a new summary since, so the old one stays cleared.'}
+                  </p>
+                )}
+                {again > 0 && <p className="tfp-warn" style={{ margin: 0 }}>{n(again, 'receipt')} {again === 1 ? 'was' : 'were'} typed again since the clear: restoring shows {again === 1 ? 'it' : 'them'} twice. Remove the extra row afterwards.</p>}
+                {!total && <p className="field-hint" style={{ margin: 0 }}>Nothing left to restore.</p>}
+              </div>
+            )}
+            <ErrorNote error={error} />
+            <div className="inline-row">
+              <button type="button" className="btn" onClick={restore} disabled={busy || !total}><RotateCcw aria-hidden /> {busy ? 'Restoring…' : `Restore ${n(total, 'Row')}`}</button>
+              <button type="button" className="btn btn-quiet" onClick={() => setOpen(false)} disabled={busy}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

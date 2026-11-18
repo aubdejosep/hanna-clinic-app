@@ -468,6 +468,7 @@ async function clearDay(env, staff, b) {
 async function restoreDay(env, staff, b) {
   if (!isDay(b.day) || !String(b.tag || '').includes(' (cleared ')) return fail(400, 'Reload the page and try again.')
   const book = b.book === 'staff' ? 'staff' : 'owner'
+  if (b.preview) return json(await restorePreview(env, b.day, book, b.tag))
   const stmts = CLEAR_TABLES[book].filter((t) => t !== 'cash_summaries').map((t) => env.DB.prepare(`UPDATE ${t} SET deleted_at = NULL, deleted_by = NULL WHERE branch_id = 1 AND day = ? AND deleted_by = ?${whereBook(t, book)}`).bind(b.day, b.tag))
   // A summary comes back only if nobody has typed a new one since (one summary per day).
   if (book === 'staff') stmts.push(env.DB.prepare(`UPDATE cash_summaries SET deleted_at = NULL, deleted_by = NULL WHERE branch_id = 1 AND day = ?1 AND deleted_by = ?2
@@ -477,4 +478,25 @@ async function restoreDay(env, staff, b) {
   if (!restored) return fail(400, 'Nothing to restore: it may have been restored already.')
   await audit(env, staff.email, 'restore_day', 'cash_day', null, { day: b.day, book, restored })
   return json({ ok: true, restored })
+}
+
+// What Restore Day would bring back (shown before restoring), and receipt numbers typed again since the clear.
+async function restorePreview(env, day, book, tag) {
+  const [l, e, x, active] = await env.DB.batch([
+    env.DB.prepare(`SELECT l.id, l.receipt_no, l.receipt_qr, l.client_name, l.amount_cents, (SELECT COUNT(*) FROM cash_line_items i WHERE i.line_id = l.id AND i.deleted_at IS NULL) AS items
+      FROM cash_lines l WHERE l.branch_id = 1 AND l.day = ? AND l.book = ? AND l.deleted_by = ? ORDER BY l.sort, l.id`).bind(day, book, tag),
+    env.DB.prepare('SELECT category, description, amount_cents FROM cash_expenses WHERE branch_id = 1 AND day = ? AND book = ? AND deleted_by = ? ORDER BY id').bind(day, book, tag),
+    book === 'owner'
+      ? env.DB.prepare("SELECT kind, amount_cents FROM cash_remits WHERE branch_id = 1 AND day = ? AND deleted_by = ? ORDER BY kind").bind(day, tag)
+      : env.DB.prepare('SELECT id, income_cents, cash_on_hand_cents, (SELECT COUNT(*) FROM cash_summaries s2 WHERE s2.branch_id = 1 AND s2.day = cash_summaries.day AND s2.deleted_at IS NULL) AS newer FROM cash_summaries WHERE branch_id = 1 AND day = ? AND deleted_by = ?').bind(day, tag),
+    env.DB.prepare('SELECT receipt_no, receipt_qr FROM cash_lines WHERE branch_id = 1 AND day = ? AND book = ? AND deleted_at IS NULL').bind(day, book),
+  ])
+  const nums = new Set(active.results.flatMap((r) => [r.receipt_no, r.receipt_qr]).filter(Boolean))
+  return {
+    receipts: l.results.map((r) => ({ receiptNo: r.receipt_no || '', receiptQr: r.receipt_qr || '', client: r.client_name || '', amountCents: r.amount_cents, items: r.items,
+      again: !!((r.receipt_no && nums.has(r.receipt_no)) || (r.receipt_qr && nums.has(r.receipt_qr))) })),
+    expenses: e.results.map((r) => ({ category: r.category, description: r.description || '', amountCents: r.amount_cents })),
+    remits: book === 'owner' ? x.results.map((r) => ({ kind: r.kind, amountCents: r.amount_cents })) : [],
+    summary: book === 'staff' && x.results[0] ? { incomeCents: x.results[0].income_cents, cashOnHandCents: x.results[0].cash_on_hand_cents, kept: !x.results[0].newer } : null,
+  }
 }

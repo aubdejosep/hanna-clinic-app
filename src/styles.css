@@ -2026,3 +2026,11 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .rv-line strong { color: var(--heading); text-align: right; }
 .rv-items { display: grid; padding: 6px 0 6px 10px; border-left: 3px solid var(--teal-tint); margin: 4px 0; }
 .lg-bar .btn.is-confirm { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); }
+.restore-dialog { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; }
+.restore-list { display: grid; gap: 12px; }
+.restore-list h3 { margin: 0 0 4px; }
+.restore-list ul { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); max-height: 240px; overflow: auto; }
+.restore-list li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 12px; border-bottom: 1px solid var(--border); color: var(--text); font-size: var(--fs-small); }
+.restore-list li:last-child { border-bottom: 0; }
+.restore-list li strong { color: var(--heading); white-space: nowrap; }
+.restore-list .li-warn { margin-left: 6px; }
