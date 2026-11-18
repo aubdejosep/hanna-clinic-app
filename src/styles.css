@@ -2064,3 +2064,5 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 :root[data-theme="classic"] .shell[data-mini="1"] .nav-children .nav-link { color: var(--text) !important; }
 :root[data-theme="classic"] .shell[data-mini="1"] .nav-children .nav-link:hover { background: var(--surface-alt); }
 :root[data-theme="classic"] .shell[data-mini="1"] .nav-children .nav-link.active { background: var(--teal-tint); color: var(--heading) !important; }
+/* The collapsed menu's pop-out list must sit above the page (e.g. the Ledger's pinned table header). */
+@media (min-width: 861px) { .shell[data-mini="1"] .sidebar { z-index: 45; } }
