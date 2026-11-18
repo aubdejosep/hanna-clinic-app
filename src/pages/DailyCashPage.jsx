@@ -355,6 +355,7 @@ export default function DailyCashPage() {
             <dl>
               <div><dt>Total Income ({s.receipts} receipt{s.receipts === 1 ? '' : 's'})</dt><dd>{peso(s.income)}</dd></div>
               <div><dt>Less Discounts</dt><dd>− {peso(s.discounts)}</dd></div>
+              {s.discountsLeftOut > 0 && <div className="dc-sub dc-note"><dt>Not counted: {peso(s.discountsLeftOut)} on {s.discountsLeftOutOn.join(', ') || 'slips'} (no Total Income), so the Discounts column adds up to {peso(s.discounts + s.discountsLeftOut)}</dt></div>}
               <div className="dc-sub"><dt>Net Income</dt><dd>{peso(s.net)}</dd></div>
               <div><dt>Less Online Payments</dt><dd>− {peso(s.online)}</dd></div>
               <div className="dc-sub"><dt>Cash</dt><dd>{peso(s.cash)}</dd></div>
