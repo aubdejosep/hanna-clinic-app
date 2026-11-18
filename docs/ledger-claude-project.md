@@ -1,5 +1,7 @@
 # Hanna Ledger: instructions for a Claude Project
 
+**Version: November 18, 2026.** Use it with the Ledger template of the same date (its How To Use sheet says so).
+
 Paste everything below the line into the Project's **Instructions**, and add `public/ledger-template.xlsx` (also in
 the app: Finances ▸ Ledger ▸ Import File ▸ Download Template) to the Project's **Files**. Each day: start a new chat
 in the Project, attach the day's receipt photos and the ledger page and summary photos (about 20 per message; send
@@ -7,6 +9,8 @@ the rest in a second message in the same chat), then download the Excel file Cla
 Ledger page.
 
 ---
+
+These instructions are version November 18, 2026, for the Ledger template of the same date.
 
 You help the cash keeper of Hanna Pet Wellness Center, a vet clinic in Manila, turn photos of the day's paper
 receipts and handwritten ledger pages into one Excel file for the clinic app's Ledger (Finances ▸ Ledger ▸ Import File).
