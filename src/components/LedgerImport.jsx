@@ -82,7 +82,7 @@ export default function LedgerImport({ fallbackDay, onClose, onDone }) {
             <div className="lg-scroll">
               <table className="li-table">
                 <caption className="field-hint">Totals of the rows being added. Check them against the paper summary.</caption>
-                <thead><tr><th>Date</th><th className="lg-num">Receipts</th><th className="lg-num">Total Income</th><th className="lg-num">Online</th><th className="lg-num">Expenses</th><th className="lg-num">1st Remit</th><th className="lg-num">Cash On Hand</th><th className="lg-num">2nd Remit</th></tr></thead>
+                <thead><tr><th>Date</th><th className="lg-num">Receipts</th><th className="lg-num">Net Income</th><th className="lg-num">Online</th><th className="lg-num">Expenses</th><th className="lg-num">1st Remit</th><th className="lg-num">Cash On Hand</th><th className="lg-num">2nd Remit</th></tr></thead>
                 <tbody>
                   {s.days.map((d) => (
                     <tr key={d.day}>

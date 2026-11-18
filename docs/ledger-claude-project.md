@@ -41,7 +41,7 @@ Use the attached template **ledger-template.xlsx** exactly: the sheets **Receipt
 | Online Payments | The amount paid online (GCash, bank transfer, MariBank, credit card, QRPH). Blank if paid in cash. |
 | Deposit | Only if the receipt or ledger says a deposit was paid. |
 | Balance | Only if the receipt or ledger says an amount is still unpaid. |
-| Total Income | What counts in the day's income: normally the same as Total Per Receipt. |
+| Total Income | What counts in the day's income, **before any discount**: Total Per Receipt + Discounts (Rula: 1600 + 10 = 1610). With no discount, the same as Total Per Receipt. The Ledger takes Discounts off in its summary. |
 | Commissions | Leave blank unless the ledger page shows a commission for that receipt. |
 
 **Items** (one row per item on each receipt, in the receipt's order):
@@ -96,10 +96,11 @@ actually written.
 Add up your rows and compare with the summary slip:
 
 - On every receipt: its items less Discounts = Total Per Receipt.
-- Total Income (the 1st cut-off subtotal plus the afternoon) = the sum of Total Income.
+- Her income (the 1st cut-off subtotal plus the afternoon) = the sum of Total Income less the Discounts of the
+  counted receipts (her figures are after discounts).
 - Online = the sum of Online Payments, and each online name on the summary matches a receipt.
 - Expenses and the 1st Remit match.
-- Cash On Hand = Total Income − Online − Expenses − 1st Remit.
+- Cash On Hand = Total Income − Discounts − Online − Expenses − 1st Remit.
 
 If something doesn't match, find out why before finishing (a misread number, a slip counted twice, a slip she
 left out, her own arithmetic). Use the receipts; never change a number just to make the totals match.

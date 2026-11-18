@@ -3,7 +3,7 @@
 // Discounts | Notes | Online Payments | Deposit | Balance | Total Income | Commissions, with totals at the bottom. A receipt
 // can be split into its items (+ Item): they sit under it with just Item and Amount, and the receipt row checks that
 // items − discount = Total Per Receipt. Then Expenses and
-// Remits, and the summary: Total Income - Online Payments - Expenses - 1st Remit = Cash On Hand, checked against the
+// Remits, and the summary: Total Income (before discounts) - Discounts - Online Payments - Expenses - 1st Remit = Cash On Hand, checked against the
 // 2nd Remit. The date comes from the calendar (one day, or several by dragging). Each cell saves when you leave it.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown, FileUp, Plus, Printer, Trash2 } from 'lucide-react'
@@ -70,6 +70,8 @@ const hasContent = (r) => Object.entries(r).some(([k, v]) => !['day', 'category'
 const COLLAPSE_KEY = 'ledger-items-collapsed'
 const savedCollapsed = () => { try { return localStorage.getItem(COLLAPSE_KEY) === '1' } catch { return false } }
 const rememberCollapsed = (v) => { try { localStorage.setItem(COLLAPSE_KEY, v ? '1' : '0') } catch { /* private window */ } }
+// Total Income is the price before the discount, so it should be Total Per Receipt + Discounts.
+const incomeOff = (row, col) => col.key === 'incomeCents' && row.incomeCents != null && row.amountCents != null && row.incomeCents !== row.amountCents + (row.discountCents || 0)
 const itemSum = (row) => (row.items || []).reduce((n, i) => n + (i.amountCents || 0), 0)
 
 // One calendar: tap a day, or drag across days (mouse or finger) for several.
@@ -280,7 +282,7 @@ function Grid({ kind, rows, day, single, onSaved }) {
                 <tr key={row.ck} className={`${isNew ? 'lg-new' : ''} ${row.items?.length ? 'lg-has-items' : ''}`}>
                   <td className="lg-rownum">{isNew ? '+' : n}</td>
                   {g.columns.map((col, c) => (
-                    <td key={col.key} className={col.item ? 'lg-itemcol' : ''}>{col.item ? receiptCell(row, col) : <Cell col={col} value={row[col.key]} grid={kind} r={r} c={c} onChange={(v) => set(row.ck, col.key, v)} onCommit={() => save(row.ck)} />}</td>
+                    <td key={col.key} className={col.item ? 'lg-itemcol' : incomeOff(row, col) ? 'lg-flag' : ''} title={incomeOff(row, col) ? `Total Income goes before the discount: Total Per Receipt ${peso(row.amountCents)} + Discounts ${peso(row.discountCents || 0)} = ${peso(row.amountCents + (row.discountCents || 0))}` : undefined}>{col.item ? receiptCell(row, col) : <Cell col={col} value={row[col.key]} grid={kind} r={r} c={c} onChange={(v) => set(row.ck, col.key, v)} onCommit={() => save(row.ck)} />}</td>
                   ))}
                   <td>{!isNew && delBtn(row.ck, 'row', () => remove(row))}</td>
                 </tr>,
@@ -352,6 +354,8 @@ export default function DailyCashPage() {
             <h2>Summary{single ? '' : ' for These Dates'}</h2>
             <dl>
               <div><dt>Total Income ({s.receipts} receipt{s.receipts === 1 ? '' : 's'})</dt><dd>{peso(s.income)}</dd></div>
+              <div><dt>Less Discounts</dt><dd>− {peso(s.discounts)}</dd></div>
+              <div className="dc-sub"><dt>Net Income</dt><dd>{peso(s.net)}</dd></div>
               <div><dt>Less Online Payments</dt><dd>− {peso(s.online)}</dd></div>
               <div className="dc-sub"><dt>Cash</dt><dd>{peso(s.cash)}</dd></div>
               <div><dt>Less Expenses</dt><dd>− {peso(s.expenses)}</dd></div>
@@ -364,7 +368,6 @@ export default function DailyCashPage() {
               <div className="dc-sub"><dt>Deposits</dt><dd>{peso(s.deposits)}</dd></div>
               <div className="dc-sub"><dt>Balances</dt><dd>{peso(s.balances)}</dd></div>
               <div className="dc-sub"><dt>Total Per Receipt</dt><dd>{peso(s.receiptsTotal)}</dd></div>
-              <div className="dc-sub"><dt>Discounts</dt><dd>{peso(s.discounts)}</dd></div>
             </dl>
             <p className="field-hint" style={{ margin: 0 }}>Commissions aren’t taken out of the cash; when they’re paid, add them under Expenses (type Vet Commission).</p>
           </section>

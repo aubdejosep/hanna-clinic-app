@@ -176,8 +176,9 @@ async function importRows(env, staff, b) {
         if (f.receipt_no) seen.no.set(f.receipt_no, out.line)
         if (f.receipt_qr) seen.qr.set(f.receipt_qr, out.line)
         if (f.income_cents == null && f.amount_cents) warnings.push('No Total Income: not counted in the totals')
-        if (f.online_cents && f.income_cents != null && f.online_cents > f.income_cents) warnings.push('Online is more than Total Income (a tip?)')
-        if (f.income_cents != null && f.amount_cents && f.income_cents !== f.amount_cents) warnings.push('Total Income differs from the receipt total')
+        const net = f.income_cents != null ? f.income_cents - (f.discount_cents || 0) : null
+        if (f.online_cents && net != null && f.online_cents > net) warnings.push('Online is more than Total Income less Discounts (a tip?)')
+        if (net != null && f.amount_cents && net !== f.amount_cents) warnings.push(f.discount_cents ? 'Total Income less Discounts differs from the receipt total (Total Income goes before the discount)' : 'Total Income differs from the receipt total')
         if (/\(check|\?/i.test(`${f.client_name || ''} ${f.pet_names || ''}`)) warnings.push('A name to check')
         const items = [].concat(r.items || []).slice(0, 60).map((x) => ({ item: clean(x && x.item, 120) || null, amount: money(x && x.amountCents) }))
         if (items.some((x) => Number.isNaN(x.amount))) issues.push('An item amount isn’t a number')
@@ -209,7 +210,7 @@ async function importRows(env, staff, b) {
   // Each day's totals for the rows being added, to check against the paper summary.
   const byDay = {}
   const dayOf = (d) => (byDay[d] ||= { day: d, receipts: 0, income: 0, online: 0, expenses: 0, first: 0, second: 0 })
-  for (const p of plan.lines) if (p.status === 'add') { const d = dayOf(p.day); d.receipts++; d.income += p.fields.income_cents || 0; d.online += p.fields.online_cents || 0 }
+  for (const p of plan.lines) if (p.status === 'add') { const d = dayOf(p.day); d.receipts++; d.income += p.fields.income_cents != null ? p.fields.income_cents - (p.fields.discount_cents || 0) : 0; d.online += p.fields.online_cents || 0 }
   for (const p of plan.expenses) if (p.status === 'add') dayOf(p.day).expenses += p.fields.amount_cents || 0
   for (const p of plan.remits) if (p.status === 'add') dayOf(p.day)[p.fields.kind] += p.fields.amount_cents || 0
   const count = (s) => Object.values(plan).flat().filter((p) => p.status === s).length
