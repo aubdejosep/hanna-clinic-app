@@ -2025,3 +2025,4 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .rv-line:last-child { border-bottom: 0; }
 .rv-line strong { color: var(--heading); text-align: right; }
 .rv-items { display: grid; padding: 6px 0 6px 10px; border-left: 3px solid var(--teal-tint); margin: 4px 0; }
+.lg-bar .btn.is-confirm { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); }

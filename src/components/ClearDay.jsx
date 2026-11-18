@@ -1,6 +1,6 @@
 // Clear This Day (owners and admins), on Finances ▸ Ledger (your record) and Finances ▸ Receipts (staff's): marks
-// every row of that day in that record removed, after typing the date. Nothing is erased; the banner's Restore Day
-// puts exactly those rows back.
+// every row of that day in that record removed, after typing the date. Nothing is erased; the Restore Day button
+// beside it (who cleared it and when on hover) puts exactly those rows back.
 import { useEffect, useRef, useState } from 'react'
 import { Eraser, RotateCcw } from 'lucide-react'
 import { ErrorNote, useToast } from './ui.jsx'
@@ -70,10 +70,10 @@ export function ClearedBanner({ day, book, cleared, onDone }) {
     try { const r = await api('finances/daily/restore', { method: 'POST', body: { day, book, tag: cleared.tag } }); toast(`${short(day)} restored: ${n(r.restored, 'row')} back`); onDone() } catch (err) { toast(err.message) }
     setBusy(false); setAsk(false)
   }
+  const about = `${short(day)} was cleared by ${cleared.by} on ${when(cleared.at)}${cleared.receipts || cleared.expenses ? ` (${[cleared.receipts && n(cleared.receipts, 'receipt'), cleared.expenses && n(cleared.expenses, 'expense')].filter(Boolean).join(', ')})` : ''}. Restore Day puts those rows back; anything typed since is kept.`
   return (
-    <div className="cleared-banner card card-pad">
-      <span><strong>{short(day)} was cleared</strong> by {cleared.by} on {when(cleared.at)}{cleared.receipts || cleared.expenses ? ` (${[cleared.receipts && n(cleared.receipts, 'receipt'), cleared.expenses && n(cleared.expenses, 'expense')].filter(Boolean).join(', ')})` : ''}. Anything typed since is kept.</span>
-      <button type="button" className={`btn btn-quiet ${ask ? 'is-confirm' : ''}`} onClick={restore} disabled={busy}><RotateCcw aria-hidden /> {busy ? 'Restoring…' : ask ? 'Tap Again to Restore' : 'Restore Day'}</button>
-    </div>
+    <button type="button" className={`btn btn-quiet ${ask ? 'is-confirm' : ''}`} onClick={restore} disabled={busy} title={about} aria-label={ask ? 'Tap again to restore the cleared rows' : about}>
+      <RotateCcw aria-hidden /> {busy ? 'Restoring…' : ask ? 'Tap Again to Restore' : 'Restore Day'}
+    </button>
   )
 }

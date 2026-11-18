@@ -266,12 +266,12 @@ export default function ReceiptsPage() {
         {ready && live.lines.some((l) => l.photo) && <button type="button" className="btn btn-quiet" onClick={() => setTyping({})}><Keyboard aria-hidden /> Type From Photos</button>}
         {wide && !panel && <button type="button" className="btn btn-quiet" onClick={() => showPanel(true)}><PanelRight aria-hidden /> Photo Panel</button>}
         {canManage(staff) && ready && <ClearDayButton day={day} book="staff" data={data} onDone={() => setStamp(Date.now())} />}
+        {canManage(staff) && ready && <ClearedBanner day={day} book="staff" cleared={data.cleared} onDone={() => setStamp(Date.now())} />}
         <button type="button" className="btn" onClick={() => bulk.current.click()} disabled={!!upload || !ready}><ImagePlus aria-hidden /> {upload ? `Uploading ${upload.done} of ${upload.total}…` : 'Upload Photos'}</button>
       </div>
       <ErrorNote error={error} />
       {!ready ? <PawLoader label="Loading the receipts…" /> : (
         <div className="stack" style={{ gap: 16 }}>
-          <ClearedBanner day={day} book="staff" cleared={data.cleared} onDone={() => setStamp(Date.now())} />
           {offer > 0 && (
             <div className="rc-offer card card-pad">
               <span><strong>{offer} photo{offer === 1 ? '' : 's'} added.</strong> Type them one at a time, with each photo big on screen?</span>
