@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BalanceCheckInAlert } from './Balances.jsx'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Pill, Settings, UserRound, Wallet, X } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Pill, Settings, UserRound, Wallet, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { useLogo } from '../lib/logo.js'
@@ -53,18 +53,20 @@ const NAV = [
 const isInside = (group, pathname) => group.children.some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`) || (c.to === '/clients' && pathname.startsWith('/pets')))
 
 // Only one group is open at a time: opening one closes the other (the page's own group opens on arrival).
-function NavGroup({ group, pathname, staff, open, onToggle }) {
+// With the menu collapsed (icons only), a group opens as a small list beside its icon.
+function NavGroup({ group, pathname, staff, open, onToggle, mini }) {
   const inside = isInside(group, pathname)
   const Chevron = open ? ChevronDown : ChevronRight
   return (
     <div className="nav-groupbox">
-      <button type="button" className={`nav-link nav-parent ${inside ? 'inside' : ''}`} onClick={onToggle} aria-expanded={open}>
-        <group.icon aria-hidden /> {group.label}
+      <button type="button" className={`nav-link nav-parent ${inside ? 'inside' : ''}`} onClick={onToggle} aria-expanded={open} title={mini ? group.label : undefined}>
+        <group.icon aria-hidden /> <span className="nav-label">{group.label}</span>
         {group.soon && <span className="badge badge-soft soon">Soon</span>}
         <Chevron className="nav-chevron" aria-hidden />
       </button>
       {open && (
         <div className="nav-children">
+          {mini && <span className="nav-flyout-title">{group.label}</span>}
           {group.children.filter((c) => !c.owners || canManage(staff)).map((c) => (
             <NavLink key={c.to} to={c.to} end={c.to === '/records' || c.to === '/inventory' || c.to === '/prescription/medications'} className={({ isActive }) => `nav-link nav-child ${isActive || (c.to === '/clients' && pathname.startsWith('/pets')) ? 'active' : ''}`}>
               {c.label}
@@ -166,9 +168,24 @@ export default function Layout({ staff }) {
   const groupFor = (path) => NAV.find((g) => g.children && isInside(g, path))?.label || null
   const [openGroup, setOpenGroup] = useState(() => groupFor(pathname))
   useEffect(() => { const g = groupFor(pathname); if (g) setOpenGroup(g) }, [pathname])
+  // Collapse Menu (computers): icons only, remembered on this device. Groups then open as a small list beside the
+  // icon, which closes after choosing a page or clicking elsewhere.
+  const [mini, setMini] = useState(() => { try { return localStorage.getItem('menu-collapsed') === '1' } catch { return false } })
+  const collapsed = mini && !mobile
+  const toggleMini = () => { const v = !mini; setMini(v); setOpenGroup(v ? null : groupFor(pathname)); try { localStorage.setItem('menu-collapsed', v ? '1' : '0') } catch { /* private window */ } }
+  useEffect(() => { if (collapsed) setOpenGroup(null) }, [pathname, collapsed])
+  const navRef = useRef(null)
+  useEffect(() => {
+    if (!collapsed || !openGroup) return undefined
+    const away = (e) => { if (!e.target.closest('.nav-groupbox')) setOpenGroup(null) }
+    const esc = (e) => { if (e.key === 'Escape') setOpenGroup(null) }
+    document.addEventListener('mousedown', away)
+    document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc) }
+  }, [collapsed, openGroup])
 
   return (
-    <div className="shell" data-nav={open ? 'open' : 'closed'}>
+    <div className="shell" data-nav={open ? 'open' : 'closed'} data-mini={collapsed ? '1' : undefined}>
       <div className="topbar">
         <button type="button" className="icon-btn" onClick={() => setOpen(true)} aria-label="Open Menu" aria-expanded={open}>
           <Menu />
@@ -177,7 +194,7 @@ export default function Layout({ staff }) {
         {mobile && <div className="topbar-bell"><OmniSearch mobile /><ReminderBell align="right" /></div>}
       </div>
 
-      <nav className="sidebar" aria-label="Main">
+      <nav className="sidebar" aria-label="Main" ref={navRef}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <Brand />
           {open && (
@@ -187,15 +204,20 @@ export default function Layout({ staff }) {
           )}
         </div>
         {NAV.map((item) => item.children ? (
-          <NavGroup key={item.label} group={item} pathname={pathname} staff={staff} open={openGroup === item.label}
+          <NavGroup key={item.label} group={item} pathname={pathname} staff={staff} open={openGroup === item.label} mini={collapsed}
             onToggle={() => setOpenGroup((g) => (g === item.label ? null : item.label))} />
         ) : (
-          <NavLink key={item.to} to={item.to} end={item.end} className="nav-link">
-            <item.icon aria-hidden /> {item.label}
+          <NavLink key={item.to} to={item.to} end={item.end} className="nav-link" title={collapsed ? item.label : undefined}>
+            <item.icon aria-hidden /> <span className="nav-label">{item.label}</span>
             {item.soon && <span className="badge badge-soft soon">Soon</span>}
             {item.badge === 'inbox' && <InboxBadge />}
           </NavLink>
         ))}
+        {!mobile && (
+          <button type="button" className="nav-link nav-collapse" onClick={toggleMini} aria-label={collapsed ? 'Expand Menu' : 'Collapse Menu'} title={collapsed ? 'Expand Menu' : 'Collapse Menu'}>
+            {collapsed ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />} <span className="nav-label">Collapse Menu</span>
+          </button>
+        )}
         <div className="sidebar-foot">
           <AccountMenu staff={staff} />
         </div>
