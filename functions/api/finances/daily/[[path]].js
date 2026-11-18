@@ -22,6 +22,7 @@
 //   POST   /api/finances/daily/clear   {day, book, confirm}: Clear This Day (owners and admins): marks that record's rows
 //          removed (owner: receipts, expenses, remits; staff: receipts, expenses, summary), tagged so that
 //   POST   /api/finances/daily/restore {day, book, tag} puts exactly those back. GET of one day says if it was cleared.
+//   POST   /api/finances/daily/copy {day, commit, leaveOut: [staff row ids]}: Copy from Staff (owners and admins)
 //   GET    /api/finances/daily/imports           -> the last 20 imports, with how many of their rows are still there
 //   POST   /api/finances/daily/imports/:id/undo  -> Undo Import: soft-deletes the rows that import added (only those)
 // Rows can be saved half-filled (a spreadsheet is typed cell by cell); blanks count as 0.
@@ -201,6 +202,7 @@ async function importRows(env, staff, b) {
       issues.push(...Object.values(errors))
       const warnings = []
       const out = { sheet: clean(r.sheet, 40), line: Number(r.line) || i + 1, day: isDay(r.day) ? r.day : null, row: TABLES[kind].shape({ ...f, day: r.day }), status: 'add', reason: '', warnings }
+      if (r.staffId) Object.assign(out, { staffId: Number(r.staffId), photo: !!r.photo, photoRotate: Number(r.photoRotate) || 0 }) // Copy from Staff: their row and photo
       if (kind === 'expenses' && r.note) warnings.push(clean(r.note, 120))
       if (kind === 'lines') {
         if (!f.receipt_no && !f.receipt_qr && !f.client_name && !f.amount_cents && !f.income_cents) issues.push('Empty row')
@@ -428,8 +430,9 @@ async function copyStaffDay(env, staff, b) {
     env.DB.prepare("SELECT * FROM cash_expenses WHERE branch_id = 1 AND book = 'staff' AND day = ? AND deleted_at IS NULL ORDER BY id").bind(b.day),
     env.DB.prepare("SELECT i.* FROM cash_line_items i JOIN cash_lines l ON l.id = i.line_id WHERE l.book = 'staff' AND l.day = ? AND l.deleted_at IS NULL AND i.deleted_at IS NULL ORDER BY i.sort, i.id").bind(b.day),
   ])
-  const lines = l.results.map((x, n) => ({ ...TABLES.lines.shape({ ...x, items: it.results.filter((i) => i.line_id === x.id).map(itemShape) }), sheet: 'Staff', line: n + 1 }))
-    .filter((x) => x.receiptNo || x.receiptQr || x.clientName || x.amountCents || x.items.length)
+  const leaveOut = new Set([].concat(b.leaveOut || []).map(Number)) // receipts the owner left out while reviewing
+  const lines = l.results.map((x, n) => ({ ...TABLES.lines.shape({ ...x, items: it.results.filter((i) => i.line_id === x.id).map(itemShape) }), staffId: x.id, sheet: 'Staff', line: n + 1 }))
+    .filter((x) => (x.receiptNo || x.receiptQr || x.clientName || x.amountCents || x.items.length) && !(b.commit && leaveOut.has(x.staffId)))
   const expenses = e.results.map((x, n) => ({ ...TABLES.expenses.shape(x), sheet: 'Staff Expenses', line: n + 1 }))
   if (!lines.length && !expenses.length) return fail(400, `Staff haven’t typed anything for ${short(b.day)} yet.`)
   return importRows(env, staff, { file: `Copied from staff’s Receipts, ${short(b.day)}`, commit: !!b.commit, lines, expenses, remits: [] })

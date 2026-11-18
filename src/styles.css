@@ -2015,3 +2015,13 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .clear-dialog p { margin: 0; }
 .cleared-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px; border-color: var(--apricot); background: var(--apricot-tint); color: var(--heading); }
 .cleared-banner .is-confirm { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); }
+/* Copy from Staff ▸ Review with Photos */
+.rv-start { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.rv-entry { gap: 10px; }
+.rv-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rv-head h2 { margin: 0; font-size: var(--fs-h2); }
+.rv-card { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.rv-line { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border); color: var(--text); }
+.rv-line:last-child { border-bottom: 0; }
+.rv-line strong { color: var(--heading); text-align: right; }
+.rv-items { display: grid; padding: 6px 0 6px 10px; border-left: 3px solid var(--teal-tint); margin: 4px 0; }

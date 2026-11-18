@@ -3,7 +3,8 @@
 // because it's already in the Ledger, or a problem) and each day's totals; nothing is saved until Import.
 // Recent Imports lists the last uploads with Undo Import, which takes out only the rows that upload added.
 import { useEffect, useRef, useState } from 'react'
-import { Download, FileSpreadsheet, Undo2, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Images, Undo2, X } from 'lucide-react'
+import { PhotoViewer, photoSrc } from './ReceiptTyping.jsx'
 import { ErrorNote, useToast } from './ui.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
@@ -21,6 +22,78 @@ const KINDS = {
 const show = (k, v) => (k === 'kind' ? (v === 'second' ? '2nd' : '1st') : k === 'items' ? (v || []).map((i) => `${i.item}${i.amountCents != null ? ` ${peso(i.amountCents)}` : ''}`).join(', ') : k.endsWith('Cents') ? peso(v) : v)
 
 // copyDay: Copy from Staff instead of a file: staff's Receipts for that day, shown the same way before copying.
+const PAID_LABEL = { cash: 'Cash', gcash: 'GCash', bank: 'Bank Transfer', maribank: 'MariBank', card: 'Card', qrph: 'QRPH', none: 'Not Counted' }
+
+// Copy from Staff ▸ Review with Photos: each receipt's photo big on the left, staff's entry on the right; approve it
+// (Looks Right) or Leave Out, then the next one. Only approved receipts are copied.
+function ReviewPhotos({ plans, start, out, setOut, onClose }) {
+  const [at, setAt] = useState(start)
+  const [rot, setRot] = useState({})
+  const p = plans[at]
+  useEffect(() => {
+    const k = (e) => {
+      if (e.key === 'Escape') onClose()
+      else if (e.key === 'ArrowRight') setAt((x) => Math.min(plans.length - 1, x + 1))
+      else if (e.key === 'ArrowLeft') setAt((x) => Math.max(0, x - 1))
+    }
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [onClose, plans.length])
+  const left = out.size
+  const r = p.row
+  const decide = (keep) => {
+    setOut((o) => { const n = new Set(o); if (keep) n.delete(p.staffId); else n.add(p.staffId); return n })
+    if (at < plans.length - 1) setAt(at + 1)
+    else onClose()
+  }
+  const line = { id: p.staffId, photo: p.photo, photoRotate: rot[p.staffId] ?? p.photoRotate }
+  const kept = !out.has(p.staffId)
+  const item = (label, v) => v ? <div className="rv-line"><span>{label}</span><strong>{v}</strong></div> : null
+  return (
+    <div className="tfp" role="dialog" aria-modal="true" aria-labelledby="rv-title">
+      <div className="tfp-bar">
+        <strong id="rv-title">Review with Photos</strong>
+        <span className="tfp-progress"><span style={{ width: `${((at + 1) / plans.length) * 100}%` }} /></span>
+        <span className="cell-sub">Receipt {at + 1} of {plans.length}{left ? ` · ${left} left out` : ''}</span>
+        <button type="button" className="icon-btn" onClick={onClose} aria-label="Back to the list" title="Back to the List (Esc)"><X /></button>
+      </div>
+      <div className="tfp-body">
+        <PhotoViewer line={line} onRotate={(v) => setRot((x) => ({ ...x, [p.staffId]: v }))} />
+        <div className="tfp-form rv-entry">
+          <div className="rv-head">
+            <h2>{r.receiptQr ? `QR ${r.receiptQr}` : r.receiptNo ? `OR ${r.receiptNo}` : 'No receipt number'}</h2>
+            <span className={kept ? 'badge' : 'badge badge-soft'}>{kept ? 'Will Be Copied' : 'Left Out'}</span>
+          </div>
+          <p className="field-hint" style={{ margin: 0 }}>What staff typed. Check it against the photo.</p>
+          <div className="rv-card">
+            {item('Owner', r.clientName)}{item('Pet', r.petNames)}
+            {r.items?.length > 0 && (
+              <div className="rv-items">
+                <span className="tfp-label">Items</span>
+                {r.items.map((i, n) => <div key={n} className="rv-line"><span>{i.item || '—'}</span><strong>{peso(i.amountCents)}</strong></div>)}
+              </div>
+            )}
+            {item('Total Per Receipt', r.amountCents != null ? peso(r.amountCents) : null)}
+            {item('Discounts', r.discountCents ? peso(r.discountCents) : null)}
+            {item('Paid With', PAID_LABEL[r.paidWith] || null)}
+            {item('Online', r.onlineCents ? peso(r.onlineCents) : null)}
+            {item('Total Income', r.incomeCents != null ? peso(r.incomeCents) : 'Not counted')}
+            {item('Notes', r.note)}
+          </div>
+          {p.warnings.length > 0 && p.warnings.map((w) => <p key={w} className="tfp-warn">{w}</p>)}
+          {!p.photo && <p className="tfp-warn">Staff didn’t attach a photo to this receipt.</p>}
+          <div className="tfp-actions">
+            <button type="button" className="btn btn-quiet" onClick={() => setAt(at - 1)} disabled={at === 0}><ChevronLeft aria-hidden /> Previous</button>
+            <button type="button" className="btn" onClick={() => decide(true)}><Check aria-hidden /> Looks Right{at < plans.length - 1 ? ', Next' : ''}</button>
+            <button type="button" className="btn btn-quiet" onClick={() => decide(false)}><X aria-hidden /> Leave Out</button>
+          </div>
+          <p className="field-hint" style={{ margin: 0 }}>Left out receipts aren’t copied; fix them on the Receipts page (or in your Ledger) and copy again. Arrow keys move between receipts; Esc goes back to the list.</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function LedgerImport({ fallbackDay, onClose, onDone, copyDay }) {
   const toast = useToast()
   const input = useRef(null)
@@ -29,6 +102,8 @@ export default function LedgerImport({ fallbackDay, onClose, onDone, copyDay }) 
   const [result, setResult] = useState(null)
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
+  const [leaveOut, setLeaveOut] = useState(() => new Set()) // Copy from Staff: receipts left out while reviewing
+  const [review, setReview] = useState(null) // index into the receipts being added, while Review with Photos is open
   useEffect(() => {
     if (!copyDay) return
     setBusy('read'); setError(null)
@@ -53,13 +128,21 @@ export default function LedgerImport({ fallbackDay, onClose, onDone, copyDay }) 
     setBusy('import'); setError(null)
     try {
       const { problems, ...body } = rows
-      const r = await api(copyDay ? 'finances/daily/copy' : 'finances/daily/import', { method: 'POST', body: { ...body, commit: true } })
+      const r = await api(copyDay ? 'finances/daily/copy' : 'finances/daily/import', { method: 'POST', body: { ...body, commit: true, ...(copyDay ? { leaveOut: [...leaveOut] } : {}) } })
       toast(`${copyDay ? 'Copied' : 'Imported'} ${r.imported} row${r.imported === 1 ? '' : 's'}. To take them out again: Import File ▸ Undo Import.`)
       onDone(r.summary.days.map((d) => d.day))
     } catch (err) { setError(err); setBusy(null) }
   }
 
   const s = result?.summary
+  const toAdd = copyDay && result ? result.plan.lines.filter((p) => p.status === 'add' && p.staffId) : []
+  // The day totals without the receipts left out while reviewing.
+  const days = !s ? [] : s.days.map((d) => {
+    const outs = toAdd.filter((p) => leaveOut.has(p.staffId) && p.day === d.day)
+    const net = (p) => (p.row.incomeCents != null ? p.row.incomeCents - (p.row.discountCents || 0) : 0)
+    return { ...d, receipts: d.receipts - outs.length, income: d.income - outs.reduce((t, p) => t + net(p), 0), online: d.online - outs.reduce((t, p) => t + (p.row.onlineCents || 0), 0) }
+  })
+  const adding = s ? s.add - (copyDay ? toAdd.filter((p) => leaveOut.has(p.staffId)).length : 0) : 0
   return (
     <section className="card card-pad stack li-panel" aria-labelledby="li-title">
       <div className="li-head">
@@ -93,7 +176,7 @@ export default function LedgerImport({ fallbackDay, onClose, onDone, copyDay }) 
                 <caption className="field-hint">Totals of the rows being added. Check them against the paper summary.</caption>
                 <thead><tr><th>Date</th><th className="lg-num">Receipts</th><th className="lg-num">Net Income</th><th className="lg-num">Online</th><th className="lg-num">Expenses</th><th className="lg-num">1st Remit</th><th className="lg-num">Cash On Hand</th><th className="lg-num">2nd Remit</th></tr></thead>
                 <tbody>
-                  {s.days.map((d) => (
+                  {days.map((d) => (
                     <tr key={d.day}>
                       <td>{prettyDay(d.day)}</td><td className="lg-num">{d.receipts}</td><td className="lg-num">{peso(d.income)}</td><td className="lg-num">{peso(d.online)}</td>
                       <td className="lg-num">{peso(d.expenses)}</td><td className="lg-num">{peso(d.first)}</td>
@@ -104,19 +187,32 @@ export default function LedgerImport({ fallbackDay, onClose, onDone, copyDay }) 
               </table>
             </div>
           )}
+          {copyDay && toAdd.length > 0 && (
+            <div className="rv-start">
+              <button type="button" className="btn" onClick={() => setReview(0)}><Images aria-hidden /> Review with Photos</button>
+              <span className="field-hint">Each receipt’s photo next to what staff typed. {leaveOut.size ? `${leaveOut.size} left out so far.` : 'Approve each one, or leave it out.'}</span>
+            </div>
+          )}
           {Object.entries(KINDS).map(([kind, k]) => result.plan[kind].length > 0 && (
             <div key={kind} className="lg-scroll">
               <table className="li-table">
                 <caption><strong>{k.title}</strong> · {result.plan[kind].length} row{result.plan[kind].length === 1 ? '' : 's'}</caption>
-                <thead><tr><th>Row</th><th>Date</th>{k.cols.map(([key, label, num]) => <th key={key} className={num ? 'lg-num' : ''}>{label}</th>)}<th /></tr></thead>
+                <thead><tr>{copyDay && kind === 'lines' && <th>Photo</th>}<th>Row</th><th>Date</th>{k.cols.map(([key, label, num]) => <th key={key} className={num ? 'lg-num' : ''}>{label}</th>)}<th /></tr></thead>
                 <tbody>
                   {result.plan[kind].map((p, i) => (
-                    <tr key={i} className={`li-${p.status}`}>
+                    <tr key={i} className={`li-${p.status} ${p.staffId && leaveOut.has(p.staffId) ? 'li-skip' : ''}`}>
+                      {copyDay && kind === 'lines' && (
+                        <td>{p.photo
+                          ? <button type="button" className="rc-thumb" onClick={() => p.status === 'add' ? setReview(toAdd.indexOf(p)) : window.open(photoSrc({ id: p.staffId }), '_blank')} title="Review with the photo"><img src={photoSrc({ id: p.staffId })} alt="" loading="lazy" style={p.photoRotate ? { transform: `rotate(${p.photoRotate}deg)` } : undefined} /></button>
+                          : <span className="cell-sub">No photo</span>}</td>
+                      )}
                       <td>{p.line}</td>
                       <td>{p.day ? prettyDay(p.day) : '—'}</td>
                       {k.cols.map(([key, , num]) => <td key={key} className={num ? 'lg-num' : ''}>{show(key, p.row[key])}</td>)}
                       <td className="li-why">
-                        <span className={STATUS[p.status][1]}>{STATUS[p.status][0]}</span>
+                        {p.staffId && leaveOut.has(p.staffId)
+                          ? <><span className="badge badge-soft">Left Out</span><button type="button" className="text-btn" onClick={() => setLeaveOut((o) => { const n = new Set(o); n.delete(p.staffId); return n })}>Include</button></>
+                          : <span className={STATUS[p.status][1]}>{STATUS[p.status][0]}</span>}
                         {p.reason && <span>{p.reason}</span>}
                         {p.warnings.map((w) => <span key={w} className="li-warn">{w}</span>)}
                       </td>
@@ -127,12 +223,13 @@ export default function LedgerImport({ fallbackDay, onClose, onDone, copyDay }) 
             </div>
           ))}
           <div className="inline-row">
-            <button type="button" className="btn" onClick={commit} disabled={!s.add || !!busy}>{busy === 'import' ? (copyDay ? 'Copying…' : 'Importing…') : `${copyDay ? 'Copy' : 'Import'} ${s.add} Row${s.add === 1 ? '' : 's'}`}</button>
+            <button type="button" className="btn" onClick={commit} disabled={!adding || !!busy}>{busy === 'import' ? (copyDay ? 'Copying…' : 'Importing…') : `${copyDay ? 'Copy' : 'Import'} ${adding} Row${adding === 1 ? '' : 's'}`}</button>
             <button type="button" className="btn btn-quiet" onClick={onClose} disabled={!!busy}>Cancel</button>
           </div>
         </>
       )}
       {!s && <RecentImports onUndone={onDone} />}
+      {review !== null && toAdd.length > 0 && <ReviewPhotos plans={toAdd} start={Math.max(0, review)} out={leaveOut} setOut={setLeaveOut} onClose={() => setReview(null)} />}
     </section>
   )
 }
