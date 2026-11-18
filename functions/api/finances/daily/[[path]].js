@@ -1,4 +1,7 @@
-// Finances ▸ Ledger (owners and admins): the cash ledger, typed in like a spreadsheet. Math: lib/daily-cash.js.
+// Finances ▸ Ledger (owners and admins) and Finances ▸ Receipts (every staff member): the cash ledger, typed in like
+// a spreadsheet. Math: lib/daily-cash.js. Every staff member may read one day at a time, and add or change its
+// receipts, items, expenses, photos and summary; several days at once, remits, imports and the Overview's numbers
+// are for owners and admins.
 //   GET    /api/finances/daily?from=YYYY-MM-DD&to=YYYY-MM-DD -> receipts, expenses and remits in that range
 //   POST   /api/finances/daily/lines     {day, receiptNo, receiptQr, clientName, petNames, note (Notes), amountCents (Total Per
 //                                          Receipt), discountCents, onlineCents, depositCents, balanceCents, incomeCents, commissionCents}
@@ -10,6 +13,9 @@
 //          -> what each row will do (add / skip: already in the Ledger / error) and each day's totals; with
 //             commit: true, adds the "add" rows in one go and logs it. Never changes or removes existing rows.
 //   GET    /api/finances/daily/overview?from&to&prevFrom&prevTo -> the Overview's Ledger section (lib/ledger-overview.js)
+//   GET    /api/finances/daily/photos/:lineId   POST (the image as the body) -> a receipt's photo (R2)
+//   PUT    /api/finances/daily/summary   {day, incomeCents, expensesCents, onlineCents, firstRemitCents, cashOnHandCents,
+//                                          onlineList, groomingList, note}: the front desk's typed summary for the day
 //   GET    /api/finances/daily/imports           -> the last 20 imports, with how many of their rows are still there
 //   POST   /api/finances/daily/imports/:id/undo  -> Undo Import: soft-deletes the rows that import added (only those)
 // Rows can be saved half-filled (a spreadsheet is typed cell by cell); blanks count as 0.
@@ -22,6 +28,9 @@ const isDay = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d || '')
 const money = (v) => { if (v === null || v === undefined || v === '') return null; const n = Math.round(Number(v)); return Number.isFinite(n) && n >= 0 && n <= 1e10 ? n : NaN }
 const manilaToday = () => new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10)
 
+const PAID_WITH = ['cash', 'gcash', 'bank', 'maribank', 'card', 'qrph', 'none']
+const MANAGER_ONLY = ['remits', 'import', 'imports', 'overview']
+const PHOTO_MAX = 8 * 1024 * 1024
 const TABLES = {
   lines: {
     table: 'cash_lines', entity: 'cash_line',
@@ -34,11 +43,12 @@ const TABLES = {
         m[col] = Number.isNaN(v) ? null : v
       }
       return { receipt_no: clean(b.receiptNo, 40) || null, receipt_qr: clean(b.receiptQr, 40) || null, client_name: clean(b.clientName, 120) || null,
-        pet_names: clean(b.petNames, 200) || null, note: clean(b.note, 300) || null, ...m, amount_cents: m.amount_cents ?? 0 }
+        pet_names: clean(b.petNames, 200) || null, note: clean(b.note, 300) || null, ...m, amount_cents: m.amount_cents ?? 0,
+        paid_with: PAID_WITH.includes(b.paidWith) ? b.paidWith : null }
     },
     shape: (r) => ({ id: r.id, day: r.day, receiptNo: r.receipt_no || '', receiptQr: r.receipt_qr || '', clientName: r.client_name || '', petNames: r.pet_names || '',
       note: r.note || '', amountCents: r.amount_cents || null, discountCents: r.discount_cents ?? null, onlineCents: r.online_cents, depositCents: r.deposit_cents, balanceCents: r.balance_cents,
-      incomeCents: r.income_cents, commissionCents: r.commission_cents, items: r.items || [] }),
+      incomeCents: r.income_cents, commissionCents: r.commission_cents, paidWith: r.paid_with || '', photo: !!r.photo_key, items: r.items || [] }),
   },
   expenses: {
     table: 'cash_expenses', entity: 'cash_expense',
@@ -61,8 +71,9 @@ const TABLES = {
 }
 
 export async function onRequest({ request, env, params, data }) {
-  if (!canManage(data.staff)) return fail(403, 'Only an owner or admin can open the Ledger.')
   const [what, rawId, action] = [].concat(params.path || [])
+  const manager = canManage(data.staff)
+  if (!manager && MANAGER_ONLY.includes(what)) return fail(403, 'Only an owner or admin can do this.')
   const id = rawId ? Number(rawId) : null
   const method = request.method
   const who = data.staff.name
@@ -73,14 +84,18 @@ export async function onRequest({ request, env, params, data }) {
     const from = u.get('from') || manilaToday()
     const to = u.get('to') || from
     if (!isDay(from) || !isDay(to) || from > to) return fail(400, 'Choose the dates to show.')
+    if (!manager && from !== to) return fail(403, 'Choose one day at a time.')
     const q = (t, order) => env.DB.prepare(`SELECT * FROM ${t} WHERE branch_id = 1 AND day BETWEEN ? AND ? AND deleted_at IS NULL ORDER BY day, ${order}`).bind(from, to)
     const [l, e, r, it] = await env.DB.batch([q('cash_lines', 'sort, id'), q('cash_expenses', 'id'), q('cash_remits', 'kind, id'),
       env.DB.prepare(`SELECT i.* FROM cash_line_items i JOIN cash_lines l ON l.id = i.line_id WHERE l.branch_id = 1 AND l.day BETWEEN ? AND ? AND l.deleted_at IS NULL AND i.deleted_at IS NULL ORDER BY i.sort, i.id`).bind(from, to)])
     const items = {}
     for (const i of it.results) (items[i.line_id] ||= []).push(itemShape(i))
-    return json({ from, to, lines: l.results.map((x) => TABLES.lines.shape({ ...x, items: items[x.id] })), expenses: e.results.map(TABLES.expenses.shape), remits: r.results.map(TABLES.remits.shape) })
+    const sum = from === to ? await env.DB.prepare('SELECT * FROM cash_summaries WHERE branch_id = 1 AND day = ? AND deleted_at IS NULL').bind(from).first() : null
+    return json({ from, to, summary: sum ? summaryShape(sum) : null, lines: l.results.map((x) => TABLES.lines.shape({ ...x, items: items[x.id] })), expenses: e.results.map(TABLES.expenses.shape), remits: r.results.map(TABLES.remits.shape) })
   }
 
+  if (what === 'photos') return photoRoute(env, data.staff, request, method, id)
+  if (what === 'summary' && method === 'PUT') return saveSummary(env, data.staff, (await readJson(request)) || {})
   if (what === 'items') return itemRoute(env, data.staff, method, id, method === 'DELETE' ? {} : (await readJson(request)) || {})
   if (what === 'import' && method === 'POST') return importRows(env, data.staff, (await readJson(request)) || {})
   if (what === 'imports' && method === 'GET' && !id) return listImports(env)
@@ -306,4 +321,65 @@ async function itemRoute(env, staff, method, id, b) {
     return json({ row: itemShape(row) })
   }
   return fail(405, 'Not allowed.')
+}
+
+// ---------- A receipt's photo ----------
+async function photoRoute(env, staff, request, method, lineId) {
+  if (!lineId) return fail(404, 'Not found.')
+  if (!env.PHOTOS) return fail(503, "Photo storage isn't connected yet.")
+  const line = await env.DB.prepare('SELECT id, day, photo_key, photo_type FROM cash_lines WHERE id = ? AND branch_id = 1 AND deleted_at IS NULL').bind(lineId).first()
+  if (!line) return fail(404, 'This receipt was not found. Reload the page.')
+  if (method === 'GET') {
+    if (!line.photo_key) return fail(404, 'This receipt has no photo.')
+    const obj = await env.PHOTOS.get(line.photo_key)
+    if (!obj) return fail(404, "This photo hasn't been uploaded yet.")
+    return new Response(obj.body, { headers: { 'Content-Type': line.photo_type || 'image/jpeg', 'Cache-Control': 'private, max-age=3600', 'Content-Length': String(obj.size) } })
+  }
+  if (method !== 'POST') return fail(405, 'Not allowed.')
+  const type = (request.headers.get('Content-Type') || '').split(';')[0].trim()
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(type)) return fail(400, 'Upload a photo (JPG, PNG or WebP).')
+  const body = await request.arrayBuffer()
+  if (!body.byteLength) return fail(400, 'The photo was empty. Try again.')
+  if (body.byteLength > PHOTO_MAX) return fail(400, 'This photo is too big (over 8 MB). Try again: the app makes photos smaller first.')
+  const key = `receipts/${line.day}/${line.id}-${Date.now()}.${type.split('/')[1].replace('jpeg', 'jpg')}`
+  await env.PHOTOS.put(key, body, { httpMetadata: { contentType: type } })
+  await env.DB.prepare('UPDATE cash_lines SET photo_key = ?, photo_type = ?, updated_at = ?, updated_by = ? WHERE id = ?').bind(key, type, new Date().toISOString(), staff.name, line.id).run()
+  await audit(env, staff.email, line.photo_key ? 'replace_photo' : 'add_photo', 'cash_line', line.id)
+  return json({ ok: true })
+}
+
+// ---------- The front desk's typed summary ----------
+const listOf = (v, withCode) => [].concat(Array.isArray(v) ? v : []).slice(0, 80).map((x) => {
+  const amount = money(x && x.amountCents)
+  const row = { name: clean(x && x.name, 80), amountCents: Number.isNaN(amount) ? null : amount }
+  if (withCode) row.code = clean(x && x.code, 8).toUpperCase()
+  return row
+}).filter((x) => x.name || x.amountCents != null)
+function summaryShape(r) {
+  return { day: r.day, incomeCents: r.income_cents, expensesCents: r.expenses_cents, onlineCents: r.online_cents, firstRemitCents: r.first_remit_cents,
+    cashOnHandCents: r.cash_on_hand_cents, onlineList: JSON.parse(r.online_list || '[]'), groomingList: JSON.parse(r.grooming_list || '[]'), note: r.note || '',
+    updatedBy: r.updated_by || r.created_by || '', updatedAt: r.updated_at || r.created_at }
+}
+async function saveSummary(env, staff, b) {
+  if (!isDay(b.day)) return fail(400, 'Choose the day.')
+  const errors = {}
+  const f = {}
+  for (const [k, col, label] of [['incomeCents', 'income_cents', 'Total Income'], ['expensesCents', 'expenses_cents', 'Less Expenses'], ['onlineCents', 'online_cents', 'Less Online'],
+    ['firstRemitCents', 'first_remit_cents', 'Less 1st Remit'], ['cashOnHandCents', 'cash_on_hand_cents', 'Cash On Hand']]) {
+    const v = money(b[k])
+    if (Number.isNaN(v)) errors[k] = `Enter ${label} as a number, e.g. 1500.`
+    f[col] = Number.isNaN(v) ? null : v
+  }
+  if (Object.keys(errors).length) return fail(400, Object.values(errors)[0], { errors })
+  f.online_list = JSON.stringify(listOf(b.onlineList, true))
+  f.grooming_list = JSON.stringify(listOf(b.groomingList, false))
+  f.note = clean(b.note, 300) || null
+  const now = new Date().toISOString()
+  const old = await env.DB.prepare('SELECT id FROM cash_summaries WHERE branch_id = 1 AND day = ? AND deleted_at IS NULL').bind(b.day).first()
+  const cols = Object.keys(f)
+  const row = old
+    ? await env.DB.prepare(`UPDATE cash_summaries SET ${cols.map((c) => `${c} = ?`).join(', ')}, updated_at = ?, updated_by = ? WHERE id = ? RETURNING *`).bind(...cols.map((c) => f[c]), now, staff.name, old.id).first()
+    : await env.DB.prepare(`INSERT INTO cash_summaries (day, ${cols.join(', ')}, created_by) VALUES (?, ${cols.map(() => '?').join(', ')}, ?) RETURNING *`).bind(b.day, ...cols.map((c) => f[c]), staff.name).first()
+  await audit(env, staff.email, old ? 'update' : 'create', 'cash_summary', row.id, { day: b.day })
+  return json({ summary: summaryShape(row) })
 }

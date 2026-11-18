@@ -15,14 +15,14 @@ import { prettyDay } from '../lib/format.js'
 import { EXPENSE_TYPES, summarize } from '../../lib/daily-cash.js'
 import LedgerImport from '../components/LedgerImport.jsx'
 
-const peso = (c) => `${Number(c || 0) < 0 ? '−' : ''}₱${(Math.abs(Number(c || 0)) / 100).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+export const peso = (c) => `${Number(c || 0) < 0 ? '−' : ''}₱${(Math.abs(Number(c || 0)) / 100).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 const toPesos = (c) => (c == null ? '' : String(Math.round(c) / 100))
 const toCents = (v) => { const t = String(v ?? '').replace(/[₱,\s]/g, ''); if (t === '') return null; const n = Number(t); return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : NaN }
-const today = () => new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10)
-const shift = (day, n) => { const d = new Date(`${day}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
+export const today = () => new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10)
+export const shift = (day, n) => { const d = new Date(`${day}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
 
 // The three sheets: their columns, what an empty row holds.
-const GRIDS = {
+export const GRIDS = {
   lines: {
     title: 'Receipts',
     minWidth: 1440,
@@ -75,7 +75,7 @@ const incomeOff = (row, col) => col.key === 'incomeCents' && row.incomeCents != 
 const itemSum = (row) => (row.items || []).reduce((n, i) => n + (i.amountCents || 0), 0)
 
 // One calendar: tap a day, or drag across days (mouse or finger) for several.
-function RangeCalendar({ from, to, onPick }) {
+export function RangeCalendar({ from, to, onPick }) {
   const [month, setMonth] = useState(to.slice(0, 7))
   const [sel, setSel] = useState(null) // {a, b} while dragging
   const anchor = useRef(null)
@@ -152,8 +152,10 @@ function Cell({ col, value, onChange, onCommit, r, c, grid, tag }) {
 // grouped under their date and there's no empty row (rows are added on a single day).
 let nextKey = 1
 const withKey = (r) => ({ ...r, ck: `k${nextKey++}` })
-function Grid({ kind, rows, day, single, onSaved }) {
-  const g = GRIDS[kind]
+// config: the columns (default GRIDS[kind]); prepare(row) adjusts what is saved (the Receipts page works out
+// Total Income and Online from Paid With); custom columns ({type: 'custom', render(row, api)}) draw their own cell.
+export function Grid({ kind, rows, day, single, onSaved, config, prepare, highlight }) {
+  const g = config || GRIDS[kind]
   const toast = useToast()
   const store = useRef(null)
   const [, redraw] = useState(0)
@@ -179,7 +181,8 @@ function Grid({ kind, rows, day, single, onSaved }) {
     queue(async () => {
       const row = find(ck)
       if (!row) return
-      const { ck: _ck, items: _items, ...body } = row
+      if (prepare) Object.assign(row, prepare(row))
+      const { ck: _ck, items: _items, photo: _photo, ...body } = row
       try {
         if (row.id) await api(`finances/daily/${kind}/${row.id}`, { method: 'PATCH', body })
         else {
@@ -279,10 +282,10 @@ function Grid({ kind, rows, day, single, onSaved }) {
               const r = vr++
               return [
                 groupHead && <tr key={`d-${row.day}`} className="lg-day"><td colSpan={span}><span className="lg-dayhead">{prettyDay(row.day)}{kind === 'lines' && allBtns(row.day)}</span></td></tr>,
-                <tr key={row.ck} className={`${isNew ? 'lg-new' : ''} ${row.items?.length ? 'lg-has-items' : ''}`}>
+                <tr key={row.ck} id={row.id ? `receipt-${row.id}` : undefined} className={`${isNew ? 'lg-new' : ''} ${row.items?.length ? 'lg-has-items' : ''} ${highlight && row.id === highlight ? 'lg-highlight' : ''}`}>
                   <td className="lg-rownum">{isNew ? '+' : n}</td>
                   {g.columns.map((col, c) => (
-                    <td key={col.key} className={col.item ? 'lg-itemcol' : incomeOff(row, col) ? 'lg-flag' : ''} title={incomeOff(row, col) ? `Total Income goes before the discount: Total Per Receipt ${peso(row.amountCents)} + Discounts ${peso(row.discountCents || 0)} = ${peso(row.amountCents + (row.discountCents || 0))}` : undefined}>{col.item ? receiptCell(row, col) : <Cell col={col} value={row[col.key]} grid={kind} r={r} c={c} onChange={(v) => set(row.ck, col.key, v)} onCommit={() => save(row.ck)} />}</td>
+                    <td key={col.key} className={col.item ? 'lg-itemcol' : col.type === 'custom' ? 'lg-customcol' : incomeOff(row, col) ? 'lg-flag' : ''} title={incomeOff(row, col) ? `Total Income goes before the discount: Total Per Receipt ${peso(row.amountCents)} + Discounts ${peso(row.discountCents || 0)} = ${peso(row.amountCents + (row.discountCents || 0))}` : undefined}>{col.item ? receiptCell(row, col) : col.type === 'custom' ? col.render(row, { rerender, saved: !!row.id }) : <Cell col={col} value={row[col.key]} grid={kind} r={r} c={c} onChange={(v) => set(row.ck, col.key, v)} onCommit={() => save(row.ck)} />}</td>
                   ))}
                   <td>{!isNew && delBtn(row.ck, 'row', () => remove(row))}</td>
                 </tr>,

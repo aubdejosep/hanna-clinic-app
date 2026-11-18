@@ -41,6 +41,7 @@ const NAV = [
     { to: '/inventory/counts', label: 'Stock Count' },
   ] },
   { label: 'Finances', icon: Wallet, children: [
+    { to: '/finances/receipts', label: 'Receipts' },
     { to: '/finances/daily', label: 'Ledger', owners: true },
     { to: '/finances/transactions', label: 'Transactions', owners: true },
     { to: '/finances/balances', label: 'Balances' },
