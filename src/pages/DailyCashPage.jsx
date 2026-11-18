@@ -7,7 +7,7 @@
 // 2nd Remit. The date comes from the calendar (one day, or several by dragging). Each cell saves when you leave it.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { CalendarDays, ChevronDown, ChevronLeft, ArrowLeftRight, ChevronRight, ChevronsDownUp, ChevronsUpDown, FileUp, Plus, Printer, Trash2 } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronLeft, ArrowLeftRight, Camera, Copy, Scale, ChevronRight, ChevronsDownUp, ChevronsUpDown, FileUp, Plus, Printer, Trash2 } from 'lucide-react'
 import { ErrorNote, PageHead, PawLoader, useToast } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
@@ -15,6 +15,7 @@ import { canManage, useStaff } from '../lib/staff.js'
 import { prettyDay } from '../lib/format.js'
 import { EXPENSE_TYPES, summarize } from '../../lib/daily-cash.js'
 import LedgerImport from '../components/LedgerImport.jsx'
+import LedgerCompare from '../components/LedgerCompare.jsx'
 
 export const peso = (c) => `${Number(c || 0) < 0 ? '−' : ''}₱${(Math.abs(Number(c || 0)) / 100).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 const toPesos = (c) => (c == null ? '' : String(Math.round(c) / 100))
@@ -255,6 +256,7 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
       const Chev = isShut(row) ? ChevronRight : ChevronDown
       return (
         <span className="lg-itemtools">
+          {row.staffPhoto && <a className="lg-staffphoto" href={`/api/finances/daily/photos/${row.staffPhoto}`} target="_blank" rel="noreferrer" title="Open staff’s photo of this receipt" aria-label="Open staff’s photo"><Camera aria-hidden /></a>}
           {count > 0 && <button type="button" className="lg-toggle" onClick={() => toggle(row)} aria-expanded={!isShut(row)} title={isShut(row) ? 'Show the items' : 'Hide the items'}><Chev aria-hidden /> {count} Item{count === 1 ? '' : 's'}</button>}
           <button type="button" className="lg-additem" onClick={() => addItem(row)} disabled={!row.id} title={row.id ? 'Add an item to this receipt' : 'Type the receipt first'} aria-label="Add Item"><Plus aria-hidden />{count ? '' : ' Item'}</button>
         </span>
@@ -323,6 +325,8 @@ export default function DailyCashPage() {
   const [to, setTo] = useState(startDay)
   const [calOpen, setCalOpen] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [comparing, setComparing] = useState(false)
+  const [copying, setCopying] = useState(false)
   const [stamp, setStamp] = useState(0) // bumped after an import, to load the sheets again
   const { data, error } = useApi(canManage(staff) ? `finances/daily?from=${from}&to=${to}${stamp ? `&v=${stamp}` : ''}` : null)
   const [gen, setGen] = useState(0) // remounts the grids whenever fresh data arrives
@@ -346,9 +350,14 @@ export default function DailyCashPage() {
         </div>
         {!(single && from === today()) && <button type="button" className="text-btn" onClick={() => pick(today(), today())}>Today</button>}
         <button type="button" className="btn btn-quiet" onClick={() => setImporting((o) => !o)} aria-expanded={importing}><FileUp aria-hidden /> Import File</button>
+        {single && <button type="button" className="btn btn-quiet" onClick={() => setComparing((o) => !o)} aria-pressed={comparing}><Scale aria-hidden /> Compare with Staff</button>}
+        {single && <button type="button" className="btn btn-quiet" onClick={() => setCopying(true)}><Copy aria-hidden /> Copy from Staff</button>}
         <Link className="btn btn-quiet" to={`/finances/receipts${to === today() ? '' : `?day=${to}`}`} title="The front desk’s view of this day: photos and their typed summary"><ArrowLeftRight aria-hidden /> Staff View</Link>
         <button type="button" className="btn btn-quiet dc-print" onClick={() => window.print()}><Printer aria-hidden /> Print</button>
       </div>
+      {copying && single && (
+        <LedgerImport copyDay={from} onClose={() => setCopying(false)} onDone={() => { setCopying(false); setStamp(Date.now()) }} />
+      )}
       {importing && (
         <LedgerImport fallbackDay={single ? from : null} onClose={() => setImporting(false)}
           onDone={(days) => { setImporting(false); if (days.length) { setFrom(days[0]); setTo(days[days.length - 1]) } setStamp(Date.now()) }} />
@@ -356,6 +365,7 @@ export default function DailyCashPage() {
       <ErrorNote error={error} />
       {!data || !live || data.from !== from || data.to !== to ? <PawLoader label="Loading the ledger…" /> : (
         <div className="stack" style={{ gap: 16 }}>
+          {comparing && single && <LedgerCompare key={`c-${from}-${gen}`} day={from} mine={live} />}
           <Grid key={`l-${from}-${to}-${gen}`} kind="lines" rows={data.lines} day={to} single={single} onSaved={refreshed} />
           <section className="card card-pad lg-summary">
             <h2>Summary{single ? '' : ' for These Dates'}</h2>

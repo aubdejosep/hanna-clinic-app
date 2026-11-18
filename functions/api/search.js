@@ -1,7 +1,7 @@
 // GET /api/search?q= -> the header's search box: partial matches across owners (name, customer no.,
 //   mobile, email), pets (name, breed, microchip), products and services (with their variations and
 //   prices), up to 6 of each. Two letters at least. With a number (3+ digits): receipts in Finances ▸ Receipts / Ledger
-//   by OR or QR number (05337), the app's visit invoices (#2026A7280) and the old system's invoices (INV2026A0004).
+//   by OR or QR number (05337; staff's Receipts for everyone, the owners' Ledger too for owners and admins), the app's visit invoices (#2026A7280) and the old system's invoices (INV2026A0004).
 
 import { json, likePattern, normalizeMobile, canManage } from '../../lib/http.js'
 import { localMobile } from '../../lib/clients.js'
@@ -47,8 +47,8 @@ async function numbers(env, q, manager) {
   if ((bare.match(/\d/g) || []).length < 3) return { receipts: [], invoices: [] }
   const app = bare.match(/^(\d{4})A(\d+)$/i)
   const stmts = [
-    env.DB.prepare(`SELECT id, day, receipt_no, receipt_qr, client_name, pet_names, amount_cents, photo_key FROM cash_lines
-      WHERE branch_id = 1 AND deleted_at IS NULL AND (receipt_no LIKE ?1 OR receipt_qr LIKE ?1) ORDER BY day DESC LIMIT 6`).bind(`${bare}%`),
+    env.DB.prepare(`SELECT id, day, book, receipt_no, receipt_qr, client_name, pet_names, amount_cents, photo_key FROM cash_lines
+      WHERE branch_id = 1 AND deleted_at IS NULL AND (receipt_no LIKE ?1 OR receipt_qr LIKE ?1) AND (?2 OR book = 'staff') ORDER BY day DESC, book DESC LIMIT 8`).bind(`${bare}%`, manager ? 1 : 0),
     env.DB.prepare(`SELECT i.id, i.day, i.invoice_no, i.owner_id, COALESCE(o.full_name, i.customer_name) AS client, i.pet_name, i.amount_cents, i.status FROM old_invoices i
       LEFT JOIN owners o ON o.id = i.owner_id WHERE replace(i.invoice_no, '#', '') LIKE ?1 ORDER BY i.day DESC LIMIT 6`).bind(`%${bare}%`),
   ]
@@ -63,7 +63,8 @@ async function numbers(env, q, manager) {
       to: manager ? `/finances/transactions?q=${encodeURIComponent(String(i.invoice_no).replace(/^#/, ''))}` : i.owner_id ? `/clients/${i.owner_id}` : null })).filter((i) => i.to),
   ]
   return {
-    receipts: r.results.map((x) => ({ id: x.id, day: x.day, receiptNo: x.receipt_no, receiptQr: x.receipt_qr, client: x.client_name, pets: x.pet_names, amount: x.amount_cents / 100, photo: !!x.photo_key })),
+    receipts: r.results.map((x) => ({ id: x.id, day: x.day, book: x.book, receiptNo: x.receipt_no, receiptQr: x.receipt_qr, client: x.client_name, pets: x.pet_names, amount: x.amount_cents / 100, photo: !!x.photo_key,
+      to: x.book === 'staff' ? `/finances/receipts?day=${x.day}&r=${x.id}` : `/finances/daily?day=${x.day}` })),
     invoices,
   }
 }

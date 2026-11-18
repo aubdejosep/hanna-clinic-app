@@ -1,6 +1,7 @@
 // Finances ▸ Receipts (every staff member): the front desk's daily receipts, typed by hand like the paper ledger,
 // each with its photo, plus their own summary typed like the paper slip. The rows are the Ledger's own rows (owners
-// see the same data in Finances ▸ Ledger). Nothing is read from the photos: they're kept as the record.
+// compare it with their own Ledger: Finances ▸ Ledger ▸ Compare with Staff). Nothing is read from the photos: they're
+// kept as the record. Everything here is staff's own record (book 'staff'): it never changes the owners' Ledger.
 //   Receipts: Photo | OR | QR | Owner | Pet | Item | Amount (+ Item for a receipt's items) | Total Per Receipt |
 //             Discounts | Paid With | Notes. Paid With fills the Ledger's Total Income and Online Payments.
 //   Upload Photos: every photo chosen becomes a new receipt row showing it, ready to type into.
@@ -184,8 +185,9 @@ const STAFF_LINES = {
     { key: 'paidWith', label: 'Paid With', type: 'select', options: PAID, width: '9%' },
     { ...GRIDS.lines.columns.find((c) => c.key === 'note'), width: '13%' },
   ],
-  blank: (day) => ({ ...GRIDS.lines.blank(day), paidWith: '' }),
+  blank: (day) => ({ ...GRIDS.lines.blank(day), paidWith: '', book: 'staff' }),
 }
+const STAFF_EXPENSES = { ...GRIDS.expenses, blank: (day) => ({ ...GRIDS.expenses.blank(day), book: 'staff' }) }
 
 export default function ReceiptsPage() {
   const toast = useToast()
@@ -196,12 +198,12 @@ export default function ReceiptsPage() {
   const go = (d) => setParams(d === today() ? {} : { day: d })
   const [calOpen, setCalOpen] = useState(false)
   const [stamp, setStamp] = useState(0)
-  const { data, error } = useApi(`finances/daily?from=${day}&to=${day}${stamp ? `&v=${stamp}` : ''}`)
+  const { data, error } = useApi(`finances/daily?from=${day}&to=${day}&book=staff${stamp ? `&v=${stamp}` : ''}`)
   const [gen, setGen] = useState(0)
   useEffect(() => { if (data) setGen((g) => g + 1) }, [data])
   const [live, setLive] = useState(null)
   useEffect(() => { if (data) setLive({ lines: data.lines, expenses: data.expenses, remits: data.remits }) }, [data])
-  const refreshed = () => api(`finances/daily?from=${day}&to=${day}`).then((d) => setLive({ lines: d.lines, expenses: d.expenses, remits: d.remits })).catch(() => {})
+  const refreshed = () => api(`finances/daily?from=${day}&to=${day}&book=staff`).then((d) => setLive({ lines: d.lines, expenses: d.expenses, remits: d.remits })).catch(() => {})
   const [open, setOpen] = useState(null)
   const [upload, setUpload] = useState(null) // {done, total}
   const bulk = useRef(null)
@@ -215,7 +217,7 @@ export default function ReceiptsPage() {
     let failed = 0
     for (let i = 0; i < list.length; i++) {
       try {
-        const r = await api('finances/daily/lines', { method: 'POST', body: { day } })
+        const r = await api('finances/daily/lines', { method: 'POST', body: { day, book: 'staff' } })
         await uploadPhoto(r.row.id, list[i])
       } catch { failed++ }
       setUpload({ done: i + 1, total: list.length })
@@ -231,7 +233,7 @@ export default function ReceiptsPage() {
   }), [])
   return (
     <>
-      <PageHead crumbs={[{ label: 'Finances' }, { label: 'Receipts' }]} title="Receipts" intro="The day’s receipts with their photos, and your summary. Type each receipt like the paper ledger; each cell saves when you leave it." />
+      <PageHead crumbs={[{ label: 'Finances' }, { label: 'Receipts' }]} title="Receipts" intro="The day’s receipts with their photos, and your summary. Type each receipt like the paper ledger; each cell saves when you leave it. This is the front desk’s own record: the owners compare it with theirs." />
       <div className="lg-bar">
         <button type="button" className="icon-btn" onClick={() => go(shift(day, -1))} aria-label="Previous day" title="Previous Day"><ChevronLeft /></button>
         <div className="rc-wrap">
@@ -241,7 +243,7 @@ export default function ReceiptsPage() {
         <button type="button" className="icon-btn" onClick={() => go(shift(day, 1))} aria-label="Next day" title="Next Day"><ChevronRight /></button>
         {day !== today() && <button type="button" className="text-btn" onClick={() => go(today())}>Today</button>}
         <input ref={bulk} type="file" accept="image/*" multiple hidden onChange={(e) => { uploadMany(e.target.files); e.target.value = '' }} />
-        {canManage(staff) && <Link className="btn btn-quiet" to={`/finances/daily${day === today() ? '' : `?day=${day}`}`} title="Your Ledger for this day: all the money columns, remits and the full summary"><ArrowLeftRight aria-hidden /> Owner Ledger</Link>}
+        {canManage(staff) && <Link className="btn btn-quiet" to={`/finances/daily${day === today() ? '' : `?day=${day}`}`} title="Your own Ledger for this day, with Compare with Staff"><ArrowLeftRight aria-hidden /> Owner Ledger</Link>}
         <button type="button" className="btn" onClick={() => bulk.current.click()} disabled={!!upload || !ready}><ImagePlus aria-hidden /> {upload ? `Uploading ${upload.done} of ${upload.total}…` : 'Upload Photos'}</button>
       </div>
       <ErrorNote error={error} />
@@ -250,7 +252,7 @@ export default function ReceiptsPage() {
           <Grid key={`l-${day}-${gen}`} kind="lines" rows={data.lines} day={day} single onSaved={refreshed} config={config} prepare={prepare} highlight={highlight} />
           <div className="rs-layout">
             <Summary key={`s-${day}-${gen}`} day={day} saved={data.summary} live={live} />
-            <Grid key={`e-${day}-${gen}`} kind="expenses" rows={data.expenses} day={day} single onSaved={refreshed} />
+            <Grid key={`e-${day}-${gen}`} kind="expenses" rows={data.expenses} day={day} single onSaved={refreshed} config={STAFF_EXPENSES} />
           </div>
         </div>
       )}

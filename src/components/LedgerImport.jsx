@@ -2,7 +2,7 @@
 // typed by hand or made by Claude from the receipt photos. Shows what will happen to every row first (add, skip
 // because it's already in the Ledger, or a problem) and each day's totals; nothing is saved until Import.
 // Recent Imports lists the last uploads with Undo Import, which takes out only the rows that upload added.
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Download, FileSpreadsheet, Undo2, X } from 'lucide-react'
 import { ErrorNote, useToast } from './ui.jsx'
 import { api } from '../lib/api.js'
@@ -20,7 +20,8 @@ const KINDS = {
 }
 const show = (k, v) => (k === 'kind' ? (v === 'second' ? '2nd' : '1st') : k === 'items' ? (v || []).map((i) => `${i.item}${i.amountCents != null ? ` ${peso(i.amountCents)}` : ''}`).join(', ') : k.endsWith('Cents') ? peso(v) : v)
 
-export default function LedgerImport({ fallbackDay, onClose, onDone }) {
+// copyDay: Copy from Staff instead of a file: staff's Receipts for that day, shown the same way before copying.
+export default function LedgerImport({ fallbackDay, onClose, onDone, copyDay }) {
   const toast = useToast()
   const input = useRef(null)
   const [file, setFile] = useState(null)
@@ -28,6 +29,12 @@ export default function LedgerImport({ fallbackDay, onClose, onDone }) {
   const [result, setResult] = useState(null)
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
+  useEffect(() => {
+    if (!copyDay) return
+    setBusy('read'); setError(null)
+    api('finances/daily/copy', { method: 'POST', body: { day: copyDay } })
+      .then((r) => { setResult(r); setRows({ day: copyDay }) }).catch(setError).finally(() => setBusy(null))
+  }, [copyDay])
 
   async function choose(f) {
     if (!f) return
@@ -46,8 +53,8 @@ export default function LedgerImport({ fallbackDay, onClose, onDone }) {
     setBusy('import'); setError(null)
     try {
       const { problems, ...body } = rows
-      const r = await api('finances/daily/import', { method: 'POST', body: { ...body, commit: true } })
-      toast(`Imported ${r.imported} row${r.imported === 1 ? '' : 's'}. To take them out again: Import File ▸ Undo Import.`)
+      const r = await api(copyDay ? 'finances/daily/copy' : 'finances/daily/import', { method: 'POST', body: { ...body, commit: true } })
+      toast(`${copyDay ? 'Copied' : 'Imported'} ${r.imported} row${r.imported === 1 ? '' : 's'}. To take them out again: Import File ▸ Undo Import.`)
       onDone(r.summary.days.map((d) => d.day))
     } catch (err) { setError(err); setBusy(null) }
   }
@@ -57,18 +64,20 @@ export default function LedgerImport({ fallbackDay, onClose, onDone }) {
     <section className="card card-pad stack li-panel" aria-labelledby="li-title">
       <div className="li-head">
         <div>
-          <h2 id="li-title">Import From a File</h2>
-          <p className="field-hint">An Excel file (.xlsx) in the Ledger template’s layout: Receipts, Items, Expenses and Remits sheets. You’ll see every row before anything is saved, and receipts already in the Ledger are skipped.</p>
+          <h2 id="li-title">{copyDay ? 'Copy from Staff' : 'Import From a File'}</h2>
+          <p className="field-hint">{copyDay
+            ? `Staff’s receipts (with their items) and expenses for ${prettyDay(copyDay)}, into your Ledger. Receipts already in your Ledger are skipped. Staff’s summary and photos stay on their page.`
+            : 'An Excel file (.xlsx) in the Ledger template’s layout: Receipts, Items, Expenses and Remits sheets. You’ll see every row before anything is saved, and receipts already in the Ledger are skipped.'}</p>
         </div>
         <button type="button" className="icon-btn" onClick={onClose} aria-label="Close Import" title="Close"><X /></button>
       </div>
-      <div className="inline-row">
+      {!copyDay && <div className="inline-row">
         <input ref={input} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={(e) => { choose(e.target.files[0]); e.target.value = '' }} />
         <button type="button" className="btn" onClick={() => input.current.click()} disabled={!!busy}><FileSpreadsheet aria-hidden /> {file ? 'Choose Another File' : 'Choose File'}</button>
         <a className="btn btn-quiet" href="/ledger-template.xlsx" download="Hanna Ledger Template.xlsx"><Download aria-hidden /> Download Template</a>
         {file && <span className="field-hint">{file.name}</span>}
-      </div>
-      {busy === 'read' && <p className="field-hint">Reading the file…</p>}
+      </div>}
+      {busy === 'read' && <p className="field-hint">{copyDay ? 'Loading staff’s receipts…' : 'Reading the file…'}</p>}
       <ErrorNote error={error} />
       {rows?.problems?.length > 0 && <div className="lg-off">{rows.problems.join(' ')}</div>}
       {s && (
@@ -118,7 +127,7 @@ export default function LedgerImport({ fallbackDay, onClose, onDone }) {
             </div>
           ))}
           <div className="inline-row">
-            <button type="button" className="btn" onClick={commit} disabled={!s.add || !!busy}>{busy === 'import' ? 'Importing…' : `Import ${s.add} Row${s.add === 1 ? '' : 's'}`}</button>
+            <button type="button" className="btn" onClick={commit} disabled={!s.add || !!busy}>{busy === 'import' ? (copyDay ? 'Copying…' : 'Importing…') : `${copyDay ? 'Copy' : 'Import'} ${s.add} Row${s.add === 1 ? '' : 's'}`}</button>
             <button type="button" className="btn btn-quiet" onClick={onClose} disabled={!!busy}>Cancel</button>
           </div>
         </>

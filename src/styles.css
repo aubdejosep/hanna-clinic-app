@@ -1958,3 +1958,13 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .rs-listtotal { display: flex; justify-content: space-between; padding-top: 6px; border-top: 1px solid var(--border); }
 .rs-listtotal strong { color: var(--heading); }
 .omni-photo { width: 13px; height: 13px; margin-left: 6px; vertical-align: -1px; color: var(--teal-deep); }
+/* Ledger ▸ Compare with Staff */
+.cmp-card .card-head { flex-wrap: wrap; }
+.cmp-table th.cmp-side { text-align: center; border-left: 2px solid var(--border-strong); }
+.cmp-table td.cmp-off, .cmp-figs td.cmp-off { background: var(--apricot-tint); font-weight: 700; }
+.cmp-table td.muted { color: var(--text); }
+.cmp-photo { display: inline-grid; place-items: center; margin-left: 6px; vertical-align: -2px; color: var(--teal-deep); }
+.cmp-photo svg { width: 14px; height: 14px; }
+.lg-staffphoto { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: var(--teal-deep); }
+.lg-staffphoto:hover { background: var(--teal-tint); }
+.lg-staffphoto svg { width: 14px; height: 14px; }

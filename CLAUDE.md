@@ -21,6 +21,7 @@ Staff-only app at app.hannapetwellnesscenter.com that replaces the clinic's paid
 - **Downloads and exports of records** (medical record photos, any future CSV/PDF/print export of clients, pets, records or transactions) are for owners and admins only (`canManage`), checked on the server, and logged with `audit()`. Every staff member can still view records in the app.
 - Mobiles are stored as `+639XXXXXXXXX`, shown as `0917 123 4567`. Times are UTC ISO strings; calendar days are Manila `YYYY-MM-DD`.
 - Every location-specific row has `branch_id` (one branch today).
+- Finances keeps two separate records per day (`book`): `owner` (Finances ▸ Ledger, Import File, Copy from Staff; owners and admins) and `staff` (Finances ▸ Receipts: the front desk's rows, photos and typed summary). Staff never change the owners' book; the Ledger's Compare with Staff lines them up.
 - Imported owners keep their old customer numbers (`C` + 6 digits); new ones continue from the highest.
 - The old system's placeholder emails (`vpnoemail…@gmail.com`) are dropped; never send to an owner without a real email.
 

@@ -50,7 +50,7 @@ export default function OmniSearch({ mobile }) {
 
   // One flat list for the arrow keys, in the order shown.
   const items = useMemo(() => !data ? [] : [
-    ...(data.receipts || []).map((r) => ({ key: `r${r.id}`, group: 'Receipts', to: `/finances/receipts?day=${r.day}&r=${r.id}`, r })),
+    ...(data.receipts || []).map((r) => ({ key: `r${r.id}`, group: 'Receipts', to: r.to, r })),
     ...(data.invoices || []).map((v) => ({ key: `v${v.key}`, group: 'Invoices', to: v.to, v })),
     ...data.owners.map((o) => ({ key: `o${o.id}`, group: 'Pet Owners', to: `/clients/${o.id}`, o })),
     ...data.pets.map((p) => ({ key: `p${p.id}`, group: 'Pets', to: `/pets/${p.id}`, p })),
@@ -82,7 +82,7 @@ export default function OmniSearch({ mobile }) {
               const i = items.indexOf(it)
               return (
                 <button key={it.key} id={`omni-${it.key}`} type="button" role="option" aria-selected={i === at} className="omni-item" onMouseEnter={() => setAt(i)} onClick={() => go(it)}>
-                  {it.r && <><span className="omni-icon"><Receipt aria-hidden /></span><span><strong>{it.r.receiptNo ? `OR ${it.r.receiptNo}` : `QR ${it.r.receiptQr}`}{it.r.photo && <Camera className="omni-photo" aria-label="Has a photo" />}</strong><span className="cell-sub">{[prettyDay(it.r.day), it.r.client, it.r.pets, it.r.amount ? peso(it.r.amount) : null].filter(Boolean).join(' · ')}</span></span></>}
+                  {it.r && <><span className="omni-icon"><Receipt aria-hidden /></span><span><strong>{it.r.receiptNo ? `OR ${it.r.receiptNo}` : `QR ${it.r.receiptQr}`}{it.r.photo && <Camera className="omni-photo" aria-label="Has a photo" />}</strong><span className="cell-sub">{[it.r.book === 'staff' ? 'Staff’s Receipts' : 'Ledger', prettyDay(it.r.day), it.r.client, it.r.pets, it.r.amount ? peso(it.r.amount) : null].filter(Boolean).join(' · ')}</span></span></>}
                   {it.v && <><span className="omni-icon"><FileText aria-hidden /></span><span><strong>Invoice {it.v.invoiceNo}</strong><span className="cell-sub">{[it.v.day && prettyDay(it.v.day), it.v.client, it.v.pet, it.v.amount != null && peso(it.v.amount), it.v.unpaid && 'Unpaid', it.v.source === 'old' ? 'Old system' : 'Visit'].filter(Boolean).join(' · ')}</span></span></>}
                   {it.o && <><span className="omni-icon"><UserRound aria-hidden /></span><span><strong>{it.o.name}</strong><span className="cell-sub">{[it.o.customerNo, it.o.mobile, it.o.email, `${it.o.pets} pet${it.o.pets === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}</span></span></>}
                   {it.p && <><PetAvatar species={it.p.species} /><span><strong>{it.p.name}</strong><span className="cell-sub">{[it.p.breed, it.p.owner, it.p.deceased && 'Passed away'].filter(Boolean).join(' · ')}</span></span></>}
