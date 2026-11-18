@@ -16,6 +16,7 @@ import { prettyDay } from '../lib/format.js'
 import { EXPENSE_TYPES, summarize } from '../../lib/daily-cash.js'
 import LedgerImport from '../components/LedgerImport.jsx'
 import LedgerCompare from '../components/LedgerCompare.jsx'
+import { ClearDayButton, ClearedBanner } from '../components/ClearDay.jsx'
 
 export const peso = (c) => `${Number(c || 0) < 0 ? '−' : ''}₱${(Math.abs(Number(c || 0)) / 100).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 const toPesos = (c) => (c == null ? '' : String(Math.round(c) / 100))
@@ -353,6 +354,7 @@ export default function DailyCashPage() {
         {single && <button type="button" className="btn btn-quiet" onClick={() => setComparing((o) => !o)} aria-pressed={comparing}><Scale aria-hidden /> Compare with Staff</button>}
         {single && <button type="button" className="btn btn-quiet" onClick={() => setCopying(true)}><Copy aria-hidden /> Copy from Staff</button>}
         <Link className="btn btn-quiet" to={`/finances/receipts${to === today() ? '' : `?day=${to}`}`} title="The front desk’s view of this day: photos and their typed summary"><ArrowLeftRight aria-hidden /> Staff View</Link>
+        {single && data && data.from === from && data.to === to && <ClearDayButton day={from} book="owner" data={data} onDone={() => setStamp(Date.now())} />}
         <button type="button" className="btn btn-quiet dc-print" onClick={() => window.print()}><Printer aria-hidden /> Print</button>
       </div>
       {copying && single && (
@@ -365,6 +367,7 @@ export default function DailyCashPage() {
       <ErrorNote error={error} />
       {!data || !live || data.from !== from || data.to !== to ? <PawLoader label="Loading the ledger…" /> : (
         <div className="stack" style={{ gap: 16 }}>
+          {single && <ClearedBanner day={from} book="owner" cleared={data.cleared} onDone={() => setStamp(Date.now())} />}
           {comparing && single && <LedgerCompare key={`c-${from}-${gen}`} day={from} mine={live} />}
           <Grid key={`l-${from}-${to}-${gen}`} kind="lines" rows={data.lines} day={to} single={single} onSaved={refreshed} />
           <section className="card card-pad lg-summary">

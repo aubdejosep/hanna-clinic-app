@@ -2009,3 +2009,9 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
   .tfp-row { grid-template-columns: 1fr; }
   .tfp-bar .cell-sub { display: none; }
 }
+/* Clear This Day */
+.clear-dialog { width: min(480px, 100%); padding: 20px 22px; display: grid; gap: 12px; }
+.clear-dialog h2 { margin: 0; font-size: var(--fs-h3); }
+.clear-dialog p { margin: 0; }
+.cleared-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px; border-color: var(--apricot); background: var(--apricot-tint); color: var(--heading); }
+.cleared-banner .is-confirm { background: var(--teal-deep); color: #fff; border-color: var(--teal-deep); }

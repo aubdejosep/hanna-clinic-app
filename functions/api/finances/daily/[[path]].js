@@ -19,6 +19,9 @@
 //   GET    /api/finances/daily/photos/:lineId   POST (the image as the body) -> a receipt's photo (R2)
 //   PUT    /api/finances/daily/summary   {day, incomeCents, expensesCents, onlineCents, firstRemitCents, cashOnHandCents,
 //                                          onlineList, groomingList, note}: the front desk's typed summary for the day
+//   POST   /api/finances/daily/clear   {day, book, confirm}: Clear This Day (owners and admins): marks that record's rows
+//          removed (owner: receipts, expenses, remits; staff: receipts, expenses, summary), tagged so that
+//   POST   /api/finances/daily/restore {day, book, tag} puts exactly those back. GET of one day says if it was cleared.
 //   GET    /api/finances/daily/imports           -> the last 20 imports, with how many of their rows are still there
 //   POST   /api/finances/daily/imports/:id/undo  -> Undo Import: soft-deletes the rows that import added (only those)
 // Rows can be saved half-filled (a spreadsheet is typed cell by cell); blanks count as 0.
@@ -32,7 +35,7 @@ const money = (v) => { if (v === null || v === undefined || v === '') return nul
 const manilaToday = () => new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10)
 
 const PAID_WITH = ['cash', 'gcash', 'bank', 'maribank', 'card', 'qrph', 'none']
-const MANAGER_ONLY = ['remits', 'import', 'imports', 'overview', 'copy']
+const MANAGER_ONLY = ['remits', 'import', 'imports', 'overview', 'copy', 'clear', 'restore']
 const PHOTO_MAX = 8 * 1024 * 1024
 const TABLES = {
   lines: {
@@ -101,10 +104,13 @@ export async function onRequest({ request, env, params, data }) {
     const items = {}
     for (const i of it.results) (items[i.line_id] ||= []).push(itemShape(i))
     const sum = from === to ? await env.DB.prepare('SELECT * FROM cash_summaries WHERE branch_id = 1 AND day = ? AND deleted_at IS NULL').bind(from).first() : null
-    return json({ from, to, summary: sum ? summaryShape(sum) : null, book, lines: l.results.map((x) => ({ ...TABLES.lines.shape({ ...x, items: items[x.id] }), staffPhoto: staffPhotos[x.receipt_no || ''] || staffPhotos[x.receipt_qr || ''] || null })), expenses: e.results.map(TABLES.expenses.shape), remits: r.results.map(TABLES.remits.shape) })
+    const cleared = manager && from === to ? await lastClear(env, from, book) : null
+    return json({ from, to, cleared, summary: sum ? summaryShape(sum) : null, book, lines: l.results.map((x) => ({ ...TABLES.lines.shape({ ...x, items: items[x.id] }), staffPhoto: staffPhotos[x.receipt_no || ''] || staffPhotos[x.receipt_qr || ''] || null })), expenses: e.results.map(TABLES.expenses.shape), remits: r.results.map(TABLES.remits.shape) })
   }
 
   if (what === 'photos') return photoRoute(env, data.staff, request, method, id, manager)
+  if (what === 'clear' && method === 'POST') return clearDay(env, data.staff, (await readJson(request)) || {})
+  if (what === 'restore' && method === 'POST') return restoreDay(env, data.staff, (await readJson(request)) || {})
   if (what === 'copy' && method === 'POST') return copyStaffDay(env, data.staff, (await readJson(request)) || {})
   if (what === 'summary' && method === 'PUT') return saveSummary(env, data.staff, (await readJson(request)) || {})
   if (what === 'items') return itemRoute(env, data.staff, method, id, method === 'DELETE' ? {} : (await readJson(request)) || {}, mine)
@@ -427,4 +433,45 @@ async function copyStaffDay(env, staff, b) {
   const expenses = e.results.map((x, n) => ({ ...TABLES.expenses.shape(x), sheet: 'Staff Expenses', line: n + 1 }))
   if (!lines.length && !expenses.length) return fail(400, `Staff haven’t typed anything for ${short(b.day)} yet.`)
   return importRows(env, staff, { file: `Copied from staff’s Receipts, ${short(b.day)}`, commit: !!b.commit, lines, expenses, remits: [] })
+}
+
+// ---------- Clear This Day / Restore Day (owners and admins) ----------
+// Cleared rows get deleted_by "<name> (cleared <time>)": that tag is how Restore Day finds exactly those rows.
+const CLEAR_TABLES = { owner: ['cash_lines', 'cash_expenses', 'cash_remits'], staff: ['cash_lines', 'cash_expenses', 'cash_summaries'] }
+const whereBook = (t, book) => (['cash_lines', 'cash_expenses'].includes(t) ? ` AND book = '${book}'` : '')
+async function lastClear(env, day, book) {
+  const r = await env.DB.prepare(`SELECT deleted_by AS tag, MAX(deleted_at) AS at, COUNT(*) AS n FROM cash_lines WHERE branch_id = 1 AND day = ? AND book = ? AND deleted_by LIKE '% (cleared %)'
+    GROUP BY deleted_by ORDER BY at DESC LIMIT 1`).bind(day, book).first()
+  const s = book === 'staff' ? await env.DB.prepare("SELECT deleted_by AS tag, deleted_at AS at FROM cash_summaries WHERE branch_id = 1 AND day = ? AND deleted_by LIKE '% (cleared %)' ORDER BY deleted_at DESC LIMIT 1").bind(day).first() : null
+  const e = await env.DB.prepare(`SELECT deleted_by AS tag, MAX(deleted_at) AS at, COUNT(*) AS n FROM cash_expenses WHERE branch_id = 1 AND day = ? AND book = ? AND deleted_by LIKE '% (cleared %)'
+    GROUP BY deleted_by ORDER BY at DESC LIMIT 1`).bind(day, book).first()
+  const best = [r, s, e].filter(Boolean).sort((a, b) => String(b.at).localeCompare(String(a.at)))[0]
+  if (!best) return null
+  const lines = r && r.tag === best.tag ? r.n : 0
+  return { tag: best.tag, at: best.at, by: best.tag.replace(/ \(cleared .*\)$/, ''), receipts: lines, expenses: e && e.tag === best.tag ? e.n : 0 }
+}
+async function clearDay(env, staff, b) {
+  if (!isDay(b.day)) return fail(400, 'Choose the day.')
+  const book = b.book === 'staff' ? 'staff' : 'owner'
+  if (String(b.confirm || '').trim().toLowerCase() !== short(b.day).toLowerCase()) return fail(400, `Type ${short(b.day)} to confirm.`, { errors: { confirm: `Type ${short(b.day)} to confirm.` } })
+  const now = new Date().toISOString()
+  const tag = `${clean(staff.name, 60)} (cleared ${now})`
+  const res = await env.DB.batch(CLEAR_TABLES[book].map((t) => env.DB.prepare(`UPDATE ${t} SET deleted_at = ?, deleted_by = ? WHERE branch_id = 1 AND day = ? AND deleted_at IS NULL${whereBook(t, book)}`).bind(now, tag, b.day)))
+  const counts = Object.fromEntries(CLEAR_TABLES[book].map((t, i) => [t, res[i].meta?.changes || 0]))
+  if (!Object.values(counts).some(Boolean)) return fail(400, `There’s nothing to clear on ${short(b.day)}.`)
+  await audit(env, staff.email, 'clear_day', 'cash_day', null, { day: b.day, book, ...counts })
+  return json({ ok: true, tag, counts })
+}
+async function restoreDay(env, staff, b) {
+  if (!isDay(b.day) || !String(b.tag || '').includes(' (cleared ')) return fail(400, 'Reload the page and try again.')
+  const book = b.book === 'staff' ? 'staff' : 'owner'
+  const stmts = CLEAR_TABLES[book].filter((t) => t !== 'cash_summaries').map((t) => env.DB.prepare(`UPDATE ${t} SET deleted_at = NULL, deleted_by = NULL WHERE branch_id = 1 AND day = ? AND deleted_by = ?${whereBook(t, book)}`).bind(b.day, b.tag))
+  // A summary comes back only if nobody has typed a new one since (one summary per day).
+  if (book === 'staff') stmts.push(env.DB.prepare(`UPDATE cash_summaries SET deleted_at = NULL, deleted_by = NULL WHERE branch_id = 1 AND day = ?1 AND deleted_by = ?2
+    AND NOT EXISTS (SELECT 1 FROM cash_summaries WHERE branch_id = 1 AND day = ?1 AND deleted_at IS NULL)`).bind(b.day, b.tag))
+  const res = await env.DB.batch(stmts)
+  const restored = res.reduce((n, r) => n + (r.meta?.changes || 0), 0)
+  if (!restored) return fail(400, 'Nothing to restore: it may have been restored already.')
+  await audit(env, staff.email, 'restore_day', 'cash_day', null, { day: b.day, book, restored })
+  return json({ ok: true, restored })
 }
