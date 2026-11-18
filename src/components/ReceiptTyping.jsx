@@ -8,7 +8,7 @@
 // Everything saves into staff's own rows (book 'staff'), the same ones the grid shows.
 import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { ChevronLeft, ChevronRight, Keyboard, Minimize2, Minus, Plus, RotateCw, Scan, SkipForward, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Keyboard, Minimize2, Minus, MoveHorizontal, Plus, RotateCw, Scan, SkipForward, Trash2, X } from 'lucide-react'
 import { ErrorNote, useToast } from './ui.jsx'
 import { api } from '../lib/api.js'
 
@@ -27,41 +27,73 @@ export function withMoney(row) {
   return { ...row, incomeCents: row.amountCents + (row.discountCents || 0), onlineCents: ONLINE.includes(row.paidWith) ? row.amountCents : null }
 }
 
+// The whole photo always fits at first (any rotation): it's measured against the box. Zoom with the buttons, a
+// pinch, Ctrl+scroll or a double-click; once zoomed, scroll or drag moves around. Fit Width fills the width and
+// starts at the top, for reading a long receipt down to its notes.
 export function PhotoViewer({ line, onRotate, compact }) {
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 })
+  const [stage, setStage] = useState({ w: 0, h: 0 })
+  const [nat, setNat] = useState(null) // the photo's own size
   const box = useRef(null)
   const drag = useRef(null)
   const touches = useRef(new Map())
-  useEffect(() => { setView({ zoom: 1, x: 0, y: 0 }) }, [line?.id])
+  useEffect(() => { setView({ zoom: 1, x: 0, y: 0 }); setNat(null) }, [line?.id])
+  useEffect(() => {
+    if (!box.current) return undefined
+    const ro = new ResizeObserver(([e]) => setStage({ w: e.contentRect.width, h: e.contentRect.height }))
+    ro.observe(box.current)
+    return () => ro.disconnect()
+  }, [line?.photo])
+  const rot = line?.photoRotate || 0
+  useEffect(() => { setView({ zoom: 1, x: 0, y: 0 }) }, [rot])
   if (!line?.photo) return <div className="pv pv-empty"><p>No photo for this receipt.</p></div>
-  const rot = line.photoRotate || 0
-  const zoomBy = (f) => setView((v) => ({ ...v, zoom: Math.min(6, Math.max(1, v.zoom * f)), ...(v.zoom * f <= 1 ? { x: 0, y: 0 } : {}) }))
+  const turned = rot % 180 !== 0
+  // Size of the photo when the whole of it fits (before zoom), and how far it can move once zoomed.
+  const ew = nat ? (turned ? nat.h : nat.w) : 1
+  const eh = nat ? (turned ? nat.w : nat.h) : 1
+  const fit = nat && stage.w ? Math.min(stage.w / ew, stage.h / eh) : 0
+  const clamp = (v) => {
+    const ox = Math.max(0, (ew * fit * v.zoom - stage.w) / 2)
+    const oy = Math.max(0, (eh * fit * v.zoom - stage.h) / 2)
+    return { ...v, x: Math.max(-ox, Math.min(ox, v.x)), y: Math.max(-oy, Math.min(oy, v.y)) }
+  }
+  const zoomBy = (f) => setView((v) => (v.zoom * f <= 1 ? { zoom: 1, x: 0, y: 0 } : clamp({ ...v, zoom: Math.min(8, v.zoom * f) })))
+  const fitWidth = () => { if (!fit) return; const z = Math.max(1, stage.w / (ew * fit)); setView(clamp({ zoom: z, x: 0, y: Infinity })) }
   const down = (e) => {
     touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     e.currentTarget.setPointerCapture(e.pointerId)
     drag.current = { x: e.clientX, y: e.clientY, view, pinch: touches.current.size === 2 ? dist() : null }
   }
-  const dist = () => { const [a, b] = [...touches.current.values()]; return Math.hypot(a.x - b.x, a.y - b.y) }
+  const dist = () => { const [a, b2] = [...touches.current.values()]; return Math.hypot(a.x - b2.x, a.y - b2.y) }
   const move = (e) => {
     if (!drag.current) return
     touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     const d = drag.current
-    if (touches.current.size === 2 && d.pinch) { const z = Math.min(6, Math.max(1, d.view.zoom * (dist() / d.pinch))); setView((v) => ({ ...v, zoom: z })); return }
-    if (view.zoom > 1) setView({ ...d.view, x: d.view.x + (e.clientX - d.x), y: d.view.y + (e.clientY - d.y) })
+    if (touches.current.size === 2 && d.pinch) { const z = Math.min(8, Math.max(1, d.view.zoom * (dist() / d.pinch))); setView((v) => clamp({ ...v, zoom: z })); return }
+    if (view.zoom > 1) setView(clamp({ ...d.view, x: d.view.x + (e.clientX - d.x), y: d.view.y + (e.clientY - d.y) }))
   }
   const up = (e) => { touches.current.delete(e.pointerId); if (!touches.current.size) drag.current = null }
+  const wheel = (e) => {
+    e.preventDefault()
+    if (e.ctrlKey || e.metaKey || view.zoom === 1) zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15)
+    else setView((v) => clamp({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }))
+  }
+  const w = nat ? nat.w * fit : 0
+  const h = nat ? nat.h * fit : 0
   return (
     <div className={`pv ${compact ? 'pv-compact' : ''}`}>
-      <div className="pv-stage" ref={box} onMouseDown={(e) => e.preventDefault()} onWheel={(e) => { e.preventDefault(); zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15) }}
-        onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onDoubleClick={() => setView(view.zoom > 1 ? { zoom: 1, x: 0, y: 0 } : { zoom: 2.2, x: 0, y: 0 })}
+      <div className="pv-stage" ref={box} onMouseDown={(e) => e.preventDefault()} onWheel={wheel}
+        onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onDoubleClick={() => (view.zoom > 1 ? setView({ zoom: 1, x: 0, y: 0 }) : zoomBy(2.2))}
         style={{ cursor: view.zoom > 1 ? 'grab' : 'zoom-in' }}>
         <img src={photoSrc(line)} alt={`Receipt ${line.receiptNo || line.receiptQr || ''}`} draggable={false}
-          style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom}) rotate(${rot}deg)` }} className={rot % 180 ? 'is-turned' : ''} />
+          onLoad={(e) => setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+          style={nat ? { width: w, height: h, transform: `translate(-50%, -50%) translate(${view.x}px, ${view.y}px) scale(${view.zoom}) rotate(${rot}deg)` } : { opacity: 0 }} />
       </div>
       <div className="pv-tools" onMouseDown={(e) => e.preventDefault()}>
         <button type="button" className="icon-btn" onClick={() => zoomBy(1 / 1.3)} disabled={view.zoom <= 1} aria-label="Zoom out" title="Zoom Out"><Minus /></button>
-        <button type="button" className="icon-btn" onClick={() => zoomBy(1.3)} aria-label="Zoom in" title="Zoom In (or scroll, pinch, double-tap)"><Plus /></button>
-        <button type="button" className="icon-btn" onClick={() => setView({ zoom: 1, x: 0, y: 0 })} aria-label="Fit" title="Fit the Whole Photo"><Scan /></button>
+        <button type="button" className="icon-btn" onClick={() => zoomBy(1.3)} aria-label="Zoom in" title="Zoom In (or Ctrl+scroll, pinch, double-click). Zoomed in, scroll or drag to move around."><Plus /></button>
+        <button type="button" className={`btn btn-sm ${view.zoom === 1 ? '' : 'btn-quiet'}`} onClick={() => setView({ zoom: 1, x: 0, y: 0 })} title="See the whole receipt, top to bottom"><Scan aria-hidden /> Full Receipt</button>
+        <button type="button" className="btn btn-sm btn-quiet" onClick={fitWidth} title="Fill the width and start at the top; scroll down to the notes"><MoveHorizontal aria-hidden /> Fit Width</button>
         {onRotate && <button type="button" className="icon-btn" onClick={() => onRotate((rot + 90) % 360)} aria-label="Rotate" title="Rotate (saved for this photo)"><RotateCw /></button>}
       </div>
     </div>
