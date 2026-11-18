@@ -6,7 +6,8 @@
 // Remits, and the summary: Total Income (before discounts) - Discounts - Online Payments - Expenses - 1st Remit = Cash On Hand, checked against the
 // 2nd Remit. The date comes from the calendar (one day, or several by dragging). Each cell saves when you leave it.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown, FileUp, Plus, Printer, Trash2 } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { CalendarDays, ChevronDown, ChevronLeft, ArrowLeftRight, ChevronRight, ChevronsDownUp, ChevronsUpDown, FileUp, Plus, Printer, Trash2 } from 'lucide-react'
 import { ErrorNote, PageHead, PawLoader, useToast } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
@@ -316,8 +317,10 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
 
 export default function DailyCashPage() {
   const staff = useStaff()
-  const [from, setFrom] = useState(today())
-  const [to, setTo] = useState(today())
+  const [params] = useSearchParams()
+  const startDay = /^\d{4}-\d{2}-\d{2}$/.test(params.get('day') || '') ? params.get('day') : today() // ?day= from the Receipts page
+  const [from, setFrom] = useState(startDay)
+  const [to, setTo] = useState(startDay)
   const [calOpen, setCalOpen] = useState(false)
   const [importing, setImporting] = useState(false)
   const [stamp, setStamp] = useState(0) // bumped after an import, to load the sheets again
@@ -343,6 +346,7 @@ export default function DailyCashPage() {
         </div>
         {!(single && from === today()) && <button type="button" className="text-btn" onClick={() => pick(today(), today())}>Today</button>}
         <button type="button" className="btn btn-quiet" onClick={() => setImporting((o) => !o)} aria-expanded={importing}><FileUp aria-hidden /> Import File</button>
+        <Link className="btn btn-quiet" to={`/finances/receipts${to === today() ? '' : `?day=${to}`}`} title="The front desk’s view of this day: photos and their typed summary"><ArrowLeftRight aria-hidden /> Staff View</Link>
         <button type="button" className="btn btn-quiet dc-print" onClick={() => window.print()}><Printer aria-hidden /> Print</button>
       </div>
       {importing && (

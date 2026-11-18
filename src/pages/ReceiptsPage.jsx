@@ -7,13 +7,14 @@
 //   Summary: Total Income, Less Expenses, Less Online, (Less 1st Remit), Cash On Hand, and the Online, Expenses
 //            and Grooming lists, each checked against the rows ("Receipts add up to …").
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Camera, CalendarDays, ChevronLeft, ChevronRight, ImagePlus, Plus, Trash2, X } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ArrowLeftRight, Camera, CalendarDays, ChevronLeft, ChevronRight, ImagePlus, Plus, Trash2, X } from 'lucide-react'
 import { ErrorNote, Field, PageHead, PawLoader, useToast } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { prettyDay } from '../lib/format.js'
 import { summarize } from '../../lib/daily-cash.js'
+import { canManage, useStaff } from '../lib/staff.js'
 import { GRIDS, Grid, RangeCalendar, peso, shift, today } from './DailyCashPage.jsx'
 
 const PAID = [['', '—'], ['cash', 'Cash'], ['gcash', 'GCash'], ['bank', 'Bank Transfer'], ['maribank', 'MariBank'], ['card', 'Card'], ['qrph', 'QRPH'], ['none', 'Not Counted']]
@@ -188,6 +189,7 @@ const STAFF_LINES = {
 
 export default function ReceiptsPage() {
   const toast = useToast()
+  const staff = useStaff()
   const [params, setParams] = useSearchParams()
   const day = /^\d{4}-\d{2}-\d{2}$/.test(params.get('day') || '') ? params.get('day') : today()
   const highlight = Number(params.get('r')) || null
@@ -239,6 +241,7 @@ export default function ReceiptsPage() {
         <button type="button" className="icon-btn" onClick={() => go(shift(day, 1))} aria-label="Next day" title="Next Day"><ChevronRight /></button>
         {day !== today() && <button type="button" className="text-btn" onClick={() => go(today())}>Today</button>}
         <input ref={bulk} type="file" accept="image/*" multiple hidden onChange={(e) => { uploadMany(e.target.files); e.target.value = '' }} />
+        {canManage(staff) && <Link className="btn btn-quiet" to={`/finances/daily${day === today() ? '' : `?day=${day}`}`} title="Your Ledger for this day: all the money columns, remits and the full summary"><ArrowLeftRight aria-hidden /> Owner Ledger</Link>}
         <button type="button" className="btn" onClick={() => bulk.current.click()} disabled={!!upload || !ready}><ImagePlus aria-hidden /> {upload ? `Uploading ${upload.done} of ${upload.total}…` : 'Upload Photos'}</button>
       </div>
       <ErrorNote error={error} />
