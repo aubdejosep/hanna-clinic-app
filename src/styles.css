@@ -2080,3 +2080,5 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .tfp-pill:hover { filter: brightness(1.08); }
 @media (max-width: 860px) { .tfp-pill { left: 16px; bottom: 16px; } }
 .tfp-pill strong, .tfp-pill span { color: #fff; }
+.pv-failed { position: absolute; inset: 0; z-index: 1; display: grid; place-content: center; justify-items: center; gap: 10px; color: #fff; text-align: center; }
+.pv-failed p { margin: 0; }

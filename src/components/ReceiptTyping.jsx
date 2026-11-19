@@ -33,11 +33,18 @@ export function withMoney(row) {
 export function PhotoViewer({ line, onRotate, compact }) {
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 })
   const [stage, setStage] = useState({ w: 0, h: 0 })
-  const [nat, setNat] = useState(null) // the photo's own size
+  // The photo's own size, kept with the photo it belongs to: moving to the next receipt never shows the last one's
+  // size, and a photo the browser already has (e.g. from the grid's thumbnails) is measured at once, not left hidden.
+  const [natOf, setNatOf] = useState(null) // { id, w, h }
+  const [failed, setFailed] = useState(null) // id of a photo that didn't load
+  const [retry, setRetry] = useState(0)
+  const img = useRef(null)
+  const nat = natOf && natOf.id === line?.id ? natOf : null
+  const measure = (el) => { if (el && el.complete && el.naturalWidth) setNatOf({ id: line?.id, w: el.naturalWidth, h: el.naturalHeight }) }
   const box = useRef(null)
   const drag = useRef(null)
   const touches = useRef(new Map())
-  useEffect(() => { setView({ zoom: 1, x: 0, y: 0 }); setNat(null) }, [line?.id])
+  useEffect(() => { setView({ zoom: 1, x: 0, y: 0 }); setFailed(null); measure(img.current) }, [line?.id, retry]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!box.current) return undefined
     const ro = new ResizeObserver(([e]) => setStage({ w: e.contentRect.width, h: e.contentRect.height }))
@@ -85,8 +92,11 @@ export function PhotoViewer({ line, onRotate, compact }) {
       <div className="pv-stage" ref={box} onMouseDown={(e) => e.preventDefault()} onWheel={wheel}
         onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onDoubleClick={() => (view.zoom > 1 ? setView({ zoom: 1, x: 0, y: 0 }) : zoomBy(2.2))}
         style={{ cursor: view.zoom > 1 ? 'grab' : 'zoom-in' }}>
-        <img src={photoSrc(line)} alt={`Receipt ${line.receiptNo || line.receiptQr || ''}`} draggable={false}
-          onLoad={(e) => setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+        {failed === line.id && (
+          <div className="pv-failed"><p>This photo didn’t load.</p><button type="button" className="btn btn-sm" onClick={() => setRetry((n) => n + 1)}>Try Again</button></div>
+        )}
+        <img key={`${line.id}-${retry}`} ref={img} src={`${photoSrc(line)}${retry ? `${photoSrc(line).includes('?') ? '&' : '?'}r=${retry}` : ''}`} alt={`Receipt ${line.receiptNo || line.receiptQr || ''}`} draggable={false}
+          onLoad={(e) => measure(e.currentTarget)} onError={() => setFailed(line.id)}
           style={nat ? { width: w, height: h, transform: `translate(-50%, -50%) translate(${view.x}px, ${view.y}px) scale(${view.zoom}) rotate(${rot}deg)` } : { opacity: 0 }} />
       </div>
       <div className="pv-tools" onMouseDown={(e) => e.preventDefault()}>
