@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, CalendarCheck, CalendarClock, CalendarPlus, Globe, ClipboardCheck, Package, PawPrint, Wallet, Pill, Stethoscope, UserRound, X } from 'lucide-react'
+import { Bell, CalendarCheck, CalendarClock, CalendarPlus, Globe, ClipboardCheck, Package, PawPrint, ReceiptText, Wallet, Pill, Stethoscope, UserRound, X } from 'lucide-react'
 import { useToast } from './ui.jsx'
 import { useAppointmentsChanged } from './TagCheckIn.jsx'
 import { api } from '../lib/api.js'
@@ -19,10 +19,11 @@ export const KIND = {
   owner_info: { icon: UserRound, label: 'Owner Details' },
   website_client: { icon: Globe, label: 'Online Clients' },
   online_booking: { icon: CalendarCheck, label: 'Online Bookings' },
+  ledger_day: { icon: ReceiptText, label: 'Ledger' },
   balance: { icon: Wallet, label: 'Balances' },
 }
-export const dismissLabel = (r) => (['low_stock', 'expiring', 'balance'].includes(r.kind) ? 'Hide for Today' : r.kind === 'online_booking' ? 'Mark as Seen' : 'Not Needed')
-export const linkOf = (r) => (r.kind === 'low_stock' ? '/inventory?filter=low' : r.kind === 'expiring' ? '/inventory?filter=expiring' : r.kind === 'pet_info' ? `/pets/${r.pet.id}` : ['owner_info', 'website_client', 'balance'].includes(r.kind) ? `/clients/${r.owner.id}` : `/appointments/${r.appointmentId}${r.kind === 'unpaid' ? '?pay=1' : r.kind === 'follow_up' ? '?followup=1' : ''}`)
+export const dismissLabel = (r) => (['low_stock', 'expiring', 'balance'].includes(r.kind) ? 'Hide for Today' : ['online_booking', 'ledger_day'].includes(r.kind) ? 'Mark as Seen' : 'Not Needed')
+export const linkOf = (r) => (r.kind === 'ledger_day' ? `/finances/daily?day=${r.day}` : r.kind === 'low_stock' ? '/inventory?filter=low' : r.kind === 'expiring' ? '/inventory?filter=expiring' : r.kind === 'pet_info' ? `/pets/${r.pet.id}` : ['owner_info', 'website_client', 'balance'].includes(r.kind) ? `/clients/${r.owner.id}` : `/appointments/${r.appointmentId}${r.kind === 'unpaid' ? '?pay=1' : r.kind === 'follow_up' ? '?followup=1' : ''}`)
 
 // The bell: workflow steps still to finish. Each one clears itself once the step is done.
 export default function ReminderBell({ align = 'right' }) {

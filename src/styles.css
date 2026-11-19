@@ -2082,3 +2082,52 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .tfp-pill strong, .tfp-pill span { color: #fff; }
 .pv-failed { position: absolute; inset: 0; z-index: 1; display: grid; place-content: center; justify-items: center; gap: 10px; color: #fff; text-align: center; }
 .pv-failed p { margin: 0; }
+
+/* ---------- Finances ▸ Ledger: stages, approvals, Needs Attention, history ---------- */
+.lg-status { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; padding: 0 4px; }
+.lg-status .badge { border: 0; cursor: pointer; padding: 3px 7px; letter-spacing: .03em; }
+.lg-status .badge:focus-visible { outline: none; box-shadow: var(--focus); }
+.lg-approve { width: 28px; height: 28px; flex: none; }
+.lg-approve svg { width: 16px; height: 16px; color: var(--teal-deep); }
+.lg-flagdot { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--apricot-tint); flex: none; cursor: help; }
+.lg-flagdot svg { width: 13px; height: 13px; color: #B4610F; }
+.lg-stage-draft > td:first-child { box-shadow: inset 3px 0 0 var(--apricot); }
+.lg-stage-staff > td:first-child { box-shadow: inset 3px 0 0 var(--teal); }
+.lg-locked .lg-cell { color: var(--text); cursor: default; }
+.lg-locked .lg-cell:focus { outline-style: dashed; background: transparent; }
+.lg-more { position: relative; }
+.lg-more > summary { list-style: none; }
+.lg-more > summary::-webkit-details-marker { display: none; }
+.lg-more-pop { position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; display: grid; gap: 6px; padding: 10px; min-width: 220px; }
+.lg-more-pop .btn { justify-content: flex-start; width: 100%; }
+.lg-daystatus { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: -6px 0 16px; font-size: var(--fs-small); color: var(--text); }
+.lg-daystatus > span { display: inline-flex; align-items: center; gap: 6px; }
+.lg-daystatus svg { width: 15px; height: 15px; color: var(--teal-deep); }
+.lg-attention { display: grid; gap: 8px; border-color: var(--apricot); }
+.lg-attention h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--fs-h3); }
+.lg-attention h2 svg { width: 20px; height: 20px; color: #B4610F; }
+.lg-attention ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.lg-attention li { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; font-size: var(--fs-small); }
+.lg-attention li .text-btn { white-space: nowrap; }
+.lg-history { width: min(620px, 100%); max-height: min(86vh, 760px); overflow-y: auto; }
+.lg-history h2 { margin: 0; font-size: var(--fs-h3); }
+.lg-histlist { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; }
+.lg-histlist li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-small); }
+.lg-histlist li em { font-style: normal; color: var(--text); }
+.lg-histlist time { flex: none; color: var(--text); white-space: nowrap; }
+.lg-flaglist { margin: 0; padding: 8px 10px 8px 26px; border-radius: var(--radius-field); background: var(--surface-alt); font-size: var(--fs-small); }
+.lg-flaglist li.is-open { color: var(--heading); font-weight: 700; }
+.lg-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+.lg-lists h3 { margin: 0 0 4px; }
+.lg-lists ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: var(--fs-small); }
+.lg-lists li { display: flex; justify-content: space-between; gap: 8px; }
+.lg-lists li span:last-child { font-variant-numeric: tabular-nums; color: var(--heading); }
+.tfp-status { display: flex; align-items: center; gap: 8px; }
+.tfp-note { margin: 0; padding: 6px 10px; border-radius: var(--radius-field); background: var(--teal-tint); color: var(--heading); font-size: var(--fs-small); }
+.tfp-fields { display: grid; gap: 12px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.tfp-fields:disabled { opacity: .75; }
+.tfp-unsure { font-style: normal; color: var(--heading); }
+.tfp-field.is-unsure input, .tfp-field.is-unsure select { border-color: var(--apricot); background: var(--apricot-tint); }
+.tfp-items.is-unsure { border-color: var(--apricot); }
+@media print { .lg-status .lg-approve, .lg-flagdot, .lg-more, .lg-attention { display: none; } }
+.lg-table td.lg-customcol { overflow: hidden; }
