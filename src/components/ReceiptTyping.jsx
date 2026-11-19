@@ -118,12 +118,12 @@ export async function saveRotation(line, rotate) {
 // Needs this person's approval: staff approve what the app read; owners and admins approve everything after.
 export const needsMe = (l, manager) => (manager ? l.stage !== 'owner' : l.stage === 'draft')
 // The app's "unsure" field names -> the form's.
-const UNSURE = { receipt_no: ['receiptNo', 'receiptQr'], client: ['clientName'], pet: ['petNames'], items: ['items'], discount: ['discount'], total: ['amount'], paid_hint: ['paidWith'] }
+const UNSURE = { receipt_no: ['receiptNum'], client: ['clientName'], pet: ['petNames'], items: ['items'], discount: ['discount'], total: ['amount'], paid_hint: ['paidWith'] }
 const unsureOf = (l) => new Set(l.stage === 'draft' ? (l.ai?.unclear || []).flatMap((k) => UNSURE[k] || []) : [])
 
 function formOf(l) {
   return {
-    receiptNo: l.receiptNo || '', receiptQr: l.receiptQr || '', clientName: l.clientName || '', petNames: l.petNames || '',
+    receiptKind: l.receiptNo && !l.receiptQr ? 'OR' : 'QR', receiptNum: l.receiptQr || l.receiptNo || '', clientName: l.clientName || '', petNames: l.petNames || '',
     amount: toPesos(l.amountCents), discount: toPesos(l.discountCents), paidWith: l.paidWith || '', note: l.note || '', issueNote: l.issueNote || '',
     ownerNote: l.ownerNote || '', commission: toPesos(l.commissionCents),
     items: (l.items || []).map((i) => ({ id: i.id, item: i.item || '', amount: toPesos(i.amountCents) })),
@@ -197,7 +197,7 @@ export function Review({ day, lines: initial, startId, manager, onClose, minimiz
   const total = toCents(f.amount)
   const disc = toCents(f.discount) || 0
   const sumOff = f.items.length > 0 && total != null && !Number.isNaN(total) && itemsSum - disc !== total
-  const num = (f.receiptNo || f.receiptQr).trim()
+  const num = f.receiptNum.trim()
   const dup = num && lines.some((l) => l.id !== line.id && (l.receiptNo === num || l.receiptQr === num))
   const elsewhere = (line.dupes || []).filter((d) => d.day !== day)
   const mine = needsMe(line, manager)
@@ -207,7 +207,7 @@ export function Review({ day, lines: initial, startId, manager, onClose, minimiz
     for (const [k, label] of [['amount', 'Total'], ['discount', 'Discounts'], ['commission', 'Commissions']]) if (Number.isNaN(toCents(f[k]))) throw new Error(`Enter ${label} as a number, e.g. 1500.`)
     const items = f.items.filter((x) => x.item.trim() || x.amount !== '')
     if (items.some((x) => Number.isNaN(toCents(x.amount)))) throw new Error('Enter each item’s amount as a number, e.g. 300.')
-    const next = { receiptNo: f.receiptNo.trim(), receiptQr: f.receiptQr.trim(), clientName: f.clientName.trim(), petNames: f.petNames.trim(),
+    const next = { receiptNo: f.receiptKind === 'OR' ? num : '', receiptQr: f.receiptKind === 'QR' ? num : '', clientName: f.clientName.trim(), petNames: f.petNames.trim(),
       amountCents: total, discountCents: toCents(f.discount), paidWith: f.paidWith, note: f.note.trim(), issueNote: f.issueNote.trim(),
       ...(manager ? { ownerNote: f.ownerNote.trim(), commissionCents: toCents(f.commission) } : {}) }
     const before = formOf(line)
@@ -312,9 +312,11 @@ export function Review({ day, lines: initial, startId, manager, onClose, minimiz
           {line.ai?.error && <p className="tfp-warn">The app couldn’t read this photo ({line.ai.error.replace(/\.$/, '')}). Type it in from the photo.</p>}
           {line.ai?.date && line.ai.date !== day && <p className="tfp-warn">The slip is dated {niceDay(line.ai.date)}, not {niceDay(day)}. Check it belongs to this day.</p>}
           <fieldset className="tfp-fields" disabled={locked}>
-            <div className="tfp-row">
-              {field('receiptQr', 'Receipt No. QR', { ref: firstField, inputMode: 'numeric', placeholder: 'e.g. 05337' })}
-              {field('receiptNo', 'Receipt No. OR', { inputMode: 'numeric', placeholder: 'e.g. 02519' })}
+            <div className="tfp-row tfp-rno">
+              {field('receiptNum', 'Receipt No.', { ref: firstField, inputMode: 'numeric', placeholder: f.receiptKind === 'QR' ? 'e.g. 05337' : 'e.g. 02519' })}
+              <label className="tfp-field"><span>Slip</span>
+                <select value={f.receiptKind} onChange={(e) => set({ receiptKind: e.target.value })}><option value="QR">QR (Quotation Slip)</option><option value="OR">OR (Service Invoice)</option></select>
+              </label>
             </div>
             {dup && <p className="tfp-warn">Receipt {num} is on another row of this day too.</p>}
             {elsewhere.length > 0 && <p className="tfp-warn">Receipt {num} is also in the Ledger on {elsewhere.map((d) => niceDay(d.day)).join(', ')}.</p>}
@@ -345,7 +347,10 @@ export function Review({ day, lines: initial, startId, manager, onClose, minimiz
               <label className={cls('paidWith')}>{tag('paidWith', 'Paid With')}
                 <select value={f.paidWith} onChange={(e) => set({ paidWith: e.target.value })}>{PAID.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
               </label>
-              {field('note', 'Notes')}
+              <label className={cls('note')}>{tag('note', 'Notes')}
+                <textarea className="tfp-note-input" rows={1} value={f.note} maxLength={300} ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${Math.max(42, el.scrollHeight)}px` } }}
+                  onChange={(e) => { set({ note: e.target.value }); e.target.style.height = 'auto'; e.target.style.height = `${Math.max(42, e.target.scrollHeight)}px` }} />
+              </label>
             </div>
             {manager && (
               <div className="tfp-row">

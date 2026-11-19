@@ -42,7 +42,7 @@ export const GRIDS = {
       { key: 'itemAmount', label: 'Amount', type: 'money', width: '6.5%', item: true },
       { key: 'amountCents', label: 'Total Per Receipt', type: 'money', total: true, width: '7.5%' },
       { key: 'discountCents', label: 'Discounts', type: 'money', total: true, width: '6.5%' },
-      { key: 'note', label: 'Notes', width: '9%' },
+      { key: 'note', label: 'Notes', type: 'long', width: '12%' },
       { key: 'onlineCents', label: 'Online Payments', type: 'money', total: true, width: '7%' },
       { key: 'depositCents', label: 'Deposit', type: 'money', total: true, width: '6%' },
       { key: 'balanceCents', label: 'Balance', type: 'money', total: true, width: '6%' },
@@ -141,6 +141,16 @@ function Cell({ col, value, onChange, onCommit, r, c, grid, tag, readOnly }) {
   if (col.type === 'date') {
     return <input {...common} type="date" className="lg-cell" value={value || ''} onChange={(e) => e.target.value && onChange(e.target.value)} onBlur={(e) => { setFocus(false); onCommit({ day: e.target.value || value }) }} />
   }
+  if (col.type === 'long') {
+    // Notes: wraps and grows so the whole note shows; Enter still moves down (Shift+Enter for a new line).
+    const grow = (el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` } }
+    return (
+      <textarea {...common} ref={grow} rows={1} className="lg-cell lg-wrap" value={text} maxLength={300}
+        onKeyDown={(e) => { if (e.key === 'Enter' && e.shiftKey) return; if (e.key === 'ArrowUp' || e.key === 'ArrowDown') return; nav(e) }}
+        onChange={(e) => { setText(e.target.value); grow(e.target) }}
+        onBlur={() => { setFocus(false); if (readOnly) return; const v = text.trim(); if (v !== (value ?? '')) { onChange(v); onCommit({ [col.key]: v }) } }} />
+    )
+  }
   return (
     <input {...common} className={`lg-cell ${col.type === 'money' ? 'lg-num' : ''}`} inputMode={col.type === 'money' ? 'decimal' : undefined} value={focus || col.type !== 'money' ? text : text === '' ? '' : (toCents(text) / 100).toLocaleString('en-PH', { maximumFractionDigits: 2 })}
       onChange={(e) => setText(e.target.value)} maxLength={col.type === 'money' ? 14 : 300}
@@ -165,7 +175,7 @@ const withKey = (r) => ({ ...r, ck: `k${nextKey++}` })
 // locked(row): shown but not editable (a receipt an owner approved, for staff); rowClass(row): extra row classes.
 // Receipts save only the cell that changed (the server keeps each change in the receipt's history).
 const MONEY_KEYS = ['amountCents', 'discountCents', 'paidWith']
-const META = ['ck', 'items', 'photo', 'photoRotate', 'photoV', 'ai', 'dupes', 'stage', 'staffApprovedAt', 'staffApprovedBy', 'ownerApprovedAt', 'ownerApprovedBy']
+const META = ['ck', 'kindNo', 'items', 'photo', 'photoRotate', 'photoV', 'ai', 'dupes', 'stage', 'staffApprovedAt', 'staffApprovedBy', 'ownerApprovedAt', 'ownerApprovedBy']
 export function Grid({ kind, rows, day, single, onSaved, config, prepare, highlight, locked, rowClass }) {
   const isLocked = (row) => !!(locked && row.id && locked(row))
   const g = config || GRIDS[kind]
@@ -191,15 +201,16 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
   function setItem(ck, ick, k, v) { const it = findItem(find(ck), ick); if (it) { it[k] = v; rerender() } }
   const queue = (job) => { saving.current = saving.current.then(job) }
   function save(ck, key) {
+    const keys = [].concat(key)
     queue(async () => {
       const row = find(ck)
       if (!row) return
-      const money = prepare && (!row.id || MONEY_KEYS.includes(key)) ? prepare(row) : {}
+      const money = prepare && (!row.id || keys.some((k) => MONEY_KEYS.includes(k))) ? prepare(row) : {}
       Object.assign(row, money)
       const body = Object.fromEntries(Object.entries(row).filter(([k]) => !META.includes(k)))
       try {
         if (row.id && kind === 'lines') {
-          const r = await api(`finances/daily/${kind}/${row.id}`, { method: 'PATCH', body: key === 'day' ? { day: row.day } : { [key]: row[key], ...money } })
+          const r = await api(`finances/daily/${kind}/${row.id}`, { method: 'PATCH', body: { ...Object.fromEntries(keys.map((k) => [k, row[k]])), ...money } })
           if (r.row?.ai !== undefined) row.ai = r.row.ai
         } else if (row.id) await api(`finances/daily/${kind}/${row.id}`, { method: 'PATCH', body })
         else {
@@ -302,7 +313,7 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
                 <tr key={row.ck} id={row.id ? `receipt-${row.id}` : undefined} data-line={row.id || undefined} className={`${isNew ? 'lg-new' : ''} ${row.items?.length ? 'lg-has-items' : ''} ${highlight && row.id === highlight ? 'lg-highlight' : ''} ${isLocked(row) ? 'lg-locked' : ''} ${rowClass ? rowClass(row) : ''}`}>
                   <td className="lg-rownum">{isNew ? '+' : n}</td>
                   {g.columns.map((col, c) => (
-                    <td key={col.key} className={col.item ? 'lg-itemcol' : col.type === 'custom' ? 'lg-customcol' : incomeOff(row, col) ? 'lg-flag' : ''} title={incomeOff(row, col) ? `Total Income goes before the discount: Total Per Receipt ${peso(row.amountCents)} + Discounts ${peso(row.discountCents || 0)} = ${peso(row.amountCents + (row.discountCents || 0))}` : undefined}>{col.item ? receiptCell(row, col) : col.type === 'custom' ? col.render(row, { rerender, saved: !!row.id }) : <Cell col={col} value={row[col.key]} grid={kind} r={r} c={c} readOnly={isLocked(row)} onChange={(v) => set(row.ck, col.key, v)} onCommit={(p) => save(row.ck, Object.keys(p)[0])} />}</td>
+                    <td key={col.key} className={col.item ? 'lg-itemcol' : col.type === 'custom' ? 'lg-customcol' : incomeOff(row, col) ? 'lg-flag' : ''} title={incomeOff(row, col) ? `Total Income goes before the discount: Total Per Receipt ${peso(row.amountCents)} + Discounts ${peso(row.discountCents || 0)} = ${peso(row.amountCents + (row.discountCents || 0))}` : undefined}>{col.item ? receiptCell(row, col) : col.type === 'custom' ? col.render(row, { rerender, saved: !!row.id, r, c, grid: kind, locked: isLocked(row), set: (k, v) => set(row.ck, k, v), save: (k) => save(row.ck, k) }) : <Cell col={col} value={row[col.key]} grid={kind} r={r} c={c} readOnly={isLocked(row)} onChange={(v) => set(row.ck, col.key, v)} onCommit={(p) => save(row.ck, Object.keys(p)[0])} />}</td>
                   ))}
                   <td>{!isNew && !isLocked(row) && delBtn(row.ck, 'row', () => remove(row))}</td>
                 </tr>,
@@ -391,6 +402,28 @@ function ReceiptHistory({ row, manager, onClose, onReopened }) {
         {manager && row.stage === 'owner' && <div className="inline-row"><button type="button" className="btn btn-quiet" onClick={reopen} disabled={busy}><Unlock aria-hidden /> Reopen for Changes</button></div>}
       </div>
     </div>
+  )
+}
+
+// Receipt No.: one column for both kinds of slip. The QR/OR button beside the number says which (quotation slip
+// or service invoice) and switches it; saved as Receipt No. QR or OR as before.
+function ReceiptNoCell({ row, tools }) {
+  const kind = row.kindNo || (row.receiptNo && !row.receiptQr ? 'OR' : 'QR')
+  const value = kind === 'OR' ? row.receiptNo : row.receiptQr
+  const put = (k, v) => { tools.set(k === 'OR' ? 'receiptNo' : 'receiptQr', v); tools.set(k === 'OR' ? 'receiptQr' : 'receiptNo', '') }
+  function flip() {
+    const to = kind === 'OR' ? 'QR' : 'OR'
+    tools.set('kindNo', to)
+    put(to, value || '')
+    if (value) tools.save(['receiptNo', 'receiptQr'])
+  }
+  return (
+    <span className="lg-rno">
+      <button type="button" className="lg-rkind" onClick={flip} disabled={tools.locked} aria-label={`${kind === 'QR' ? 'Quotation slip (QR)' : 'Service invoice (OR)'}: switch to ${kind === 'QR' ? 'OR' : 'QR'}`}
+        title={kind === 'QR' ? 'QR: quotation slip. Tap to make it OR (service invoice).' : 'OR: service invoice. Tap to make it QR (quotation slip).'}>{kind}</button>
+      <Cell col={{ key: 'receiptNum', label: `Receipt No. ${kind}` }} value={value} grid={tools.grid} r={tools.r} c={tools.c} readOnly={tools.locked}
+        onChange={(v) => put(kind, v)} onCommit={() => tools.save(['receiptNo', 'receiptQr'])} />
+    </span>
   )
 }
 
@@ -527,10 +560,11 @@ export default function DailyCashPage() {
             {flagsOf(row, row.day).some((f) => f.open) && <span className="lg-flagdot" title={flagsOf(row, row.day).filter((f) => f.open).map((f) => f.text).join('\n')}><TriangleAlert aria-hidden /></span>}
           </span>) },
         { key: 'photo', label: 'Photo', type: 'custom', width: '4.5%', render: (row, tools) => <PhotoCell row={row} tools={tools} onOpen={setOpen} locked={!manager && row.stage === 'owner'} /> },
-        ...['receiptNo', 'receiptQr', 'clientName', 'petNames', 'item', 'itemAmount', 'amountCents', 'discountCents'].map(pickCol),
+        { key: 'receipt', label: 'Receipt No.', type: 'custom', width: '9%', render: (row, tools) => <ReceiptNoCell row={row} tools={tools} /> },
+        ...['clientName', 'petNames', 'item', 'itemAmount', 'amountCents', 'discountCents'].map(pickCol),
         { key: 'paidWith', label: 'Paid With', type: 'select', options: PAID, width: '7%' },
         ...['note', 'onlineCents', 'depositCents', 'balanceCents', 'incomeCents'].map(pickCol),
-        ...(manager ? [pickCol('commissionCents'), { key: 'ownerNote', label: 'Owner Notes', width: '8%' }] : []),
+        ...(manager ? [pickCol('commissionCents'), { key: 'ownerNote', label: 'Owner Notes', type: 'long', width: '10%' }] : []),
       ],
     }
   }, [manager]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -593,7 +627,7 @@ export default function DailyCashPage() {
               <button type="button" className="text-btn" onClick={() => setOffer(0)}>Later</button>
             </div>
           )}
-          {single && !data.reading && lines.some((l) => l.photo && !l.ai) && manager && <p className="field-hint" style={{ margin: 0 }}>Photo reading isn’t set up yet, so photos are kept but not read. See the README (Anthropic key).</p>}
+          {single && !data.reading && lines.some((l) => l.photo && !l.ai) && manager && <p className="field-hint" style={{ margin: 0 }}>Photo reading is off: the app can’t see the Anthropic key yet, so photos are kept but not read. A key added in Cloudflare starts working after the next deployment (Deployments ▸ Retry deployment), and only if it’s under Production.</p>}
           {(attention.length > 0 || gaps.length > 0) && (
             <section className="card card-pad lg-attention" aria-labelledby="att-title">
               <h2 id="att-title"><TriangleAlert aria-hidden /> Needs Attention</h2>

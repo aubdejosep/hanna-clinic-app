@@ -2131,3 +2131,14 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .tfp-items.is-unsure { border-color: var(--apricot); }
 @media print { .lg-status .lg-approve, .lg-flagdot, .lg-more, .lg-attention { display: none; } }
 .lg-table td.lg-customcol { overflow: hidden; }
+.lg-rno { display: flex; align-items: center; gap: 2px; padding-left: 4px; }
+.lg-rno .lg-cell { padding-left: 4px; }
+.lg-rkind { flex: none; padding: 2px 6px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface); color: var(--heading); font: 700 var(--fs-label)/1.3 var(--font-button); letter-spacing: .04em; cursor: pointer; }
+.lg-rkind:hover:not(:disabled) { border-color: var(--teal); background: var(--teal-tint); }
+.lg-rkind:disabled { cursor: default; opacity: .7; }
+.lg-rkind:focus-visible { outline: none; box-shadow: var(--focus); }
+textarea.lg-cell.lg-wrap { display: block; resize: none; overflow: hidden; height: auto; min-height: 38px; padding: 9px 8px; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lg-table td:has(> textarea.lg-wrap) { vertical-align: top; }
+.tfp-rno { grid-template-columns: 1fr 1fr; }
+.tfp-field textarea.tfp-note-input { min-height: 42px; padding: 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-field); background: var(--surface); color: var(--heading); font: 400 var(--fs-body)/1.35 var(--font-body); resize: none; overflow: hidden; min-width: 0; }
+.tfp-field textarea.tfp-note-input:focus { outline: none; border-color: var(--teal); box-shadow: var(--focus); }
