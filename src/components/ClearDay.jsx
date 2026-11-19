@@ -39,12 +39,12 @@ export function ClearDayButton({ day, book, data, onDone }) {
   }
   return (
     <>
-      <button type="button" className="btn btn-quiet" onClick={() => setOpen(true)} title={`Remove every row of ${word} from the Ledger`}><Eraser aria-hidden /> Clear This Day</button>
+      <button type="button" className="btn btn-quiet" onClick={() => setOpen(true)} title={`Remove every row of ${word} in ${book === 'owner' ? 'your Ledger' : 'staff’s Receipts'}`}><Eraser aria-hidden /> Clear This Day</button>
       {open && (
         <div className="bal-alert-backdrop" onClick={() => !busy && setOpen(false)}>
           <form className="card clear-dialog" role="alertdialog" aria-modal="true" aria-labelledby="clear-title" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); if (text.trim().toLowerCase() === word.toLowerCase()) clear() }}>
-            <h2 id="clear-title">Clear {word} from the Ledger?</h2>
-            <p>This removes {what} for {word} (photos stay in storage).</p>
+            <h2 id="clear-title">Clear {word} from {book === 'owner' ? 'your Ledger' : 'staff’s Receipts'}?</h2>
+            <p>This removes {what} for {word}{book === 'staff' ? ' (photos stay in storage)' : ''}. {book === 'owner' ? 'Staff’s Receipts aren’t touched.' : 'Your Ledger isn’t touched.'}</p>
             <p className="field-hint" style={{ margin: 0 }}>Rows are marked removed, not erased, and <strong>Restore Day</strong> puts them back.</p>
             <label className="tfp-field"><span>Type {word} to confirm</span><input ref={input} value={text} onChange={(e) => setText(e.target.value)} placeholder={word} /></label>
             <ErrorNote error={error} />
@@ -92,7 +92,7 @@ export function ClearedBanner({ day, book, cleared, onDone }) {
       {open && (
         <div className="bal-alert-backdrop" onClick={() => !busy && setOpen(false)}>
           <div className="card clear-dialog restore-dialog" role="dialog" aria-modal="true" aria-labelledby="restore-title" onClick={(e) => e.stopPropagation()}>
-            <h2 id="restore-title">Restore {short(day)} in the Ledger?</h2>
+            <h2 id="restore-title">Restore {short(day)} in {book === 'owner' ? 'your Ledger' : 'staff’s Receipts'}?</h2>
             <p className="field-hint" style={{ margin: 0 }}>{about} Anything typed since stays as it is.</p>
             {!list && !error && <p className="field-hint" style={{ margin: 0 }}>Loading what was cleared…</p>}
             {list && (

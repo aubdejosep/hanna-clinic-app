@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import { TriangleAlert } from 'lucide-react'
 import Layout from './components/Layout.jsx'
 import { Empty, PawLoader } from './components/ui.jsx'
@@ -26,6 +26,7 @@ import SettingsPage from './pages/SettingsPage.jsx'
 import DevicesPage from './pages/DevicesPage.jsx'
 import BalancesPage from './pages/BalancesPage.jsx'
 import TransactionsPage from './pages/TransactionsPage.jsx'
+import ReceiptsPage from './pages/ReceiptsPage.jsx'
 import DailyCashPage from './pages/DailyCashPage.jsx'
 import InboxPage from './pages/InboxPage.jsx'
 import MedicationsPage from './pages/MedicationsPage.jsx'
@@ -92,7 +93,7 @@ export default function App() {
         <Route path="finances/balances" element={<BalancesPage />} />
         <Route path="finances/transactions" element={<TransactionsPage />} />
         <Route path="finances/daily" element={<DailyCashPage />} />
-        <Route path="finances/receipts" element={<Navigate to="/finances/daily" replace />} />
+        <Route path="finances/receipts" element={<ReceiptsPage />} />
         <Route path="prescription/medications" element={<MedicationsPage />} />
         <Route path="prescription/medications/new" element={<MedicationsPage />} />
         <Route path="prescription/medications/:id/edit" element={<MedicationsPage />} />
