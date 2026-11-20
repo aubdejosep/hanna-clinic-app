@@ -2099,3 +2099,14 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .sg-name { flex: 1; min-width: 0; }
 .sg-kind { font-size: var(--fs-label); text-transform: uppercase; letter-spacing: .04em; color: var(--text); }
 .sg-price { font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Shortcuts beside the search (Receipts, Ledger) */
+.shortcuts { display: flex; align-items: center; gap: 6px; flex: none; }
+.shortcut { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--heading); font: 700 var(--fs-small)/1 var(--font-button); text-transform: uppercase; letter-spacing: .04em; text-decoration: none; white-space: nowrap; }
+.shortcut svg { width: 16px; height: 16px; color: var(--teal-deep); }
+.shortcut:hover { border-color: var(--teal); }
+.shortcut.active { background: var(--teal-tint); border-color: var(--teal); }
+.shortcut:focus-visible { outline: none; box-shadow: var(--focus); }
+.shortcut-icon .shortcut-label { display: none; }
+.shortcut-icon svg { width: 20px; height: 20px; color: var(--teal-deep); }
+.shortcut-icon.active { background: var(--teal-tint); border-color: var(--teal); }
+@media (max-width: 1100px) { .deskbar .shortcut { width: 40px; padding: 0; justify-content: center; } .deskbar .shortcut-label { display: none; } }

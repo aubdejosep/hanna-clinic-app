@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BalanceCheckInAlert } from './Balances.jsx'
 import { TypingHost } from './ReceiptTyping.jsx'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { PanelLeftClose, PanelLeftOpen, Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Pill, Settings, UserRound, Wallet, X } from 'lucide-react'
+import { BookOpenText, ReceiptText, PanelLeftClose, PanelLeftOpen, Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Pill, Settings, UserRound, Wallet, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { useLogo } from '../lib/logo.js'
@@ -162,6 +162,20 @@ async function logOut() {
   }
 }
 
+// Shortcuts beside the search: Receipts (everyone) and Ledger (owners and admins). On phones, icons only.
+function Shortcuts({ staff, compact }) {
+  const links = [{ to: '/finances/receipts', label: 'Receipts', icon: ReceiptText }, ...(canManage(staff) ? [{ to: '/finances/daily', label: 'Ledger', icon: BookOpenText }] : [])]
+  return (
+    <nav className={`shortcuts ${compact ? 'is-compact' : ''}`} aria-label="Shortcuts">
+      {links.map((l) => (
+        <NavLink key={l.to} to={l.to} className={compact ? 'icon-btn shortcut-icon' : 'shortcut'} title={l.label} aria-label={compact ? l.label : undefined}>
+          <l.icon aria-hidden /><span className="shortcut-label">{l.label}</span>
+        </NavLink>
+      ))}
+    </nav>
+  )
+}
+
 export default function Layout({ staff }) {
   const [open, setOpen] = useState(false)
   const { pathname } = useLocation()
@@ -193,7 +207,7 @@ export default function Layout({ staff }) {
           <Menu />
         </button>
         <Brand />
-        {mobile && <div className="topbar-bell"><OmniSearch mobile /><ReminderBell align="right" /></div>}
+        {mobile && <div className="topbar-bell"><Shortcuts staff={staff} compact /><OmniSearch mobile /><ReminderBell align="right" /></div>}
       </div>
 
       <nav className="sidebar" aria-label="Main" ref={navRef}>
@@ -229,6 +243,7 @@ export default function Layout({ staff }) {
         {!mobile && (
           <header className="deskbar">
             <div id="crumb-slot" className="crumb-slot" />
+            <Shortcuts staff={staff} />
             <OmniSearch />
             <ReminderBell align="right" />
           </header>
