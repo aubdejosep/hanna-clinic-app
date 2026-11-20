@@ -15,6 +15,7 @@ import { canManage, useStaff } from '../lib/staff.js'
 import { prettyDay } from '../lib/format.js'
 import { EXPENSE_TYPES, summarize } from '../../lib/daily-cash.js'
 import LedgerImport from '../components/LedgerImport.jsx'
+import { useSuggest } from '../components/ItemSuggest.jsx'
 import LedgerCompare from '../components/LedgerCompare.jsx'
 import { ClearDayButton, ClearedBanner } from '../components/ClearDay.jsx'
 
@@ -113,9 +114,11 @@ export function RangeCalendar({ from, to, onPick }) {
   )
 }
 
-function Cell({ col, value, onChange, onCommit, r, c, grid, tag }) {
+function Cell({ col, value, onChange, onCommit, r, c, grid, tag, onPick }) {
   const [text, setText] = useState(col.type === 'money' ? toPesos(value) : value ?? '')
   const [focus, setFocus] = useState(false)
+  // A receipt's Item: suggestions from Services and the Product List (onPick also fills an empty amount).
+  const sg = useSuggest({ text, active: !!onPick && focus, onPick: (e) => { setText(e.name); onPick(e); onChange(e.name); onCommit({ [col.key]: e.name }) } })
   useEffect(() => { if (!focus) setText(col.type === 'money' ? toPesos(value) : value ?? '') }, [value, focus]) // eslint-disable-line react-hooks/exhaustive-deps
   const nav = (e) => {
     const move = e.key === 'Enter' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
@@ -130,7 +133,7 @@ function Cell({ col, value, onChange, onCommit, r, c, grid, tag }) {
       }
     })
   }
-  const common = { 'data-grid': grid, 'data-r': r, 'data-c': c, 'data-tag': tag, 'aria-label': col.label, onKeyDown: nav, onFocus: () => setFocus(true) }
+  const common = { 'data-grid': grid, 'data-r': r, 'data-c': c, 'data-tag': tag, 'aria-label': col.label, onKeyDown: (e) => { if (!sg.keys(e)) nav(e) }, onFocus: () => setFocus(true) }
   if (col.type === 'select') {
     return <select {...common} className="lg-cell" value={value} onChange={(e) => { onChange(e.target.value); onCommit({ [col.key]: e.target.value }) }} onBlur={() => setFocus(false)}>{col.options.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
   }
@@ -138,7 +141,8 @@ function Cell({ col, value, onChange, onCommit, r, c, grid, tag }) {
     return <input {...common} type="date" className="lg-cell" value={value || ''} onChange={(e) => e.target.value && onChange(e.target.value)} onBlur={(e) => { setFocus(false); onCommit({ day: e.target.value || value }) }} />
   }
   return (
-    <input {...common} className={`lg-cell ${col.type === 'money' ? 'lg-num' : ''}`} inputMode={col.type === 'money' ? 'decimal' : undefined} value={focus || col.type !== 'money' ? text : text === '' ? '' : (toCents(text) / 100).toLocaleString('en-PH', { maximumFractionDigits: 2 })}
+    <>
+    <input {...common} ref={sg.anchor} autoComplete="off" className={`lg-cell ${col.type === 'money' ? 'lg-num' : ''}`} inputMode={col.type === 'money' ? 'decimal' : undefined} value={focus || col.type !== 'money' ? text : text === '' ? '' : (toCents(text) / 100).toLocaleString('en-PH', { maximumFractionDigits: 2 })}
       onChange={(e) => setText(e.target.value)} maxLength={col.type === 'money' ? 14 : 300}
       onBlur={() => {
         setFocus(false)
@@ -146,6 +150,8 @@ function Cell({ col, value, onChange, onCommit, r, c, grid, tag }) {
         if (Number.isNaN(v)) { setText(toPesos(value)); return }
         if (v !== (value ?? (col.type === 'money' ? null : ''))) { onChange(v); onCommit({ [col.key]: v }) }
       }} />
+    {sg.popup}
+    </>
   )
 }
 
@@ -301,6 +307,7 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
                       {g.columns.map((col, c) => (
                         <td key={col.key}>{col.item ? (
                           <Cell col={col.key === 'item' ? { ...col, label: 'Item' } : { ...col, label: 'Item Amount' }} value={col.key === 'item' ? it.item : it.amountCents} grid={kind} r={ir} c={c} tag={col.key === 'item' ? it.ck : undefined}
+                            onPick={col.key === 'item' ? (e) => { if (it.amountCents == null && e.price != null) setItem(row.ck, it.ck, 'amountCents', Math.round(e.price * 100)) } : undefined}
                             onChange={(v) => setItem(row.ck, it.ck, col.key === 'item' ? 'item' : 'amountCents', v)} onCommit={() => saveItem(row.ck, it.ck)} />
                         ) : null}</td>
                       ))}

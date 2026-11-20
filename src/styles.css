@@ -2092,3 +2092,10 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .cm-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 16px 0; }
 .cm-totals .card { display: grid; gap: 4px; }
 .cm-totals strong { font-size: var(--fs-h2); color: var(--heading); font-variant-numeric: tabular-nums; }
+/* Item suggestions (Services and Product List) under a receipt's Item */
+.sg-list { position: fixed; z-index: 120; max-width: min(460px, calc(100vw - 16px)); margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-field); box-shadow: var(--shadow); }
+.sg-list li { display: flex; align-items: baseline; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-size: var(--fs-small); color: var(--heading); }
+.sg-list li.is-on { background: var(--teal-tint); }
+.sg-name { flex: 1; min-width: 0; }
+.sg-kind { font-size: var(--fs-label); text-transform: uppercase; letter-spacing: .04em; color: var(--text); }
+.sg-price { font-variant-numeric: tabular-nums; white-space: nowrap; }

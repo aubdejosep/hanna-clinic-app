@@ -11,6 +11,7 @@ import { flushSync } from 'react-dom'
 import { ChevronLeft, ChevronRight, Keyboard, Minimize2, Minus, MoveHorizontal, Plus, RotateCw, Scan, SkipForward, Trash2, X } from 'lucide-react'
 import { ErrorNote, useToast } from './ui.jsx'
 import { api } from '../lib/api.js'
+import { useSuggest } from './ItemSuggest.jsx'
 
 const PAID = [['', '—'], ['cash', 'Cash'], ['gcash', 'GCash'], ['bank', 'Bank Transfer'], ['maribank', 'MariBank'], ['card', 'Card'], ['qrph', 'QRPH'], ['none', 'Not Counted']]
 const ONLINE = ['gcash', 'bank', 'maribank', 'card', 'qrph']
@@ -283,7 +284,8 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimize
             <span className="tfp-label">Items <span className="cell-sub">(Enter in an amount adds the next item)</span></span>
             {f.items.map((x, i) => (
               <div key={i} className="tfp-itemrow">
-                <input aria-label={`Item ${i + 1}`} data-item-name={i} value={x.item} onChange={(e) => setItem(i, { item: e.target.value })} placeholder="e.g. Deworm" />
+                <ItemInput i={i} value={x.item} onChange={(v) => setItem(i, { item: v })}
+                  onPick={(e) => setItem(i, { item: e.name, ...(x.amount === '' && e.price != null ? { amount: String(e.price) } : {}) })} />
                 <input aria-label={`Item ${i + 1} Amount`} data-item-amount={i} className="lg-num" inputMode="decimal" value={x.amount} onChange={(e) => setItem(i, { amount: e.target.value })} placeholder="0" />
                 <button type="button" className="icon-btn lg-del" onClick={() => set({ items: f.items.filter((_, j) => j !== i) })} aria-label={`Remove item ${i + 1}`} title="Remove Item"><Trash2 /></button>
               </div>
@@ -316,6 +318,19 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimize
         </form>
       </div>
     </div>
+  )
+}
+
+// A receipt item's name, with suggestions from Services and the Product List (picking one fills an empty amount).
+function ItemInput({ i, value, onChange, onPick }) {
+  const [focus, setFocus] = useState(false)
+  const sg = useSuggest({ text: value, active: focus, onPick })
+  return (
+    <>
+      <input ref={sg.anchor} autoComplete="off" aria-label={`Item ${i + 1}`} data-item-name={i} value={value} onChange={(e) => onChange(e.target.value)} placeholder="e.g. Deworm"
+        onFocus={() => setFocus(true)} onBlur={() => setFocus(false)} onKeyDown={(e) => { if (sg.keys(e)) e.stopPropagation() }} />
+      {sg.popup}
+    </>
   )
 }
 
