@@ -2167,3 +2167,5 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 }
 /* A quarter-turned photo fills the 3:4 card: its box is the card's height wide and width high, centred. */
 .ml-thumb img.is-turned { position: absolute; top: 50%; left: 50%; width: 133.334%; height: 75%; }
+/* Master List: the photo appears already turned, with no spin (zoom and pan snap too). */
+.ml-photo .pv-stage img { transition: none; }
