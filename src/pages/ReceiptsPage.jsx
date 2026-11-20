@@ -264,7 +264,7 @@ export default function ReceiptsPage() {
         <button type="button" className="icon-btn" onClick={() => go(shift(day, -1))} aria-label="Previous day" title="Previous Day"><ChevronLeft /></button>
         <div className="rc-wrap">
           <button type="button" className="btn btn-quiet" onClick={() => setCalOpen((o) => !o)} aria-expanded={calOpen}><CalendarDays aria-hidden /> {prettyDay(day)}</button>
-          {calOpen && <div className="rc-pop card"><RangeCalendar from={day} to={day} onPick={(a) => { go(a); setCalOpen(false) }} /></div>}
+          {calOpen && <div className="rc-pop card"><RangeCalendar from={day} to={day} onPick={(a) => { go(a); setCalOpen(false) }} book="staff" /></div>}
         </div>
         <button type="button" className="icon-btn" onClick={() => go(shift(day, 1))} aria-label="Next day" title="Next Day"><ChevronRight /></button>
         {day !== today() && <button type="button" className="text-btn" onClick={() => go(today())}>Today</button>}

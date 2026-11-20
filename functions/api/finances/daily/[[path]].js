@@ -16,6 +16,7 @@
 //          -> what each row will do (add / skip: already in the Ledger / error) and each day's totals; with
 //             commit: true, adds the "add" rows in one go and logs it. Never changes or removes existing rows.
 //   GET    /api/finances/daily/overview?from&to&prevFrom&prevTo -> the Overview's Ledger section (lib/ledger-overview.js)
+//   GET    /api/finances/daily/days?from&to&book -> days with rows in that record (for the calendar's dots)
 //   GET    /api/finances/daily/photos/:lineId   POST (the image as the body) -> a receipt's photo (R2)
 //   PUT    /api/finances/daily/summary   {day, incomeCents, expensesCents, onlineCents, firstRemitCents, cashOnHandCents,
 //                                          onlineList, groomingList, note}: the front desk's typed summary for the day
@@ -109,6 +110,17 @@ export async function onRequest({ request, env, params, data }) {
     return json({ from, to, cleared, summary: sum ? summaryShape(sum) : null, book, lines: l.results.map((x) => ({ ...TABLES.lines.shape({ ...x, items: items[x.id] }), staffPhoto: staffPhotos[x.receipt_no || ''] || staffPhotos[x.receipt_qr || ''] || null })), expenses: e.results.map(TABLES.expenses.shape), remits: r.results.map(TABLES.remits.shape) })
   }
 
+  // GET /days?from&to&book -> the days that have receipts or expenses in that record (the calendar marks them).
+  if (what === 'days' && method === 'GET') {
+    const u = new URL(request.url).searchParams
+    const from = u.get('from')
+    const to = u.get('to')
+    if (!isDay(from) || !isDay(to) || from > to || (new Date(to) - new Date(from)) / 864e5 > 62) return fail(400, 'Choose up to two months.')
+    const book = bookOf(u.get('book'))
+    const { results } = await env.DB.prepare(`SELECT day FROM cash_lines WHERE branch_id = 1 AND book = ?1 AND deleted_at IS NULL AND day BETWEEN ?2 AND ?3
+      UNION SELECT day FROM cash_expenses WHERE branch_id = 1 AND book = ?1 AND deleted_at IS NULL AND day BETWEEN ?2 AND ?3`).bind(book, from, to).all()
+    return json({ days: results.map((r) => r.day) })
+  }
   if (what === 'photos') return photoRoute(env, data.staff, request, method, id, manager)
   if (what === 'clear' && method === 'POST') return clearDay(env, data.staff, (await readJson(request)) || {})
   if (what === 'restore' && method === 'POST') return restoreDay(env, data.staff, (await readJson(request)) || {})

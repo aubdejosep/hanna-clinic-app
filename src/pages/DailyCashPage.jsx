@@ -79,13 +79,21 @@ const incomeOff = (row, col) => col.key === 'incomeCents' && row.incomeCents != 
 const itemSum = (row) => (row.items || []).reduce((n, i) => n + (i.amountCents || 0), 0)
 
 // One calendar: tap a day, or drag across days (mouse or finger) for several.
-export function RangeCalendar({ from, to, onPick }) {
+export function RangeCalendar({ from, to, onPick, book }) {
   const [month, setMonth] = useState(to.slice(0, 7))
+  // Days with entries in this record get a dot (book: 'owner' for the Ledger, 'staff' for Receipts).
+  const [filled, setFilled] = useState(() => new Set())
   const [sel, setSel] = useState(null) // {a, b} while dragging
   const anchor = useRef(null)
   const first = new Date(`${month}-01T12:00:00Z`)
   const start = shift(`${month}-01`, -((first.getUTCDay() + 6) % 7))
   const days = Array.from({ length: 42 }, (_, i) => shift(start, i))
+  useEffect(() => {
+    if (!book) return undefined
+    let live = true
+    api(`finances/daily/days?from=${days[0]}&to=${days[41]}&book=${book}`).then((r) => { if (live) setFilled(new Set(r.days)) }).catch(() => {})
+    return () => { live = false }
+  }, [month, book]) // eslint-disable-line react-hooks/exhaustive-deps
   const lo = sel ? (sel.a < sel.b ? sel.a : sel.b) : from
   const hi = sel ? (sel.a < sel.b ? sel.b : sel.a) : to
   const dayAt = (e) => document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-day]')?.dataset.day
@@ -105,11 +113,11 @@ export function RangeCalendar({ from, to, onPick }) {
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((w) => <span key={w} className="rc-dow">{w}</span>)}
         {days.map((d) => (
           <button key={d} type="button" data-day={d} role="gridcell" aria-selected={d >= lo && d <= hi}
-            className={`rc-day ${d.slice(0, 7) !== month ? 'is-out' : ''} ${d >= lo && d <= hi ? 'is-in' : ''} ${d === lo || d === hi ? 'is-end' : ''} ${d === today() ? 'is-today' : ''}`}
+            className={`rc-day ${d.slice(0, 7) !== month ? 'is-out' : ''} ${d >= lo && d <= hi ? 'is-in' : ''} ${d === lo || d === hi ? 'is-end' : ''} ${d === today() ? 'is-today' : ''} ${filled.has(d) ? 'has-rows' : ''}`} title={filled.has(d) ? 'Has entries' : undefined}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(d, d) } }}>{Number(d.slice(8))}</button>
         ))}
       </div>
-      <p className="field-hint" style={{ margin: 0 }}>Tap a day, or drag across days to see several together.</p>
+      <p className="field-hint" style={{ margin: 0 }}>Tap a day, or drag across days to see several together.{book ? ' A dot marks days with entries.' : ''}</p>
     </div>
   )
 }
@@ -354,7 +362,7 @@ export default function DailyCashPage() {
       <div className="lg-bar">
         <div className="rc-wrap">
           <button type="button" className="btn btn-quiet" onClick={() => setCalOpen((o) => !o)} aria-expanded={calOpen}><CalendarDays aria-hidden /> {label}</button>
-          {calOpen && <div className="rc-pop card"><RangeCalendar from={from} to={to} onPick={pick} /></div>}
+          {calOpen && <div className="rc-pop card"><RangeCalendar from={from} to={to} onPick={pick} book="owner" /></div>}
         </div>
         {!(single && from === today()) && <button type="button" className="text-btn" onClick={() => pick(today(), today())}>Today</button>}
         <button type="button" className="btn btn-quiet" onClick={() => setImporting((o) => !o)} aria-expanded={importing}><FileUp aria-hidden /> Import File</button>
