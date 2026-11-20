@@ -286,7 +286,7 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
               const r = vr++
               return [
                 groupHead && <tr key={`d-${row.day}`} className="lg-day"><td colSpan={span}><span className="lg-dayhead">{prettyDay(row.day)}{kind === 'lines' && allBtns(row.day)}</span></td></tr>,
-                <tr key={row.ck} id={row.id ? `receipt-${row.id}` : undefined} data-line={row.id || undefined} className={`${isNew ? 'lg-new' : ''} ${row.items?.length ? 'lg-has-items' : ''} ${highlight && row.id === highlight ? 'lg-highlight' : ''}`}>
+                <tr key={row.ck} id={row.id ? `receipt-${row.id}` : undefined} data-line={row.id || undefined} className={`${kind === 'lines' ? 'lg-receipt' : ''} ${isNew ? 'lg-new' : ''} ${row.items?.length ? 'lg-has-items' : ''} ${highlight && row.id === highlight ? 'lg-highlight' : ''}`}>
                   <td className="lg-rownum">{isNew ? '+' : n}</td>
                   {g.columns.map((col, c) => (
                     <td key={col.key} className={col.item ? 'lg-itemcol' : col.type === 'custom' ? 'lg-customcol' : incomeOff(row, col) ? 'lg-flag' : ''} title={incomeOff(row, col) ? `Total Income goes before the discount: Total Per Receipt ${peso(row.amountCents)} + Discounts ${peso(row.discountCents || 0)} = ${peso(row.amountCents + (row.discountCents || 0))}` : undefined}>{col.item ? receiptCell(row, col) : col.type === 'custom' ? col.render(row, { rerender, saved: !!row.id }) : <Cell col={col} value={row[col.key]} grid={kind} r={r} c={c} onChange={(v) => set(row.ck, col.key, v)} onCommit={() => save(row.ck)} />}</td>

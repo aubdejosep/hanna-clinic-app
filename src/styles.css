@@ -2082,3 +2082,6 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .tfp-pill strong, .tfp-pill span { color: #fff; }
 .pv-failed { position: absolute; inset: 0; z-index: 1; display: grid; place-content: center; justify-items: center; gap: 10px; color: #fff; text-align: center; }
 .pv-failed p { margin: 0; }
+/* A thick line above each receipt, so a receipt and its items read as one block. */
+.lg-table tbody tr.lg-receipt:not(:first-child) > td { border-top: 2px solid var(--heading); }
+.lg-table tbody tr.lg-day + tr.lg-receipt > td { border-top-width: 1px; border-top-color: var(--border); }
