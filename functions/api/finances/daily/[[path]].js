@@ -16,6 +16,7 @@
 //          -> what each row will do (add / skip: already in the Ledger / error) and each day's totals; with
 //             commit: true, adds the "add" rows in one go and logs it. Never changes or removes existing rows.
 //   GET    /api/finances/daily/overview?from&to&prevFrom&prevTo -> the Overview's Ledger section (lib/ledger-overview.js)
+//   GET    /api/finances/daily/master?q&from&to&kind&sort&page -> Finances ▸ Master List (read only)
 //   GET    /api/finances/daily/days?from&to&book -> days with rows in that record (for the calendar's dots)
 //   GET    /api/finances/daily/photos/:lineId   POST (the image as the body) -> a receipt's photo (R2)
 //   PUT    /api/finances/daily/summary   {day, incomeCents, expensesCents, onlineCents, firstRemitCents, cashOnHandCents,
@@ -110,6 +111,10 @@ export async function onRequest({ request, env, params, data }) {
     return json({ from, to, cleared, summary: sum ? summaryShape(sum) : null, book, lines: l.results.map((x) => ({ ...TABLES.lines.shape({ ...x, items: items[x.id] }), staffPhoto: staffPhotos[x.receipt_no || ''] || staffPhotos[x.receipt_qr || ''] || null })), expenses: e.results.map(TABLES.expenses.shape), remits: r.results.map(TABLES.remits.shape) })
   }
 
+  // GET /master?q&from&to&kind=QR|OR&sort=desc|asc&page -> Finances ▸ Master List: every receipt with a number, one
+  // card per receipt number (owners and admins: the Ledger's and staff's rows combined, the Ledger's figures first;
+  // staff: their own rows only), with its items and photo. Read only.
+  if (what === 'master' && method === 'GET') return masterList(env, new URL(request.url).searchParams, manager)
   // GET /days?from&to&book -> the days that have receipts or expenses in that record (the calendar marks them).
   if (what === 'days' && method === 'GET') {
     const u = new URL(request.url).searchParams
@@ -530,4 +535,49 @@ async function restorePreview(env, day, book, tag) {
     remits: book === 'owner' ? x.results.map((r) => ({ kind: r.kind, amountCents: r.amount_cents })) : [],
     summary: book === 'staff' && x.results[0] ? { incomeCents: x.results[0].income_cents, cashOnHandCents: x.results[0].cash_on_hand_cents, kept: !x.results[0].newer } : null,
   }
+}
+
+// ---------- Finances ▸ Master List (read only) ----------
+const MASTER_PAGE = 60
+async function masterList(env, u, manager) {
+  const from = isDay(u.get('from')) ? u.get('from') : '0000-01-01'
+  const to = isDay(u.get('to')) ? u.get('to') : '9999-12-31'
+  const kind = ['QR', 'OR'].includes(u.get('kind')) ? u.get('kind') : ''
+  const q = clean(u.get('q'), 60).toLowerCase()
+  const page = Math.max(1, Number(u.get('page')) || 1)
+  const asc = u.get('sort') === 'asc'
+  const where = ['l.branch_id = 1', 'l.deleted_at IS NULL', 'l.day BETWEEN ? AND ?', manager ? "l.book IN ('owner', 'staff')" : "l.book = 'staff'",
+    kind === 'QR' ? "COALESCE(l.receipt_qr, '') <> ''" : kind === 'OR' ? "COALESCE(l.receipt_no, '') <> ''" : "(COALESCE(l.receipt_qr, '') <> '' OR COALESCE(l.receipt_no, '') <> '')"]
+  const binds = [from, to]
+  if (q) {
+    where.push(`(lower(COALESCE(l.receipt_no, '') || ' ' || COALESCE(l.receipt_qr, '') || ' ' || COALESCE(l.client_name, '') || ' ' || COALESCE(l.pet_names, '') || ' ' || COALESCE(l.note, '')) LIKE ?
+      OR EXISTS (SELECT 1 FROM cash_line_items i WHERE i.line_id = l.id AND i.deleted_at IS NULL AND lower(COALESCE(i.item, '')) LIKE ?))`)
+    binds.push(`%${q}%`, `%${q}%`)
+  }
+  const { results } = await env.DB.prepare(`SELECT l.* FROM cash_lines l WHERE ${where.join(' AND ')} ORDER BY l.id LIMIT 6000`).bind(...binds).all()
+  // One card per slip: the Ledger's row first (the owners' checked figures), then staff's; the photo from whichever has one.
+  const cards = new Map()
+  for (const r of results.sort((a, b) => (a.book === b.book ? a.id - b.id : a.book === 'owner' ? -1 : 1))) {
+    const k = r.receipt_qr ? `QR${r.receipt_qr}` : `OR${r.receipt_no}`
+    const c = cards.get(k)
+    if (!c) cards.set(k, { key: k, kind: r.receipt_qr ? 'QR' : 'OR', number: r.receipt_qr || r.receipt_no, line: r, photo: r.photo_key ? r : null, books: [r.book] })
+    else { if (!c.photo && r.photo_key) c.photo = r; if (!c.books.includes(r.book)) c.books.push(r.book) }
+  }
+  const num = (c) => Number(String(c.number).replace(/\D/g, '')) || 0
+  // Quotation slips (QR) first, then service invoices (OR); each by number.
+  const all = [...cards.values()].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'QR' ? -1 : 1) || (asc ? 1 : -1) * (num(a) - num(b) || a.line.day.localeCompare(b.line.day)))
+  const shown = all.slice((page - 1) * MASTER_PAGE, page * MASTER_PAGE)
+  const ids = shown.map((c) => c.line.id)
+  const items = ids.length ? (await env.DB.prepare(`SELECT * FROM cash_line_items WHERE deleted_at IS NULL AND line_id IN (${ids.map(() => '?').join(', ')}) ORDER BY sort, id`).bind(...ids).all()).results : []
+  return json({
+    total: all.length, page, pageSize: MASTER_PAGE,
+    receipts: shown.map((c) => {
+      const l = c.line
+      return { key: c.key, kind: c.kind, number: c.number, day: l.day, clientName: l.client_name || '', petNames: l.pet_names || '', amountCents: l.amount_cents || null,
+        discountCents: l.discount_cents || null, onlineCents: l.online_cents, incomeCents: l.income_cents, depositCents: l.deposit_cents, balanceCents: l.balance_cents,
+        paidWith: l.paid_with || '', note: l.note || '', books: c.books, by: l.updated_by || l.created_by || '',
+        photo: c.photo ? { id: c.photo.id, rotate: c.photo.photo_rotate || 0 } : null,
+        items: items.filter((i) => i.line_id === l.id).map((i) => ({ item: i.item || '', amountCents: i.amount_cents })) }
+    }),
+  })
 }
