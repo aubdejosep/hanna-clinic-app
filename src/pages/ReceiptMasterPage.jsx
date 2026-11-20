@@ -27,17 +27,31 @@ function range(key) {
 }
 const RANGES = [['all', 'All Time'], ['today', 'Today'], ['week', 'This Week'], ['lastweek', 'Last Week'], ['month', 'This Month'], ['lastmonth', 'Last Month'], ['year', 'This Year']]
 const KEY = 'master-list-view'
+// Right side up: a rotation saved on Receipts wins; otherwise a sideways (landscape) photo is turned a quarter left,
+// since staff photograph slips with the header on the right. Shape only: an upside-down photo stays as it is.
+const AUTO_TURN = 270
+const turnOf = (photo, shape) => photo.rotate || (shape === 'land' ? AUTO_TURN : 0)
+function useShape(photo, known, onKnown) {
+  useEffect(() => {
+    if (!photo || known) return
+    const img = new Image()
+    img.onload = () => onKnown(photo.id, img.naturalWidth > img.naturalHeight ? 'land' : 'port')
+    img.src = `/api/finances/daily/photos/${photo.id}`
+  }, [photo?.id, known]) // eslint-disable-line react-hooks/exhaustive-deps
+}
 const saved = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {} } catch { return {} } }
 
-function ReceiptView({ r, onClose, manager }) {
-  const [rot, setRot] = useState(r.photo?.rotate || 0)
+function ReceiptView({ r, onClose, manager, shape, onShape }) {
+  const [rot, setRot] = useState(null) // the viewer's own turn once someone presses Rotate (not saved)
+  useShape(r.photo, shape, onShape)
+  const shown = rot ?? (r.photo ? turnOf(r.photo, shape) : 0)
   useEffect(() => { const k = (e) => { if (e.key === 'Escape') onClose() }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k) }, [onClose])
   const itemsSum = r.items.reduce((n, i) => n + (i.amountCents || 0), 0)
   return (
     <div className="bal-alert-backdrop" onClick={onClose}>
       <div className="card ml-view" role="dialog" aria-modal="true" aria-labelledby="ml-title" onClick={(e) => e.stopPropagation()}>
         <div className="ml-photo">
-          {r.photo ? <PhotoViewer line={{ id: r.photo.id, photo: true, photoRotate: rot }} onRotate={setRot} />
+          {r.photo ? (r.photo.rotate || shape) ? <PhotoViewer line={{ id: r.photo.id, photo: true, photoRotate: shown }} onRotate={setRot} /> : <PawLoader label="Loading the photo…" />
             : <div className="ml-nophoto"><ReceiptText aria-hidden /><span>No photo of this receipt</span></div>}
         </div>
         <div className="ml-details">
@@ -84,6 +98,8 @@ export default function ReceiptMasterPage() {
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
   const [open, setOpen] = useState(null)
+  const [shapes, setShapes] = useState({}) // photo id -> 'land' | 'port'
+  const known = (id, sh) => setShapes((m) => (m[id] === sh ? m : { ...m, [id]: sh }))
   const [from, to] = range(view.when) || [null, null]
   const params = new URLSearchParams({ ...(query ? { q: query } : {}), ...(from ? { from, to } : {}), ...(view.kind ? { kind: view.kind } : {}), sort: view.sort })
   const key = params.toString()
@@ -129,7 +145,9 @@ export default function ReceiptMasterPage() {
             {list.map((r) => (
               <button key={r.key} type="button" className="card ml-card" onClick={() => setOpen(r)} aria-label={`${r.kind} ${r.number}, ${r.clientName || 'no name'}, ${r.amountCents != null ? peso(r.amountCents) : 'no total'}`}>
                 <span className="ml-thumb">
-                  {r.photo ? <img src={`/api/finances/daily/photos/${r.photo.id}`} alt="" loading="lazy" style={r.photo.rotate ? { transform: `rotate(${r.photo.rotate}deg) scale(${r.photo.rotate % 180 ? 1.4 : 1})` } : undefined} />
+                  {r.photo ? <img src={`/api/finances/daily/photos/${r.photo.id}`} alt="" loading="lazy" className={turnOf(r.photo, shapes[r.photo.id]) % 180 ? 'is-turned' : ''}
+                    onLoad={(e) => known(r.photo.id, e.currentTarget.naturalWidth > e.currentTarget.naturalHeight ? 'land' : 'port')}
+                    style={turnOf(r.photo, shapes[r.photo.id]) ? { transform: `${turnOf(r.photo, shapes[r.photo.id]) % 180 ? 'translate(-50%, -50%) ' : ''}rotate(${turnOf(r.photo, shapes[r.photo.id])}deg)` } : undefined} />
                     : <span className="ml-nothumb"><ReceiptText aria-hidden /></span>}
                   <span className={`badge ${r.kind === 'OR' ? 'badge-warm' : ''} ml-kind`}>{r.kind}</span>
                 </span>
@@ -148,7 +166,7 @@ export default function ReceiptMasterPage() {
           )}
         </>
       )}
-      {open && <ReceiptView r={open} manager={manager} onClose={() => setOpen(null)} />}
+      {open && <ReceiptView r={open} manager={manager} shape={open.photo ? shapes[open.photo.id] : null} onShape={known} onClose={() => setOpen(null)} />}
     </>
   )
 }
