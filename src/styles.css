@@ -2085,3 +2085,10 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 /* A thick line above each receipt, so a receipt and its items read as one block. */
 .lg-table tbody tr.lg-receipt:not(:first-child) > td { border-top: 2px solid var(--heading); }
 .lg-table tbody tr.lg-day + tr.lg-receipt > td { border-top-width: 1px; border-top-color: var(--border); }
+/* Finances ▸ Commissions */
+.cm-dates { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; }
+.cm-dates .field { min-width: 180px; }
+.cm-quick { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 4px; }
+.cm-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 16px 0; }
+.cm-totals .card { display: grid; gap: 4px; }
+.cm-totals strong { font-size: var(--fs-h2); color: var(--heading); font-variant-numeric: tabular-nums; }

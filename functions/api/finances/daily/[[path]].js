@@ -36,7 +36,7 @@ const money = (v) => { if (v === null || v === undefined || v === '') return nul
 const manilaToday = () => new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10)
 
 const PAID_WITH = ['cash', 'gcash', 'bank', 'maribank', 'card', 'qrph', 'none']
-const MANAGER_ONLY = ['remits', 'import', 'imports', 'overview', 'copy', 'clear', 'restore']
+const MANAGER_ONLY = ['remits', 'import', 'imports', 'overview', 'commissions', 'copy', 'clear', 'restore']
 const PHOTO_MAX = 8 * 1024 * 1024
 const TABLES = {
   lines: {
@@ -117,6 +117,25 @@ export async function onRequest({ request, env, params, data }) {
   if (what === 'items') return itemRoute(env, data.staff, method, id, method === 'DELETE' ? {} : (await readJson(request)) || {}, mine)
   if (what === 'import' && method === 'POST') return importRows(env, data.staff, (await readJson(request)) || {})
   if (what === 'imports' && method === 'GET' && !id) return listImports(env)
+  // Finances ▸ Commissions: the Ledger's Commissions column added up per day, and what was paid out (Expenses of
+  // type Vet Commission), for the dates picked.
+  if (what === 'commissions' && method === 'GET') {
+    const u = new URL(request.url).searchParams
+    const from = u.get('from')
+    const to = u.get('to')
+    if (!isDay(from) || !isDay(to) || from > to) return fail(400, 'Choose the start and end dates.')
+    if ((new Date(to) - new Date(from)) / 864e5 > 1100) return fail(400, 'Choose up to 3 years at a time.')
+    const [c, p] = await env.DB.batch([
+      env.DB.prepare(`SELECT day, COUNT(*) AS receipts, SUM(commission_cents) AS cents FROM cash_lines WHERE branch_id = 1 AND book = 'owner' AND deleted_at IS NULL
+        AND day BETWEEN ? AND ? AND commission_cents > 0 GROUP BY day`).bind(from, to),
+      env.DB.prepare(`SELECT day, SUM(amount_cents) AS cents FROM cash_expenses WHERE branch_id = 1 AND book = 'owner' AND deleted_at IS NULL
+        AND day BETWEEN ? AND ? AND category = 'Vet Commission' GROUP BY day`).bind(from, to),
+    ])
+    const days = {}
+    for (const r of c.results) days[r.day] = { day: r.day, receipts: r.receipts, commissionCents: r.cents, paidCents: 0 }
+    for (const r of p.results) (days[r.day] ||= { day: r.day, receipts: 0, commissionCents: 0, paidCents: 0 }).paidCents = r.cents
+    return json({ from, to, days: Object.values(days).sort((a, b) => a.day.localeCompare(b.day)) })
+  }
   if (what === 'overview' && method === 'GET') {
     const u = new URL(request.url).searchParams
     const r = Object.fromEntries(['from', 'to', 'prevFrom', 'prevTo'].map((k) => [k, u.get(k)]))

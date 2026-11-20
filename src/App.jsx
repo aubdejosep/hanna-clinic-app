@@ -28,6 +28,7 @@ import BalancesPage from './pages/BalancesPage.jsx'
 import TransactionsPage from './pages/TransactionsPage.jsx'
 import ReceiptsPage from './pages/ReceiptsPage.jsx'
 import DailyCashPage from './pages/DailyCashPage.jsx'
+import CommissionsPage from './pages/CommissionsPage.jsx'
 import InboxPage from './pages/InboxPage.jsx'
 import MedicationsPage from './pages/MedicationsPage.jsx'
 import { applyDisplay } from './lib/theme.js'
@@ -93,6 +94,7 @@ export default function App() {
         <Route path="finances/balances" element={<BalancesPage />} />
         <Route path="finances/transactions" element={<TransactionsPage />} />
         <Route path="finances/daily" element={<DailyCashPage />} />
+        <Route path="finances/commissions" element={<CommissionsPage />} />
         <Route path="finances/receipts" element={<ReceiptsPage />} />
         <Route path="prescription/medications" element={<MedicationsPage />} />
         <Route path="prescription/medications/new" element={<MedicationsPage />} />
