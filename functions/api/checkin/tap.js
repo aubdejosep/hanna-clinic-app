@@ -4,7 +4,8 @@
 //   * the pet has a visit open today (or is an inpatient) -> tap out: Completed, but only from
 //       Dispense with the payment taken (a checked-out visit is final). Otherwise nothing changes:
 //       not_ready (still Waiting, With Vet or Inpatient) or not_paid (at Dispense, Take Payment first).
-//       A tap less than 5 minutes after check-in is a double tap: ignored.
+//       A tap less than 5 minutes after check-in, while the pet is still Waiting, is a double tap: ignored
+//       (a pet already at Dispense and paid taps out at once).
 //   * the pet has a booking today -> tap in: Arrived
 //   * neither -> no_booking: the screen offers a one-tap Walk In
 //   * the tag isn't assigned -> unknown_tag: the screen offers Assign Tag
@@ -33,7 +34,7 @@ export async function onRequestPost({ request, env, data }) {
     AND ((day = ? AND status IN ('arrived', 'started', 'dispense')) OR status = 'inpatient')
     ORDER BY COALESCE(checked_in_at, starts_at) DESC LIMIT 1`).bind(pet.id, today).first()
   if (open) {
-    if (open.checked_in_at && Date.now() - Date.parse(open.checked_in_at) < DOUBLE_TAP_MS) {
+    if (open.status === 'arrived' && open.checked_in_at && Date.now() - Date.parse(open.checked_in_at) < DOUBLE_TAP_MS) {
       return json({ result: 'ignored', uid, pet: petInfo, appointment: await loadAppointment(env, open.id) })
     }
     if (open.status !== 'dispense') return json({ result: 'not_ready', uid, pet: petInfo, appointment: await loadAppointment(env, open.id) })
