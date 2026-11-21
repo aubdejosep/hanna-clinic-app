@@ -2189,3 +2189,25 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .offline-bar strong { font-size: var(--fs-body); }
 .offline-bar .btn { flex: none; }
 @media (max-width: 720px) { .offline-bar { flex-wrap: wrap; padding: 10px 16px; } .offline-bar > div { min-width: 0; flex-basis: calc(100% - 40px); } }
+/* User Guide */
+.ug-list { display: grid; gap: 12px; max-width: 900px; }
+.ug-item { display: flex; align-items: center; gap: 16px; padding: 18px 20px; text-align: left; cursor: pointer; font: inherit; color: inherit; border: 1px solid var(--border); }
+.ug-item:hover { border-color: var(--teal); }
+.ug-item:focus-visible { outline: none; box-shadow: var(--focus); }
+.ug-item > span:nth-child(2) { flex: 1; display: grid; gap: 4px; }
+.ug-item strong { color: var(--heading); font-size: var(--fs-h3); }
+.ug-item > svg { width: 20px; height: 20px; color: var(--teal-deep); flex: none; }
+.ug-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.ug-step { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 1.6fr); gap: 20px; padding: 20px; align-items: start; }
+.ug-text { display: flex; gap: 14px; }
+.ug-no { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--teal-deep); color: #fff; font-weight: 700; }
+.ug-text h2 { margin: 4px 0 8px; font-size: var(--fs-h3); }
+.ug-text p { margin: 0; line-height: 1.6; }
+.ug-shot { display: block; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-field); overflow: hidden; background: var(--surface-alt); cursor: zoom-in; }
+.ug-shot img { display: block; width: 100%; height: auto; }
+.ug-shot.is-phone { max-width: 260px; justify-self: center; }
+.ug-tips { margin-top: 16px; }
+.ug-tips h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: var(--fs-h3); }
+.ug-tips h2 svg { width: 20px; height: 20px; color: var(--teal-deep); }
+.ug-tips ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; line-height: 1.6; }
+@media (max-width: 900px) { .ug-step { grid-template-columns: 1fr; padding: 16px; } }

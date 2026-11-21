@@ -30,6 +30,7 @@ import ReceiptsPage from './pages/ReceiptsPage.jsx'
 import ReceiptMasterPage from './pages/ReceiptMasterPage.jsx'
 import DailyCashPage from './pages/DailyCashPage.jsx'
 import BackupsPage from './pages/BackupsPage.jsx'
+import UserGuidePage from './pages/UserGuidePage.jsx'
 import CommissionsPage from './pages/CommissionsPage.jsx'
 import InboxPage from './pages/InboxPage.jsx'
 import MedicationsPage from './pages/MedicationsPage.jsx'
@@ -80,6 +81,7 @@ export default function App() {
         <Route path="records/*" element={<ComingSoon module="records" />} />
         <Route path="clinic/staff" element={<StaffPage />} />
         <Route path="clinic/backups" element={<BackupsPage />} />
+        <Route path="guide" element={<UserGuidePage />} />
         <Route path="clinic/profile" element={<ClinicProfilePage />} />
         <Route path="clinic/services" element={<ServicesPage />} />
         <Route path="clinic/vetassist" element={<VetAssistImportPage />} />

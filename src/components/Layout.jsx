@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BalanceCheckInAlert } from './Balances.jsx'
 import { TypingHost } from './ReceiptTyping.jsx'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { BookOpenText, ReceiptText, PanelLeftClose, PanelLeftOpen, Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Pill, Settings, UserRound, Wallet, X } from 'lucide-react'
+import { BookOpen, BookOpenText, ReceiptText, PanelLeftClose, PanelLeftOpen, Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Pill, Settings, UserRound, Wallet, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
 import { useLogo } from '../lib/logo.js'
@@ -53,6 +53,7 @@ const NAV = [
   ] },
   { to: '/content', label: 'Content', icon: Megaphone },
   { to: '/inbox', label: 'Inbox', icon: Inbox, badge: 'inbox' },
+  { to: '/guide', label: 'User Guide', icon: BookOpen },
 ]
 
 const isInside = (group, pathname) => group.children.some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`) || (c.to === '/clients' && pathname.startsWith('/pets')))
