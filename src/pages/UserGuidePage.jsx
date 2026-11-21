@@ -3,7 +3,7 @@
 // To add a guide: a new entry in GUIDES (id, title, intro, steps [{title, text, img, alt}], tips).
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { BookOpen, ChevronRight, ClipboardList, ReceiptText, X } from 'lucide-react'
+import { BookOpen, ChevronRight, ClipboardList, PawPrint, ReceiptText, UserPlus, X } from 'lucide-react'
 import { PageHead } from '../components/ui.jsx'
 
 const GUIDES = [
@@ -57,6 +57,40 @@ const GUIDES = [
       <>A checked-out visit is final: to correct it, add a <b>Staff Note</b> on the visit.</>,
       <><b>The owner left before being seen?</b> While the pet is still Waiting, open the visit and tap <b>Cancel</b> with a short reason. If the vet already started, take the payment as <b>No Charge</b> with a reason, then Check Out.</>,
       <>An open visit from an earlier day stays on the board until it’s checked out, so nothing is forgotten.</>,
+    ],
+  },
+  {
+    id: 'owner', title: 'Adding a New Owner', icon: UserPlus,
+    intro: 'Register a new client and their pets in one go. Do it before their first visit, or when they walk in for the first time.',
+    steps: [
+      { title: 'Open the Masterlist', img: 'o1-masterlist', alt: 'The Masterlist with the Register Owner button',
+        text: <>Go to <b>Client Portal ▸ Masterlist</b> and tap <b>Register Owner</b>. (Also on the Dashboard, and as <b>New Client?</b> in the Walk In and Book Appointment panels.) First search the owner’s name or mobile at the top of the page, to be sure they aren’t on file already.</> },
+      { title: 'Type the owner’s details', img: 'o2-owner', alt: 'The Register Owner form: owner details',
+        text: <><b>Full Name</b> and <b>Mobile</b> (e.g. 0917 123 4567) are needed. Add the <b>Email</b> if they have one: booking emails and reminders go there. Additional Owner, Messenger and Address are optional. Leave <b>Send appointment reminders</b> ticked unless they ask not to.</> },
+      { title: 'Add their pet, then register', img: 'o3-pet', alt: 'The pet part of the form with Add Another Pet and Register Owner',
+        text: <>Under <b>Pet</b>: the <b>name</b>, <b>breed</b> (pick from the list or type it), <b>Dog</b> or <b>Cat</b>, sex, and the <b>weight</b> (doses go by weight). Birthdate is optional: an estimate is fine. More pets? Tap <b>Add Another Pet</b> (up to 5). Then tap <b>Register Owner</b>.</> },
+      { title: 'Done: the owner’s page', img: 'o4-saved', alt: 'The new owner’s page with their customer number and pet',
+        text: <>The owner gets a customer number (e.g. C000006) and their page opens, with their pets. From here you can book a visit from a pet’s page, or check them in with <b>Walk In</b>.</> },
+      { title: 'If the mobile is already on file', img: 'o5-duplicate', alt: 'Warning that the mobile number is already on file',
+        text: <>The app stops you: <b>This mobile number is already on file</b>, with the owner it belongs to. Usually it’s the same person: open them and add the pet there instead (see Adding a New Pet). Only tap <b>Register Anyway</b> if it’s really a different person sharing the number.</> },
+    ],
+    tips: [
+      <>Not sure of the spelling? Search by the mobile number: it finds the owner whatever way the number was typed.</>,
+      <>A missing breed, weight, mobile or email shows as a reminder in the bell and on the Clinic Board, so it can be filled in at the next visit.</>,
+    ],
+  },
+  {
+    id: 'pet', title: 'Adding a New Pet', icon: PawPrint,
+    intro: 'For an owner who is already on file and brings a new pet.',
+    steps: [
+      { title: 'Open the owner', img: 'p1-owner', alt: 'An owner’s page with the Add Pet button',
+        text: <>Find the owner: use the search at the top of any page (name, mobile or a pet’s name), or <b>Client Portal ▸ Masterlist</b>. On their page, under <b>Pets</b>, tap <b>Add Pet</b>.</> },
+      { title: 'Type the pet’s details and save', img: 'p2-form', alt: 'The Add a Pet form',
+        text: <><b>Pet’s Name</b>, <b>Breed</b>, <b>Dog</b> or <b>Cat</b>, sex, and <b>Weight</b> (doses go by weight). Birthdate, colour, microchip, <b>Allergies</b> (shown in orange on the pet’s page and visits) and notes are optional. Tap <b>Add Pet</b>: it’s now on the owner’s page, ready to book or check in.</> },
+    ],
+    tips: [
+      <>Don’t register the owner again for a new pet: one owner, all their pets on one page.</>,
+      <>To fix a pet’s details later, open the pet and tap <b>Edit</b>.</>,
     ],
   },
 ]
