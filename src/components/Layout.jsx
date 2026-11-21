@@ -12,6 +12,7 @@ import TagCheckIn from './TagCheckIn.jsx'
 import ReminderBell from './ReminderBell.jsx'
 import OmniSearch from './OmniSearch.jsx'
 import OfflineBanner from './OfflineBanner.jsx'
+import UpdateNotice from './UpdateNotice.jsx'
 import QuickActions from './QuickActions.jsx'
 
 // The menu follows the old system's order and names, with its expandable groups.
@@ -257,6 +258,7 @@ export default function Layout({ staff }) {
           <Outlet />
         </main>
       </div>
+      <UpdateNotice />
       <TagCheckIn />
       <BalanceCheckInAlert />
       <TypingHost />

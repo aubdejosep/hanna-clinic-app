@@ -2211,3 +2211,10 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .ug-tips h2 svg { width: 20px; height: 20px; color: var(--teal-deep); }
 .ug-tips ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; line-height: 1.6; }
 @media (max-width: 900px) { .ug-step { grid-template-columns: 1fr; padding: 16px; } }
+/* A new version is ready (components/UpdateNotice.jsx): bottom centre, above the page, until Reload Now. */
+.update-toast { position: fixed; z-index: 130; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; width: max-content; max-width: calc(100vw - 32px); padding: 12px 14px 12px 18px; border-radius: 18px; background: var(--heading); color: #fff; box-shadow: var(--shadow); }
+.update-toast > svg { width: 22px; height: 22px; flex: none; color: var(--apricot); }
+.update-toast > div { display: grid; gap: 2px; font-size: var(--fs-small); }
+.update-toast strong { font-size: var(--fs-body); color: #fff; }
+.update-toast .btn { flex: none; }
+@media (max-width: 640px) { .update-toast { flex-wrap: wrap; bottom: 16px; } .update-toast > div { flex: 1 1 calc(100% - 40px); } }
