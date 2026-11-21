@@ -2169,3 +2169,16 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .ml-thumb img.is-turned { position: absolute; top: 50%; left: 50%; width: 133.334%; height: 75%; }
 /* Master List: the photo appears already turned, with no spin (zoom and pan snap too). */
 .ml-photo .pv-stage img { transition: none; }
+/* Clinic Operations ▸ Backups */
+.bk-status { display: grid; gap: 14px; }
+.bk-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.bk-row > svg { width: 28px; height: 28px; color: var(--teal-deep); flex: none; }
+.bk-row > div { flex: 1; min-width: 220px; }
+.bk-row h2 { margin: 0; font-size: var(--fs-h3); }
+.bk-row p { margin: 2px 0 0; }
+.bk-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 0; }
+.bk-counts > div { padding: 8px 10px; border-radius: var(--radius-field); background: var(--surface-alt); }
+.bk-counts dt { font-size: var(--fs-label); text-transform: uppercase; letter-spacing: .06em; color: var(--text); }
+.bk-counts dd { margin: 2px 0 0; color: var(--heading); font-weight: 700; font-variant-numeric: tabular-nums; }
+.bk-ic { width: 16px; height: 16px; vertical-align: -3px; color: var(--teal-deep); }
+.bk-files { display: flex; flex-wrap: wrap; gap: 6px; }

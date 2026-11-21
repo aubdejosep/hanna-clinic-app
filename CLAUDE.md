@@ -22,6 +22,7 @@ Staff-only app at app.hannapetwellnesscenter.com that replaces the clinic's paid
 - Mobiles are stored as `+639XXXXXXXXX`, shown as `0917 123 4567`. Times are UTC ISO strings; calendar days are Manila `YYYY-MM-DD`.
 - Every location-specific row has `branch_id` (one branch today).
 - Finances keeps two separate records per day (`book`): `owner` (Finances ▸ Ledger, Import File, Copy from Staff; owners and admins) and `staff` (Finances ▸ Receipts: the front desk's rows, photos and typed summary). Staff never change the owners' book; the Ledger's Compare with Staff lines them up.
+- Backups: `lib/backup.js` copies every table of `hanna-clinic` and `hanna-leads` nightly into the `hanna-clinic-backups` bucket (README ▸ Backups and recovery). A new table is included automatically; session tokens are never copied. Downloads are owners and admins only, logged with `audit()`.
 - Imported owners keep their old customer numbers (`C` + 6 digits); new ones continue from the highest.
 - The old system's placeholder emails (`vpnoemail…@gmail.com`) are dropped; never send to an owner without a real email.
 

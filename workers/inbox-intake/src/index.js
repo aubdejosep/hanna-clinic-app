@@ -6,17 +6,23 @@
 //    messages; it never shows anything. Everything else on that address answers 404.
 // 4. Every day at 9 AM Manila (a Cloudflare schedule, not a web address): the day-before visit reminders
 //    (lib/visit-reminders.js), if switched on in Account ▸ Settings ▸ Messages.
+// 5. Every night at 2 AM Manila: the backup (lib/backup.js) into the backup bucket.
 // Setup: workers/inbox-intake/README.md and docs/MESSENGER-SETUP.md.
 
 import PostalMime from 'postal-mime'
 import { INBOX_ADDRESS, saveIncoming } from '../../../lib/inbox.js'
 import { saveMessengerEvent, validSignature } from '../../../lib/messenger.js'
 import { sendVisitReminders } from '../../../lib/visit-reminders.js'
+import { runBackup } from '../../../lib/backup.js'
 
 const plain = (status, body = '') => new Response(body, { status, headers: { 'Content-Type': 'text/plain' } })
 
 export default {
   async scheduled(event, env, ctx) {
+    if (event.cron === '0 18 * * *') { // 2 AM Manila: the nightly backup
+      ctx.waitUntil(runBackup(env).then((r) => console.log('backup', JSON.stringify({ day: r.day, seconds: r.seconds, files: r.files, removed: r.removed }))).catch((err) => console.log('backup failed', String(err?.stack || err).slice(0, 500))))
+      return
+    }
     ctx.waitUntil(sendVisitReminders(env).then((r) => console.log('visit reminders', JSON.stringify(r))).catch((err) => console.log('visit reminders failed', String(err?.stack || err).slice(0, 500))))
   },
 

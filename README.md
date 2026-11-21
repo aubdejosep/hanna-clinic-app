@@ -235,6 +235,76 @@ Run after step 7 (the appointments import). In PowerShell, in the `hanna-clinic-
    ```
    Read `data\import-records-report.md`. It also settles the bookings the old system left open (Completed when the pet has a record that day, otherwise No Show) and fills in missing birthdates and owner addresses.
 
+## Backups and recovery
+
+Everything lives in three places: the clinic database (`hanna-clinic`: owners, pets, visits, medical records,
+inventory, finances, settings, staff, Inbox), the website's database (`hanna-leads`: bookings, free consults) and the
+photo storage (`hanna-clinic-photos`). They're protected three ways:
+
+1. **Cloudflare's own restore points** (on already): each database can be put back to any minute of the last 30 days.
+2. **Nightly backup** (`lib/backup.js`): at 2 AM Manila the inbox intake Worker copies both databases and a list of
+   every photo into a separate bucket, `hanna-clinic-backups`. Kept 30 days, then the 1st of each month for a year.
+   **Clinic Operations ▸ Backups** (owners and admins) shows each one with its counts, **Back Up Now**, and Download.
+3. **Your own computer, weekly:** download the latest backup from that page, and copy the photos with rclone (below).
+
+### One-time setup
+
+1. Cloudflare ▸ **R2 ▸ Create bucket** ▸ name `hanna-clinic-backups` (location: Asia-Pacific). Leave public access off.
+2. Pull the code and deploy the Worker (it now runs the backup and reads the website's database):
+   ```
+   git pull
+   cd workers/inbox-intake
+   npx wrangler deploy
+   ```
+   The Worker needs the **Workers Paid** plan for the backup's longer running time (`cpu_ms` in its wrangler.toml).
+3. The app picks up the new bucket from `wrangler.toml` on its next deployment (any push, or Deployments ▸ Retry).
+   If **Clinic Operations ▸ Backups** says backups aren't switched on: Workers & Pages ▸ hanna-clinic-app ▸ Settings ▸
+   Bindings ▸ Add ▸ R2 bucket, variable `BACKUPS`, bucket `hanna-clinic-backups`, then retry the deployment.
+4. Open **Clinic Operations ▸ Backups ▸ Back Up Now** once to check it works.
+
+If a night is missed, the page says the last backup is more than a day old. Logs: Workers & Pages ▸
+hanna-inbox-intake ▸ Logs (`backup {…}` or `backup failed`).
+
+### Weekly copy on your computer
+
+Keep it on a computer with drive encryption on (Windows: BitLocker), never a shared PC. A second copy on an
+external drive is better still.
+
+- **Databases:** Clinic Operations ▸ Backups ▸ the latest row ▸ **Clinic App**, **Website** and **Photo List**.
+- **Photos** (once): install rclone (rclone.org/downloads). Cloudflare ▸ R2 ▸ **Manage API tokens ▸ Create API token**,
+  permission **Object Read only**, bucket `hanna-clinic-photos`; note the Access Key ID, Secret Access Key and the
+  account's S3 endpoint (`https://<account id>.r2.cloudflarestorage.com`). Then `rclone config` ▸ new remote named
+  `hanna`, type **s3**, provider **Cloudflare**, those keys and endpoint.
+  Each week (copies only new photos; never deletes anything on your computer):
+  ```
+  rclone copy hanna:hanna-clinic-photos D:\HannaBackup\photos --progress
+  ```
+
+### Recovery
+
+- **Undo a mistake from the last 30 days** (e.g. a bad import): put the database back to just before it.
+  ```
+  npx wrangler d1 time-travel info hanna-clinic --timestamp "2026-11-21T14:00:00+08:00"
+  npx wrangler d1 time-travel restore hanna-clinic --timestamp "2026-11-21T14:00:00+08:00"
+  ```
+  Everything after that time is undone (the restore prints a bookmark to undo the restore itself).
+- **From a nightly backup** (older problems, or if a restore point isn't enough): download the backup's `.sql.gz`,
+  unzip it (7-Zip, or `tar -xf` on Windows), create an empty database and load it:
+  ```
+  npx wrangler d1 create hanna-clinic-restored
+  npx wrangler d1 execute hanna-clinic-restored --remote --file "2026-11-21 hanna-clinic.sql"
+  ```
+  Check it (open it with a test deployment, or compare counts with the backup's report), then point the app's `DB`
+  binding at it (wrangler.toml `database_id`, and the Worker's). Everyone signs in again: sessions aren't backed up.
+  The website's database (`hanna-leads`) restores the same way.
+- **Photos:** they're never deleted by the app. If the bucket itself were lost, copy your computer's copy back:
+  `rclone copy D:\HannaBackup\photos hanna:hanna-clinic-photos` (needs a token with write access). The backup's
+  Photo List says which photos each night's records expect.
+- **Cloudflare account lost:** a new account, new databases from the latest downloaded backups, photos from your
+  computer, then the Go Live steps above with the new ids.
+
+Test a restore now and then (e.g. every few months) into a spare database, so you know it works.
+
 ## Working on it locally
 
 ```

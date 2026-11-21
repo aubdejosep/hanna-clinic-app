@@ -7,9 +7,14 @@ workers_dev = false   # no workers.dev address
 # Meta's webhook (Facebook Page messages): only /meta answers, and only with Meta's signature.
 routes = [{ pattern = "hooks.hannapetwellnesscenter.com", custom_domain = true }]
 
-# Day-before visit reminders at 9 AM Manila (01:00 UTC). They only go out when switched on in the app.
+# Day-before visit reminders at 9 AM Manila (01:00 UTC), when switched on in the app; nightly backups at 2 AM Manila
+# (18:00 UTC, lib/backup.js).
 [triggers]
-crons = ["0 1 * * *"]
+crons = ["0 1 * * *", "0 18 * * *"]
+
+# The nightly backup reads the whole database: give it more CPU time than a normal request (Workers Paid plan).
+[limits]
+cpu_ms = 300000
 
 [vars]
 FORWARD_TO = "hannapetwellnesscenter@atomicmail.io"   # must be a verified destination address in Email Routing
@@ -25,3 +30,13 @@ database_id = "48ed1085-1b31-4727-bde8-4835d1c0c008"
 [[r2_buckets]]
 binding = "PHOTOS"
 bucket_name = "hanna-clinic-photos"
+
+# The website's database (copied by the nightly backup, read only) and the backup bucket.
+[[d1_databases]]
+binding = "LEADS"
+database_name = "hanna-leads"
+database_id = "c375bd47-6531-4d32-a1b6-34d93fd48768"
+
+[[r2_buckets]]
+binding = "BACKUPS"
+bucket_name = "hanna-clinic-backups"
