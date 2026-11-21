@@ -18,8 +18,10 @@ export async function api(path, { method = 'GET', body } = {}) {
       credentials: 'same-origin',
     })
   } catch {
+    window.dispatchEvent(new Event('clinic:offline')) // the "No internet" banner (components/OfflineBanner.jsx)
     throw new ApiError(0, { error: "Can't reach the clinic app. Check the internet connection, then try again." })
   }
+  window.dispatchEvent(new Event('clinic:online'))
   const data = await res.json().catch(() => null)
   if (!res.ok) {
     // Access login ran out (or this address isn't behind Access). Never reload by itself:

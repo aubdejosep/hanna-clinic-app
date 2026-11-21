@@ -11,6 +11,7 @@ import { canManage, ROLE_LABEL } from '../lib/staff.js'
 import TagCheckIn from './TagCheckIn.jsx'
 import ReminderBell from './ReminderBell.jsx'
 import OmniSearch from './OmniSearch.jsx'
+import OfflineBanner from './OfflineBanner.jsx'
 import QuickActions from './QuickActions.jsx'
 
 // The menu follows the old system's order and names, with its expandable groups.
@@ -242,6 +243,7 @@ export default function Layout({ staff }) {
       </nav>
 
       <div className="content">
+        <OfflineBanner />
         {!mobile && (
           <header className="deskbar">
             <div id="crumb-slot" className="crumb-slot" />
