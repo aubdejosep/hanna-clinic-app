@@ -14,6 +14,7 @@ crons = ["0 1 * * *"]
 [vars]
 FORWARD_TO = "hannapetwellnesscenter@atomicmail.io"   # must be a verified destination address in Email Routing
 INBOX_ADDRESS = "hello@hannapetwellnesscenter.com"
+SEMAPHORE_SENDER_NAME = "HANNAPETVET"                  # texts (day-before reminders); the API key is a secret: SEMAPHORE_API_KEY
 # Messenger keys are secrets (META_APP_SECRET, META_VERIFY_TOKEN, META_PAGE_TOKEN, META_PAGE_ID): docs/MESSENGER-SETUP.md
 
 [[d1_databases]]
