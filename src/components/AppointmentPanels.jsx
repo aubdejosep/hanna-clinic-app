@@ -228,8 +228,8 @@ export function WalkInPanel({ pet: givenPet, admit, onClose, onDone }) {
           <section className="form-section">
             <Field label="Reason for the Visit" optional>{(a) => <input {...a} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder="e.g. vomiting since this morning" />}</Field>
           </section>
-          <details className="form-section">
-            <summary><strong>Add Services Now</strong> <span className="cell-sub">Optional: the vet can add them later</span></summary>
+          <details className="form-section" open>
+            <summary><strong>Add Services Now</strong> <span className="cell-sub">Optional: services and products, e.g. Bravecto (the vet can add more later)</span></summary>
             <ServicePicker items={items} setItems={setItems} petId={pet.id} />
           </details>
         </>

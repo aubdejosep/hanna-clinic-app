@@ -1,8 +1,8 @@
 // The visit's medical record on the appointment page: what the vet writes (Note, Diagnosis,
 // Prescription, Treatment Plan) and what's added by itself at check-out (services and products, vaccines).
 // Below it, the pet's whole Medical History.
-import { useMemo, useState } from 'react'
-import { ClipboardList, FileHeart, NotebookPen, Pencil, Pill, Plus, Stethoscope, Syringe, Trash2 } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { ClipboardList, FileHeart, ImagePlus, NotebookPen, Pencil, Pill, Plus, Stethoscope, Syringe, Trash2, X } from 'lucide-react'
 import { ErrorNote, Field, Panel, PawLoader } from './ui.jsx'
 import { Entry, RecentHistory } from './MedicalRecords.jsx'
 import { api } from '../lib/api.js'
@@ -19,6 +19,53 @@ const KINDS = {
 }
 // A new diagnosis starts from the clinic's usual layout; vets fill in each line.
 const DIAGNOSIS_TEMPLATE = { diagnosis: 'PE: \nDx: \nRx: \nFF UP: ' }
+// Photos on what a vet writes: made at most 1600 px and JPEG before uploading (mobile data).
+async function shrinkPhoto(file) {
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })
+    const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(bmp.width * scale); canvas.height = Math.round(bmp.height * scale)
+    canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height)
+    const blob = await new Promise((ok) => canvas.toBlob((b) => ok(b), 'image/jpeg', 0.82))
+    return { blob: blob || file, w: canvas.width, h: canvas.height }
+  } catch { return { blob: file, w: null, h: null } }
+}
+async function uploadPhoto(appointmentId, entryId, file) {
+  const { blob, w, h } = await shrinkPhoto(file)
+  const res = await fetch(`/api/appointments/${appointmentId}/record/${entryId}/photos`, { method: 'POST', body: blob, credentials: 'same-origin',
+    headers: { 'Content-Type': blob.type || 'image/jpeg', ...(w ? { 'X-Width': String(w), 'X-Height': String(h) } : {}) } })
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'A photo didn’t upload. Try again.')
+}
+
+function PhotoField({ kept, setKept, added, setAdded }) {
+  const input = useRef(null)
+  const pick = (fileList) => {
+    const files = [...fileList].filter((f) => f.type.startsWith('image/')) // copied now: the list empties when the input is reset
+    setAdded((a) => [...a, ...files.map((file) => ({ file, url: URL.createObjectURL(file) }))].slice(0, 20))
+  }
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      <span className="field-label">Photos <span className="cell-sub">(optional: lab results, X-rays, skin, wounds)</span></span>
+      <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => { pick(e.target.files); e.target.value = '' }} />
+      {(kept.length > 0 || added.length > 0) && (
+        <div className="vr-photos">
+          {kept.map((im) => (
+            <span key={im.id} className="vr-photo"><img src={`/api/photos/${im.id}`} alt="" loading="lazy" />
+              <button type="button" className="icon-btn" onClick={() => setKept((k) => k.filter((x) => x.id !== im.id))} aria-label="Remove Photo" title="Remove Photo"><X /></button></span>
+          ))}
+          {added.map((p, i) => (
+            <span key={p.url} className="vr-photo is-new"><img src={p.url} alt="" />
+              <button type="button" className="icon-btn" onClick={() => setAdded((a) => a.filter((_, j) => j !== i))} aria-label="Remove Photo" title="Remove Photo"><X /></button></span>
+          ))}
+        </div>
+      )}
+      <button type="button" className="btn btn-quiet" style={{ justifySelf: 'start' }} onClick={() => input.current.click()}><ImagePlus aria-hidden /> Add Photos</button>
+      {added.length > 0 && <p className="field-hint" style={{ margin: 0 }}>{added.length} new photo{added.length > 1 ? 's' : ''} will upload when you save.</p>}
+    </div>
+  )
+}
+
 const blankMed = () => ({ name: '', productId: null, dose: '', qty: '1', dispense: true })
 
 function WritePanel({ a, kind, entry, onClose, onDone }) {
@@ -32,6 +79,8 @@ function WritePanel({ a, kind, entry, onClose, onDone }) {
     status: d.status || 'active', priority: d.priority || 'medium', start: d.start || a.day, targetEnd: d.targetEnd || '', objectives: d.objectives || '', protocol: d.protocol || '',
   })
   const [meds, setMeds] = useState([blankMed()])
+  const [kept, setKept] = useState(() => entry?.images || [])
+  const [added, setAdded] = useState([])
   const [busy, setBusy] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [error, setError] = useState(null)
@@ -44,12 +93,18 @@ function WritePanel({ a, kind, entry, onClose, onDone }) {
     setError(null)
     const details = kind === 'treatment_plan' ? { status: v.status, priority: v.priority, start: v.start, targetEnd: v.targetEnd, objectives: v.objectives, protocol: v.protocol } : undefined
     try {
+      let entryId = entry?.id
       if (editing) await api(`appointments/${a.id}/record/${entry.id}`, { method: 'PATCH', body: { title: v.title, description: v.description, ...(details ? { details } : {}) } })
       else {
-        await api(`appointments/${a.id}/record`, { method: 'POST', body: {
+        entryId = (await api(`appointments/${a.id}/record`, { method: 'POST', body: {
           type: kind, title: v.title, description: v.description, details,
           medicines: kind === 'prescription' ? meds.filter((m) => m.name.trim()).map((m) => ({ productId: m.productId, name: m.name.trim(), dose: m.dose, qty: m.qty, dispense: m.dispense })) : undefined,
-        } })
+        } })).entryId
+      }
+      // Photos: the removed ones off, the new ones up (one by one; a failure keeps the panel open to retry).
+      for (const im of entry?.images || []) if (!kept.some((k) => k.id === im.id)) await api(`appointments/${a.id}/record/${entryId}/photos?imageId=${im.id}`, { method: 'DELETE' })
+      for (let i = 0; i < added.length; i++) {
+        try { await uploadPhoto(a.id, entryId, added[i].file) } catch (err) { setAdded(added.slice(i)); throw err } // the saved ones aren't sent twice
       }
       onDone(editing ? `${K.label} updated` : `${K.label} added to ${a.pet.name}'s record`)
     } catch (err) {
@@ -127,6 +182,7 @@ function WritePanel({ a, kind, entry, onClose, onDone }) {
           {(f) => <textarea {...f} rows={kind === 'diagnosis' || kind === 'note' ? 8 : 4} value={v.description} onChange={(e) => set({ description: e.target.value })}
             />}
         </Field>
+        <PhotoField kept={kept} setKept={setKept} added={added} setAdded={setAdded} />
       </section>
     </Panel>
   )

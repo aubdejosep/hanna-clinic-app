@@ -2218,3 +2218,13 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .update-toast strong { font-size: var(--fs-body); color: #fff; }
 .update-toast .btn { flex: none; }
 @media (max-width: 640px) { .update-toast { flex-wrap: wrap; bottom: 16px; } .update-toast > div { flex: 1 1 calc(100% - 40px); } }
+/* Photos on a medical record entry (VisitRecord) */
+.vr-photos { display: flex; flex-wrap: wrap; gap: 8px; }
+.vr-photo { position: relative; width: 96px; height: 96px; border-radius: var(--radius-field); overflow: hidden; border: 1px solid var(--border); background: var(--surface-alt); }
+.vr-photo.is-new { border-color: var(--teal); }
+.vr-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vr-photo .icon-btn { position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; }
+.vr-photo .icon-btn svg { width: 14px; height: 14px; }
+/* Clinic Operations ▸ SMS Logs */
+.sms-table td { vertical-align: top; }
+.sms-text { max-width: 520px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-small); }

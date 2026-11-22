@@ -24,6 +24,7 @@ const NAV = [
     { to: '/clinic/staff', label: 'Staff', owners: true },
     { to: '/clinic/services', label: 'Services' },
     { to: '/clinic/vetassist', label: 'Import from VetAssist', owners: true },
+    { to: '/clinic/sms-logs', label: 'SMS Logs', owners: true },
     { to: '/clinic/backups', label: 'Backups', owners: true },
   ] },
   { to: '/appointments', label: 'Appointments', icon: CalendarDays },

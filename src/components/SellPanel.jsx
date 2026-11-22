@@ -20,24 +20,33 @@ export function SellPanel({ onClose, onDone }) {
   const [error, setError] = useState(null)
   const box = useRef(null)
   const errors = error?.body?.errors || {}
-  const products = data?.products || []
+  // Products, and services sold over the counter (e.g. Bravecto, each size), in one list.
+  const catalog = useMemo(() => {
+    if (!data) return []
+    const out = (data.products || []).map((p) => ({ ...p, key: `p${p.id}`, kind: 'Product' }))
+    for (const sv of data.services || []) {
+      if (sv.variations?.length) for (const v of sv.variations) out.push({ key: `v${v.id}`, kind: 'Service', serviceId: sv.id, variationId: v.id, name: `${sv.name} · ${v.name}`, category: sv.category, price: v.price ?? sv.price, unit: 'item', onHand: null })
+      else out.push({ key: `s${sv.id}`, kind: 'Service', serviceId: sv.id, name: sv.name, category: sv.category, price: sv.price, unit: 'item', onHand: null })
+    }
+    return out
+  }, [data])
   const words = find.toLowerCase().split(/\s+/).filter(Boolean)
-  const rows = useMemo(() => (words.length ? products.filter((p) => words.every((w) => `${p.name} ${p.category || ''}`.toLowerCase().includes(w))).slice(0, 10) : []), [products, find]) // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = useMemo(() => (words.length ? catalog.filter((p) => words.every((w) => `${p.name} ${p.category || ''}`.toLowerCase().includes(w))).slice(0, 12) : []), [catalog, find]) // eslint-disable-line react-hooks/exhaustive-deps
   const total = Math.round(lines.reduce((n, l) => n + (l.product.price || 0) * (Number(l.qty) || 0), 0) * 100) / 100
   const shown = method === 'no_charge' ? '0' : amount ?? String(total)
   const differs = method && Number(shown) !== total
 
   function add(p) {
-    setLines((prev) => (prev.some((l) => l.product.id === p.id) ? prev.map((l) => (l.product.id === p.id ? { ...l, qty: String(Number(l.qty) + 1) } : l)) : [...prev, { product: p, qty: '1' }]))
+    setLines((prev) => (prev.some((l) => l.product.key === p.key) ? prev.map((l) => (l.product.key === p.key ? { ...l, qty: String(Number(l.qty) + 1) } : l)) : [...prev, { product: p, qty: '1' }]))
     setFind('')
     box.current?.focus()
   }
-  const setQty = (id, qty) => setLines((prev) => prev.map((l) => (l.product.id === id ? { ...l, qty } : l)))
+  const setQty = (key, qty) => setLines((prev) => prev.map((l) => (l.product.key === key ? { ...l, qty } : l)))
   async function save() {
     setBusy(true)
     setError(null)
     try {
-      const res = await api('sales', { method: 'POST', body: { items: lines.map((l) => ({ productId: l.product.id, qty: l.qty })), customer, method, amount: shown, reference, note } })
+      const res = await api('sales', { method: 'POST', body: { items: lines.map((l) => (l.product.serviceId ? { serviceId: l.product.serviceId, variationId: l.product.variationId, qty: l.qty } : { productId: l.product.id, qty: l.qty })), customer, method, amount: shown, reference, note } })
       onDone(`Sold: ${res.sale.items}`)
     } catch (err) {
       setError(err)
@@ -54,34 +63,34 @@ export function SellPanel({ onClose, onDone }) {
           <div className="sticky-search">
             <div className="search" style={{ maxWidth: 'none' }}>
               <Search aria-hidden />
-              <label className="sr-only" htmlFor="sell-search">Search Products</label>
+              <label className="sr-only" htmlFor="sell-search">Search Products and Services</label>
               <input id="sell-search" ref={box} type="search" value={find} onChange={(e) => setFind(e.target.value)} autoComplete="off" autoFocus
-                onKeyDown={(e) => { if (e.key === 'Enter' && rows[0]) { e.preventDefault(); add(rows[0]) } }} placeholder="Search products, e.g. shampoo, liv 52" />
+                onKeyDown={(e) => { if (e.key === 'Enter' && rows[0]) { e.preventDefault(); add(rows[0]) } }} placeholder="Search products and services, e.g. shampoo, bravecto" />
             </div>
           </div>
           {rows.length > 0 && (
             <ul className="qa-list">
               {rows.map((p) => (
-                <li key={p.id}>
+                <li key={p.key}>
                   <button type="button" className="qa-row" onClick={() => add(p)}>
                     <Plus aria-hidden />
-                    <span><strong>{p.name}</strong><span className="cell-sub">{[p.category, p.price != null && `${peso(p.price)} per ${p.unit}`, p.onHand != null && `${p.onHand} in stock`].filter(Boolean).join(' · ')}</span></span>
+                    <span><strong>{p.name}</strong><span className="cell-sub">{[p.kind === 'Service' ? 'Service' : p.category, p.price != null && `${peso(p.price)}${p.kind === 'Service' ? '' : ` per ${p.unit}`}`, p.onHand != null && `${p.onHand} in stock`].filter(Boolean).join(' · ')}</span></span>
                   </button>
                 </li>
               ))}
             </ul>
           )}
-          {find && !rows.length && <p className="field-hint" style={{ margin: 0 }}>No product matches “{find}”. An owner can add it in the Product List.</p>}
+          {find && !rows.length && <p className="field-hint" style={{ margin: 0 }}>Nothing matches “{find}”. An owner can add it in the Product List or Services.</p>}
           <section className="form-section">
             <h3 className="label">Items</h3>
-            {!lines.length && <p className="field-hint" style={{ margin: 0 }}>Search above and tap a product to add it.</p>}
+            {!lines.length && <p className="field-hint" style={{ margin: 0 }}>Search above and tap a product or service to add it.</p>}
             {lines.map((l) => (
-              <div key={l.product.id} className="sell-line">
-                <span><strong>{l.product.name}</strong><span className="cell-sub">{peso(l.product.price || 0)} per {l.product.unit}</span></span>
+              <div key={l.product.key} className="sell-line">
+                <span><strong>{l.product.name}</strong><span className="cell-sub">{peso(l.product.price || 0)}{l.product.kind === 'Service' ? ' each' : ` per ${l.product.unit}`}</span></span>
                 <span className="stepper">
-                  <button type="button" className="icon-btn" onClick={() => setQty(l.product.id, String(Math.max(1, Number(l.qty) - 1)))} aria-label="One Less"><Minus /></button>
-                  <input value={l.qty} onChange={(e) => setQty(l.product.id, e.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" aria-label={`${l.product.name} quantity`} />
-                  <button type="button" className="icon-btn" onClick={() => setQty(l.product.id, String(Number(l.qty) + 1))} aria-label="One More"><Plus /></button>
+                  <button type="button" className="icon-btn" onClick={() => setQty(l.product.key, String(Math.max(1, Number(l.qty) - 1)))} aria-label="One Less"><Minus /></button>
+                  <input value={l.qty} onChange={(e) => setQty(l.product.key, e.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" aria-label={`${l.product.name} quantity`} />
+                  <button type="button" className="icon-btn" onClick={() => setQty(l.product.key, String(Number(l.qty) + 1))} aria-label="One More"><Plus /></button>
                 </span>
                 <strong className="qa-price">{peso((l.product.price || 0) * (Number(l.qty) || 0))}</strong>
                 <button type="button" className="icon-btn" onClick={() => setLines(lines.filter((x) => x !== l))} aria-label={`Remove ${l.product.name}`}><X /></button>
