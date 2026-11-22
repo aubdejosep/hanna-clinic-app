@@ -1998,7 +1998,9 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .tfp-field input:focus, .tfp-field select:focus, .tfp-itemrow input:focus { outline: none; border-color: var(--teal); box-shadow: var(--focus); }
 .tfp-label { font-size: var(--fs-small); color: var(--text); font-weight: 700; }
 .tfp-items { display: grid; gap: 6px; padding: 10px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); }
-.tfp-itemrow { display: grid; grid-template-columns: minmax(0, 1fr) 110px 34px; gap: 6px; align-items: center; }
+.tfp-itemrow { display: grid; grid-template-columns: minmax(0, 1fr) 58px 96px 76px 34px; gap: 6px; align-items: center; }
+.tfp-itemrow .tfp-qty { text-align: center; }
+.tfp-linetotal { font-size: var(--fs-small); color: var(--heading); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tfp-items .text-btn, .tfp-use { justify-self: start; display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-small); }
 .tfp-items .text-btn svg { width: 14px; height: 14px; }
 .tfp-warn { margin: 0; padding: 6px 10px; border-radius: var(--radius-field); background: var(--apricot-tint); color: var(--heading); font-size: var(--fs-small); font-weight: 700; }
@@ -2238,3 +2240,9 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .tfp-split { align-self: end; margin: 0 0 10px; }
 .ug-step.is-found { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-tint); scroll-margin-top: 80px; }
 .ug-step { scroll-margin-top: 80px; }
+.sg-new { display: grid; gap: 8px; padding: 12px; font-size: var(--fs-small); color: var(--heading); max-width: 360px; }
+.sg-new p { margin: 0; }
+.sg-new-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sg-new-price { display: grid; gap: 4px; font-weight: 700; }
+.sg-new-price input { height: 38px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-field); font: inherit; font-weight: 400; color: var(--heading); }
+.sg-new-price input:focus { outline: none; border-color: var(--teal); box-shadow: var(--focus); }

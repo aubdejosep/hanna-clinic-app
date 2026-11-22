@@ -36,6 +36,7 @@ export const GRIDS = {
       { key: 'clientName', label: 'Owner’s Name', width: '10%' },
       { key: 'petNames', label: 'Pet’s Name', width: '8%' },
       { key: 'item', label: 'Item', width: '13%', item: true },
+      { key: 'itemQty', label: 'Qty', type: 'qty', width: '3.5%', item: true },
       { key: 'itemAmount', label: 'Amount', type: 'money', width: '6.5%', item: true },
       { key: 'amountCents', label: 'Total Per Receipt', type: 'money', total: true, width: '7.5%' },
       { key: 'discountCents', label: 'Discounts', type: 'money', total: true, width: '6.5%' },
@@ -148,6 +149,10 @@ function Cell({ col, value, onChange, onCommit, r, c, grid, tag, onPick }) {
   if (col.type === 'date') {
     return <input {...common} type="date" className="lg-cell" value={value || ''} onChange={(e) => e.target.value && onChange(e.target.value)} onBlur={(e) => { setFocus(false); onCommit({ day: e.target.value || value }) }} />
   }
+  if (col.type === 'qty') {
+    return <input {...common} className="lg-cell lg-num" inputMode="decimal" value={String(text)} onChange={(e) => setText(e.target.value.replace(/[^\d.]/g, ''))} onFocus={(e) => { setFocus(true); e.target.select() }}
+      onBlur={() => { setFocus(false); const v = Number(text) > 0 ? Number(text) : 1; setText(String(v)); if (v !== Number(value)) { onChange(v); onCommit({ [col.key]: v }) } }} />
+  }
   return (
     <>
     <input {...common} ref={sg.anchor} autoComplete="off" className={`lg-cell ${col.type === 'money' ? 'lg-num' : ''}`} inputMode={col.type === 'money' ? 'decimal' : undefined} value={focus || col.type !== 'money' ? text : text === '' ? '' : (toCents(text) / 100).toLocaleString('en-PH', { maximumFractionDigits: 2 })}
@@ -218,7 +223,7 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
       const row = find(ck)
       const it = findItem(row, ick)
       if (!row?.id || !it) return
-      const body = { lineId: row.id, item: it.item, amountCents: it.amountCents }
+      const body = { lineId: row.id, item: it.item, amountCents: it.amountCents, ...(it.qty != null ? { qty: it.qty, unitCents: it.unitCents ?? (it.amountCents != null ? Math.round(it.amountCents / it.qty) : null) } : {}) }
       try {
         if (it.id) await api(`finances/daily/items/${it.id}`, { method: 'PATCH', body })
         else if (it.item || it.amountCents != null) { it.id = (await api('finances/daily/items', { method: 'POST', body })).row.id; rerender() }
@@ -277,7 +282,7 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
         </span>
       )
     }
-    if (!row.items?.length) return null
+    if (!row.items?.length || col.key === 'itemQty') return null
     const sum = itemSum(row)
     const due = sum - (row.discountCents || 0)
     const ok = !row.amountCents || due === row.amountCents
@@ -314,9 +319,17 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
                       <td className="lg-rownum" aria-hidden>↳</td>
                       {g.columns.map((col, c) => (
                         <td key={col.key}>{col.item ? (
-                          <Cell col={col.key === 'item' ? { ...col, label: 'Item' } : { ...col, label: 'Item Amount' }} value={col.key === 'item' ? it.item : it.amountCents} grid={kind} r={ir} c={c} tag={col.key === 'item' ? it.ck : undefined}
-                            onPick={col.key === 'item' ? (e) => { if (it.amountCents == null && e.price != null) setItem(row.ck, it.ck, 'amountCents', Math.round(e.price * 100)) } : undefined}
-                            onChange={(v) => setItem(row.ck, it.ck, col.key === 'item' ? 'item' : 'amountCents', v)} onCommit={() => saveItem(row.ck, it.ck)} />
+                          <Cell col={col.key === 'item' ? { ...col, label: 'Item' } : col.key === 'itemQty' ? { ...col, label: 'Quantity' } : { ...col, label: 'Item Amount' }}
+                            value={col.key === 'item' ? it.item : col.key === 'itemQty' ? (it.qty ?? 1) : it.amountCents} grid={kind} r={ir} c={c} tag={col.key === 'item' ? it.ck : undefined}
+                            onPick={col.key === 'item' ? (e) => { if (it.amountCents == null && e.price != null) { const u = Math.round(e.price * 100); setItem(row.ck, it.ck, 'unitCents', u); setItem(row.ck, it.ck, 'amountCents', Math.round(u * (it.qty || 1))) } } : undefined}
+                            onChange={(v) => {
+                              if (col.key === 'item') setItem(row.ck, it.ck, 'item', v)
+                              else if (col.key === 'itemQty') { // the price of one stays; the amount follows
+                                const q = Number(v) > 0 ? Number(v) : 1
+                                const unit = it.unitCents ?? (it.amountCents != null ? Math.round(it.amountCents / (it.qty || 1)) : null)
+                                setItem(row.ck, it.ck, 'qty', q); setItem(row.ck, it.ck, 'unitCents', unit); if (unit != null) setItem(row.ck, it.ck, 'amountCents', Math.round(unit * q))
+                              } else { setItem(row.ck, it.ck, 'amountCents', v); if (it.qty) setItem(row.ck, it.ck, 'unitCents', v == null ? null : Math.round(v / it.qty)) }
+                            }} onCommit={() => saveItem(row.ck, it.ck)} />
                         ) : null}</td>
                       ))}
                       <td>{delBtn(it.ck, 'item', () => removeItem(row, it))}</td>

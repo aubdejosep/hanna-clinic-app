@@ -171,7 +171,7 @@ const STAFF_LINES = {
   minWidth: 1260,
   columns: [
     { key: 'photo', label: 'Photo', type: 'custom', width: '9%' },
-    ...GRIDS.lines.columns.filter((c) => ['receiptNo', 'receiptQr', 'clientName', 'petNames', 'item', 'itemAmount', 'amountCents', 'discountCents'].includes(c.key)),
+    ...GRIDS.lines.columns.filter((c) => ['receiptNo', 'receiptQr', 'clientName', 'petNames', 'item', 'itemQty', 'itemAmount', 'amountCents', 'discountCents'].includes(c.key)),
     { key: 'paidWith', label: 'Paid With', type: 'select', options: PAID, width: '9%' },
     { key: 'onlineCents', label: 'Online', type: 'money', total: true, width: '7%' },
     { ...GRIDS.lines.columns.find((c) => c.key === 'note'), width: '13%' },

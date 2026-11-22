@@ -131,6 +131,30 @@ export async function onRequest({ request, env, params, data }) {
   if (what === 'restore' && method === 'POST') return restoreDay(env, data.staff, (await readJson(request)) || {})
   if (what === 'copy' && method === 'POST') return copyStaffDay(env, data.staff, (await readJson(request)) || {})
   if (what === 'summary' && method === 'PUT') return saveSummary(env, data.staff, (await readJson(request)) || {})
+  // Items typed on receipts before that aren't on the Product List or Services, with their last price (suggested next time).
+  if (what === 'typed-items' && method === 'GET') {
+    const { results } = await env.DB.prepare(`SELECT i.item, COALESCE(i.unit_cents, CASE WHEN i.qty > 0 THEN CAST(i.amount_cents / i.qty AS INTEGER) ELSE i.amount_cents END) AS price, MAX(i.id) AS last
+      FROM cash_line_items i JOIN cash_lines l ON l.id = i.line_id WHERE i.deleted_at IS NULL AND l.deleted_at IS NULL AND COALESCE(i.item, '') <> ''
+      AND lower(i.item) NOT IN (SELECT lower(name) FROM products WHERE deleted_at IS NULL) GROUP BY lower(i.item) ORDER BY last DESC LIMIT 800`).all()
+    return json({ items: results.map((r) => ({ name: r.item, priceCents: r.price })) })
+  }
+  // Add to Product List from a receipt (any staff member): a new product "Typed In" with the price given, like a medicine
+  // typed on a visit. Owners finish it in Inventory ▸ Product List (category, unit, cost).
+  if (what === 'quick-product' && method === 'POST') {
+    const b = (await readJson(request)) || {}
+    const name = clean(b.name, 60)
+    const price = money(b.priceCents)
+    if (!name) return fail(400, 'Type the product’s name first.')
+    if (Number.isNaN(price)) return fail(400, 'Enter the price as a number, e.g. 15.')
+    const had = await env.DB.prepare('SELECT id, price_cents FROM products WHERE branch_id = 1 AND name = ? COLLATE NOCASE AND deleted_at IS NULL').bind(name).first()
+    if (had) {
+      if (had.price_cents == null && price != null) await env.DB.prepare('UPDATE products SET price_cents = ? WHERE id = ?').bind(price, had.id).run()
+      return json({ product: { id: had.id, name, price: (had.price_cents ?? price) == null ? null : (had.price_cents ?? price) / 100 }, existed: true })
+    }
+    const row = await env.DB.prepare("INSERT INTO products (branch_id, name, category, source, price_cents, created_by) VALUES (1, ?, 'Typed In', 'typed', ?, ?) RETURNING id").bind(name, price, data.staff.name).first()
+    await audit(env, data.staff.email, 'quick_add', 'product', row.id, { name, price, from: 'receipts' })
+    return json({ product: { id: row.id, name, price: price == null ? null : price / 100 } }, 201)
+  }
   if (what === 'items') return itemRoute(env, data.staff, method, id, method === 'DELETE' ? {} : (await readJson(request)) || {}, mine)
   if (what === 'import' && method === 'POST') return importRows(env, data.staff, (await readJson(request)) || {})
   if (what === 'imports' && method === 'GET' && !id) return listImports(env)
@@ -352,7 +376,8 @@ async function undoImport(env, staff, id) {
 }
 
 // ---------- Items of a receipt ----------
-const itemShape = (i) => ({ id: i.id, lineId: i.line_id, item: i.item || '', amountCents: i.amount_cents })
+const itemShape = (i) => ({ id: i.id, lineId: i.line_id, item: i.item || '', amountCents: i.amount_cents, qty: i.qty ?? null, unitCents: i.unit_cents ?? null })
+const qtyIn = (v) => { const n = Number(v); return v === '' || v == null ? null : Number.isFinite(n) && n > 0 && n <= 10000 ? Math.round(n * 1000) / 1000 : NaN }
 async function itemRoute(env, staff, method, id, b, mine) {
   const now = new Date().toISOString()
   const ofMine = `line_id IN (SELECT id FROM cash_lines WHERE ${mine})`
@@ -364,16 +389,22 @@ async function itemRoute(env, staff, method, id, b, mine) {
   const amount = money(b.amountCents)
   if (Number.isNaN(amount)) return fail(400, 'Enter the amount as a number, e.g. 300.', { errors: { amountCents: 'Enter the amount as a number, e.g. 300.' } })
   const item = clean(b.item, 120) || null
+  // Quantity and unit price: the amount is quantity × unit price when both are given.
+  const qty = qtyIn(b.qty)
+  const unit = money(b.unitCents)
+  if (Number.isNaN(qty)) return fail(400, 'Enter the quantity as a number, e.g. 3.', { errors: { qty: 'Enter the quantity as a number, e.g. 3.' } })
+  if (Number.isNaN(unit)) return fail(400, 'Enter the price as a number, e.g. 15.', { errors: { unitCents: 'Enter the price as a number, e.g. 15.' } })
+  const amt = qty != null && unit != null ? Math.round(qty * unit) : amount
   if (method === 'POST') {
     const line = await env.DB.prepare(`SELECT id FROM cash_lines WHERE id = ? AND branch_id = 1 AND deleted_at IS NULL AND ${mine}`).bind(Number(b.lineId) || 0).first()
     if (!line) return fail(404, 'This receipt was not found. Reload the page.')
-    const row = await env.DB.prepare(`INSERT INTO cash_line_items (line_id, item, amount_cents, sort, created_by)
-      VALUES (?, ?, ?, (SELECT COALESCE(MAX(sort), 0) + 1 FROM cash_line_items WHERE line_id = ?), ?) RETURNING *`).bind(line.id, item, amount, line.id, staff.name).first()
+    const row = await env.DB.prepare(`INSERT INTO cash_line_items (line_id, item, amount_cents, qty, unit_cents, sort, created_by)
+      VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort), 0) + 1 FROM cash_line_items WHERE line_id = ?), ?) RETURNING *`).bind(line.id, item, amt, qty, unit, line.id, staff.name).first()
     await audit(env, staff.email, 'create', 'cash_line_item', row.id, { line: line.id })
     return json({ row: itemShape(row) }, 201)
   }
   if (method === 'PATCH' && id) {
-    const row = await env.DB.prepare(`UPDATE cash_line_items SET item = ?, amount_cents = ?, updated_at = ?, updated_by = ? WHERE id = ? AND deleted_at IS NULL AND ${ofMine} RETURNING *`).bind(item, amount, now, staff.name, id).first()
+    const row = await env.DB.prepare(`UPDATE cash_line_items SET item = ?, amount_cents = ?, qty = ?, unit_cents = ?, updated_at = ?, updated_by = ? WHERE id = ? AND deleted_at IS NULL AND ${ofMine} RETURNING *`).bind(item, amt, qty, unit, now, staff.name, id).first()
     if (!row) return fail(404, 'This item was not found. Reload the page.')
     await audit(env, staff.email, 'update', 'cash_line_item', id)
     return json({ row: itemShape(row) })

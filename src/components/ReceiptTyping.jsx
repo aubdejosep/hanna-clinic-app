@@ -123,7 +123,8 @@ function formOf(l) {
     receiptNo: l.receiptNo || '', receiptQr: l.receiptQr || '', clientName: l.clientName || '', petNames: l.petNames || '',
     amount: toPesos(l.amountCents), discount: toPesos(l.discountCents), paidWith: l.paidWith || '', note: l.note || '',
     online: l.onlineCents && l.amountCents && l.onlineCents < l.amountCents ? toPesos(l.onlineCents) : '',
-    items: (l.items || []).map((i) => ({ id: i.id, item: i.item || '', amount: toPesos(i.amountCents) })),
+    // Each item: quantity (1 unless given) and the price of one; its amount is quantity × price.
+    items: (l.items || []).map((i) => ({ id: i.id, item: i.item || '', qty: i.qty != null ? String(i.qty) : '1', amount: toPesos(i.unitCents ?? i.amountCents) })),
   }
 }
 
@@ -187,7 +188,8 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimize
   }
   const set = (patch) => setF((x) => ({ ...x, ...patch }))
   const setItem = (i, patch) => set({ items: f.items.map((x, j) => (j === i ? { ...x, ...patch } : x)) })
-  const itemsSum = f.items.reduce((s, x) => s + (toCents(x.amount) || 0), 0)
+  const lineOf = (x) => { const q = Number(x.qty) > 0 ? Number(x.qty) : 1; const c = toCents(x.amount); return Number.isNaN(c) || c == null ? 0 : Math.round(q * c) }
+  const itemsSum = f.items.reduce((s, x) => s + lineOf(x), 0)
   const total = toCents(f.amount)
   const disc = toCents(f.discount) || 0
   const sumOff = f.items.length > 0 && total != null && !Number.isNaN(total) && itemsSum - disc !== total
@@ -198,7 +200,8 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimize
   async function save() {
     for (const [k, label] of [['amount', 'Total'], ['discount', 'Discounts']]) if (Number.isNaN(toCents(f[k]))) throw new Error(`Enter ${label} as a number, e.g. 1500.`)
     const items = f.items.filter((x) => x.item.trim() || x.amount !== '')
-    if (items.some((x) => Number.isNaN(toCents(x.amount)))) throw new Error('Enter each item’s amount as a number, e.g. 300.')
+    if (items.some((x) => Number.isNaN(toCents(x.amount)))) throw new Error('Enter each item’s price as a number, e.g. 300.')
+    if (items.some((x) => x.qty !== '' && !(Number(x.qty) > 0))) throw new Error('Enter each quantity as a number, e.g. 3.')
     const { items: _i, photo: _p, photoV: _v, ...base } = line
     const row = withMoney({ ...base, receiptNo: f.receiptNo.trim(), receiptQr: f.receiptQr.trim(), clientName: f.clientName.trim(), petNames: f.petNames.trim(),
       amountCents: total, discountCents: toCents(f.discount), paidWith: f.paidWith, note: f.note.trim(), onlineCents: ONLINE.includes(f.paidWith) && toCents(f.online) > 0 ? toCents(f.online) : null })
@@ -206,7 +209,9 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimize
     // Items: change, add, and take out the ones removed.
     const kept = []
     for (const x of items) {
-      const body = { lineId: line.id, item: x.item.trim(), amountCents: toCents(x.amount) }
+      const unit = toCents(x.amount)
+      const qty = Number(x.qty) > 0 ? Number(x.qty) : 1
+      const body = { lineId: line.id, item: x.item.trim(), qty, unitCents: unit, amountCents: unit == null ? null : Math.round(qty * unit) }
       if (x.id) { await api(`finances/daily/items/${x.id}`, { method: 'PATCH', body }); kept.push({ id: x.id, ...body }) }
       else { const r = await api('finances/daily/items', { method: 'POST', body }); kept.push(r.row) }
     }
@@ -243,7 +248,7 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimize
   }
   // A new item line, with the cursor in it at once (drawn before the next key press, so nothing typed is lost).
   const addItemLine = () => {
-    flushSync(() => set({ items: [...f.items, { item: '', amount: '' }] }))
+    flushSync(() => set({ items: [...f.items, { item: '', qty: '1', amount: '' }] }))
     formRef.current?.querySelector(`[data-item-name="${f.items.length}"]`)?.focus()
   }
   // Enter: next field; in an item's amount, a new item line; on the last field (Notes), save and next photo.
@@ -283,12 +288,14 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimize
             {field('petNames', 'Pet’s Name')}
           </div>
           <div className="tfp-items">
-            <span className="tfp-label">Items <span className="cell-sub">(Enter in an amount adds the next item)</span></span>
+            <span className="tfp-label">Items <span className="cell-sub">(Item · Qty · Price of one. Enter in a price adds the next item)</span></span>
             {f.items.map((x, i) => (
               <div key={i} className="tfp-itemrow">
-                <ItemInput i={i} value={x.item} onChange={(v) => setItem(i, { item: v })}
+                <ItemInput i={i} value={x.item} price={x.amount} onChange={(v) => setItem(i, { item: v })}
                   onPick={(e) => setItem(i, { item: e.name, ...(x.amount === '' && e.price != null ? { amount: String(e.price) } : {}) })} />
-                <input aria-label={`Item ${i + 1} Amount`} data-item-amount={i} className="lg-num" inputMode="decimal" value={x.amount} onChange={(e) => setItem(i, { amount: e.target.value })} placeholder="0" />
+                <input aria-label={`Item ${i + 1} Quantity`} title="Quantity" className="lg-num tfp-qty" inputMode="decimal" value={x.qty} onChange={(e) => setItem(i, { qty: e.target.value.replace(/[^\d.]/g, '') })} onFocus={(e) => e.target.select()} placeholder="1" />
+                <input aria-label={`Item ${i + 1} Price`} title="Price of one" data-item-amount={i} className="lg-num" inputMode="decimal" value={x.amount} onChange={(e) => setItem(i, { amount: e.target.value })} placeholder="Price" />
+                <span className="tfp-linetotal" aria-label={`Item ${i + 1} Amount`}>{Number(x.qty) > 0 && Number(x.qty) !== 1 && toCents(x.amount) ? `= ${peso(lineOf(x))}` : ''}</span>
                 <button type="button" className="icon-btn lg-del" onClick={() => set({ items: f.items.filter((_, j) => j !== i) })} aria-label={`Remove item ${i + 1}`} title="Remove Item"><Trash2 /></button>
               </div>
             ))}
@@ -331,9 +338,9 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimize
 }
 
 // A receipt item's name, with suggestions from Services and the Product List (picking one fills an empty amount).
-function ItemInput({ i, value, onChange, onPick }) {
+function ItemInput({ i, value, price, onChange, onPick }) {
   const [focus, setFocus] = useState(false)
-  const sg = useSuggest({ text: value, active: focus, onPick })
+  const sg = useSuggest({ text: value, active: focus, onPick, price })
   return (
     <>
       <input ref={sg.anchor} autoComplete="off" aria-label={`Item ${i + 1}`} data-item-name={i} value={value} onChange={(e) => onChange(e.target.value)} placeholder="e.g. Deworm"
