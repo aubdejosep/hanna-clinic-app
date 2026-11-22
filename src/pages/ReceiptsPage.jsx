@@ -5,8 +5,8 @@
 //   Receipts: Photo | OR | QR | Owner | Pet | Item | Amount (+ Item for a receipt's items) | Total Per Receipt |
 //             Discounts | Paid With | Notes. Paid With fills the Ledger's Total Income and Online Payments.
 //   Upload Photos: every photo chosen becomes a new receipt row showing it, ready to type into.
-//   Summary: Total Income, Less Expenses, Less Online, (Less 1st Remit), Cash On Hand, and the Online, Expenses
-//            and Grooming lists, each checked against the rows ("Receipts add up to …").
+//   Summary: worked out from the rows (Total Income, Less Expenses, Less Online, Cash On Hand, the Online and
+//            Grooming lists); only the 1st Remit and a note are typed. Saves by itself.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowLeftRight, Camera, CalendarDays, Keyboard, PanelRight, ChevronLeft, ChevronRight, ImagePlus, Plus, Trash2, X } from 'lucide-react'
@@ -22,7 +22,6 @@ import { ClearDayButton, ClearedBanner } from '../components/ClearDay.jsx'
 
 const PAID = [['', '—'], ['cash', 'Cash'], ['gcash', 'GCash'], ['bank', 'Bank Transfer'], ['maribank', 'MariBank'], ['card', 'Card'], ['qrph', 'QRPH'], ['none', 'Not Counted']]
 const ONLINE = ['gcash', 'bank', 'maribank', 'card', 'qrph']
-const CODES = [['B', 'B (Bank)'], ['G', 'G (GCash)'], ['MB', 'MB (MariBank)'], ['CC', 'CC (Card)'], ['QR', 'QR (QRPH)'], ['OL', 'OL (Online)']]
 const toCents = (v) => { const t = String(v ?? '').replace(/[₱,\s]/g, ''); if (t === '') return null; const n = Number(t); return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : NaN }
 const toPesos = (c) => (c == null ? '' : String(c / 100))
 const photoUrl = (row) => `/api/finances/daily/photos/${row.id}${row.photoV ? `?v=${row.photoV}` : ''}`
@@ -90,91 +89,76 @@ function PhotoCell({ row, tools, onOpen }) {
   )
 }
 
-// A typed list in the summary (Online, Grooming): name, amount (and code).
-function TypedList({ title, rows, setRows, codes, total, check }) {
-  const set = (i, patch) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)))
-  return (
-    <div className="rs-list">
-      <h3 className="label">{title}</h3>
-      {rows.map((r, i) => (
-        <div key={i} className="rs-listrow">
-          <input aria-label={`${title}: Name`} value={r.name} onChange={(e) => set(i, { name: e.target.value })} placeholder="Name" maxLength={80} />
-          <input aria-label={`${title}: Amount`} className="lg-num" inputMode="decimal" value={r.amount} onChange={(e) => set(i, { amount: e.target.value })} placeholder="0" />
-          {codes && <select aria-label={`${title}: Paid With`} value={r.code} onChange={(e) => set(i, { code: e.target.value })}><option value="">—</option>{CODES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>}
-          <button type="button" className="icon-btn lg-del" onClick={() => setRows(rows.filter((_, j) => j !== i))} aria-label="Remove" title="Remove"><Trash2 /></button>
-        </div>
-      ))}
-      <button type="button" className="text-btn" onClick={() => setRows([...rows, { name: '', amount: '', code: '' }])}><Plus aria-hidden /> Add a Line</button>
-      <div className="rs-listtotal"><span>Total</span><strong>{peso(total)}</strong></div>
-      {check}
-    </div>
-  )
-}
-
-const Check = ({ typed, rows, label = 'The receipts add up to' }) => {
-  if (typed == null || Number.isNaN(typed)) return <span className="rs-check">{label} {peso(rows)}</span>
-  return typed === rows ? <span className="rs-check is-ok">✓ Matches the receipts</span> : <span className="rs-check is-off">{label} {peso(rows)} ({typed > rows ? 'over' : 'short'} by {peso(Math.abs(typed - rows))})</span>
+// The day's summary, worked out from the receipts and expenses above (no typing): Total Income (after discounts),
+// Less Expenses, Less Online, Cash On Hand, and the Online and Grooming lists. Only the 1st Remit and a note are typed.
+// Saved by itself whenever something changes (the owners' Ledger reads it).
+const CODE_OF = { gcash: 'G', bank: 'B', maribank: 'MB', card: 'CC', qrph: 'QR' }
+const GROOMING = /groom|bath|hair ?cut|trim/i
+function autoSummary(live) {
+  const r = summarize(live)
+  const lines = live.lines || []
+  const onlineList = lines.filter((l) => l.onlineCents > 0).map((l) => ({ name: l.clientName || l.receiptQr || l.receiptNo || '—', amountCents: l.onlineCents, code: CODE_OF[l.paidWith] || 'OL' }))
+  const groomingList = lines.flatMap((l) => (l.items || []).filter((i) => GROOMING.test(i.item || '') && i.amountCents).map((i) => ({ name: l.clientName || l.receiptQr || l.receiptNo || '—', amountCents: i.amountCents })))
+  return { r, onlineList, groomingList }
 }
 
 function Summary({ day, saved, live, onSaved }) {
-  const toast = useToast()
-  const fromSaved = (s) => ({
-    income: toPesos(s?.incomeCents), expenses: toPesos(s?.expensesCents), online: toPesos(s?.onlineCents), firstRemit: toPesos(s?.firstRemitCents), cashOnHand: toPesos(s?.cashOnHandCents), note: s?.note || '',
-    onlineList: (s?.onlineList || []).map((x) => ({ name: x.name, amount: toPesos(x.amountCents), code: x.code || '' })),
-    groomingList: (s?.groomingList || []).map((x) => ({ name: x.name, amount: toPesos(x.amountCents), code: '' })),
-  })
-  const [f, setF] = useState(() => fromSaved(saved))
-  const [busy, setBusy] = useState(false)
+  const [remit, setRemit] = useState(toPesos(saved?.firstRemitCents))
+  const [note, setNote] = useState(saved?.note || '')
+  const [state, setState] = useState(saved ? 'saved' : '')
   const [error, setError] = useState(null)
-  const [last, setLast] = useState(saved)
-  const set = (patch) => setF((x) => ({ ...x, ...patch }))
-  const c = (k) => toCents(f[k])
-  const r = summarize(live)
-  const listTotal = (l) => l.reduce((s, x) => s + (toCents(x.amount) || 0), 0)
-  const typedCash = [c('income'), c('expenses'), c('online'), c('firstRemit')].some((v) => Number.isNaN(v)) ? null : (c('income') || 0) - (c('expenses') || 0) - (c('online') || 0) - (c('firstRemit') || 0)
-  const dirty = JSON.stringify(f) !== JSON.stringify(fromSaved(last))
-  async function save() {
-    setBusy(true); setError(null)
-    try {
-      const body = { day, incomeCents: c('income'), expensesCents: c('expenses'), onlineCents: c('online'), firstRemitCents: c('firstRemit'), cashOnHandCents: c('cashOnHand'), note: f.note,
-        onlineList: f.onlineList.map((x) => ({ name: x.name, amountCents: toCents(x.amount), code: x.code })), groomingList: f.groomingList.map((x) => ({ name: x.name, amountCents: toCents(x.amount) })) }
-      for (const [k, v] of Object.entries(body)) if (Number.isNaN(v)) throw new Error(`Enter ${k.replace(/Cents$/, '')} as a number, e.g. 1500.`)
-      const res = await api('finances/daily/summary', { method: 'PUT', body })
-      setLast(res.summary); toast('Summary saved'); onSaved?.()
-    } catch (err) { setError(err) }
-    setBusy(false)
-  }
-  const money = (k, label, hint) => (
-    <Field label={label} optional={k === 'firstRemit'} hint={hint}>{(a) => <input {...a} className="lg-num" inputMode="decimal" value={f[k]} onChange={(e) => set({ [k]: e.target.value })} placeholder="0" />}</Field>
+  const { r, onlineList, groomingList } = autoSummary(live)
+  const first = toCents(remit)
+  const firstOk = !Number.isNaN(first)
+  const cashOnHand = r.net - r.online - r.expenses - (firstOk ? first || 0 : 0)
+  const body = { day, incomeCents: r.net, expensesCents: r.expenses, onlineCents: r.online, firstRemitCents: firstOk ? first : null, cashOnHandCents: cashOnHand, note,
+    onlineList, groomingList }
+  const key = JSON.stringify(body)
+  const savedKey = useRef(saved ? JSON.stringify({ day, incomeCents: saved.incomeCents, expensesCents: saved.expensesCents, onlineCents: saved.onlineCents, firstRemitCents: saved.firstRemitCents, cashOnHandCents: saved.cashOnHandCents, note: saved.note || '',
+    onlineList: (saved.onlineList || []).map((x) => ({ name: x.name, amountCents: x.amountCents, code: x.code })), groomingList: (saved.groomingList || []).map((x) => ({ name: x.name, amountCents: x.amountCents })) }) : null)
+  useEffect(() => {
+    if (!firstOk || key === savedKey.current) return undefined
+    if (!saved && !r.receipts && !r.expenses && !first && !note) return undefined // nothing on this day yet
+    setState('waiting')
+    const t = setTimeout(async () => {
+      setState('saving'); setError(null)
+      try { await api('finances/daily/summary', { method: 'PUT', body: JSON.parse(key) }); savedKey.current = key; setState('saved'); onSaved?.() } catch (err) { setError(err); setState('') }
+    }, 900)
+    return () => clearTimeout(t)
+  }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
+  const Fig = ({ label, cents, minus, strong }) => (
+    <div className={`rs-fig ${strong ? 'rs-coh' : ''}`}><span className="field-label">{label}</span><span className="rs-value">{minus && cents ? '− ' : ''}{peso(cents)}</span></div>
+  )
+  const List = ({ title, rows, codes }) => (
+    <div className="rs-list">
+      <h3 className="label">{title}</h3>
+      {rows.length ? rows.map((x, i) => <div key={i} className="rs-autoline"><span>{x.name}{codes && x.code ? ` · ${x.code}` : ''}</span><strong>{peso(x.amountCents)}</strong></div>)
+        : <span className="cell-sub">None on the receipts.</span>}
+      <div className="rs-listtotal"><span>Total</span><strong>{peso(rows.reduce((n, x) => n + x.amountCents, 0))}</strong></div>
+    </div>
   )
   return (
     <section className="card card-pad rs-card" aria-labelledby="rs-title">
       <div className="rs-head">
         <h2 id="rs-title">Summary</h2>
-        <span className="cell-sub">Type it like the paper slip. Each figure is checked against the receipts above.{last?.updatedBy ? ` Last saved by ${last.updatedBy}.` : ''}</span>
+        <span className="cell-sub">Worked out from the receipts and expenses: only type the 1st Remit if one was handed over. {state === 'saving' || state === 'waiting' ? 'Saving…' : state === 'saved' ? '✓ Saved' : ''}</span>
       </div>
       <div className="rs-figures">
-        <div>{money('income', 'Total Income')}<Check typed={c('income')} rows={r.net} /></div>
-        <div>{money('expenses', 'Less Expenses')}<Check typed={c('expenses')} rows={r.expenses} label="The expenses add up to" /></div>
-        <div>{money('online', 'Less Online')}<Check typed={c('online')} rows={r.online} /></div>
-        <div>{money('firstRemit', 'Less 1st Remit', 'Only if a 1st remit was handed over.')}</div>
-        <div className="rs-coh">{money('cashOnHand', 'Cash On Hand')}
-          {typedCash != null && c('cashOnHand') != null && !Number.isNaN(c('cashOnHand')) && (c('cashOnHand') === typedCash
-            ? <span className="rs-check is-ok">✓ Adds up</span>
-            : <span className="rs-check is-off">Income less the figures above is {peso(typedCash)}</span>)}
-        </div>
+        <Fig label={`Total Income (${r.receipts} receipt${r.receipts === 1 ? '' : 's'})`} cents={r.net} />
+        <Fig label="Less Expenses" cents={r.expenses} minus />
+        <Fig label="Less Online" cents={r.online} minus />
+        <div><Field label="Less 1st Remit" optional hint="Only if a 1st remit was handed over.">{(a) => <input {...a} className="lg-num" inputMode="decimal" value={remit} onChange={(e) => setRemit(e.target.value)} placeholder="0" />}</Field>
+          {!firstOk && <span className="rs-check is-off">Enter the remit as a number, e.g. 5000.</span>}</div>
+        <Fig label="Cash On Hand" cents={cashOnHand} strong />
       </div>
+      {cashOnHand < 0 && <p className="lg-off" style={{ margin: 0 }}>Cash On Hand is below zero: check the expenses and the 1st Remit (online payments are already taken out).</p>}
+      {r.discounts > 0 && <p className="field-hint" style={{ margin: 0 }}>Total Income is after {peso(r.discounts)} in discounts.</p>}
       <div className="rs-lists">
-        <TypedList title="Online" rows={f.onlineList} setRows={(v) => set({ onlineList: v })} codes total={listTotal(f.onlineList)}
-          check={<Check typed={listTotal(f.onlineList)} rows={r.online} label="Online on the receipts:" />} />
-        <TypedList title="Grooming" rows={f.groomingList} setRows={(v) => set({ groomingList: v })} total={listTotal(f.groomingList)} />
+        <List title="Online" rows={onlineList} codes />
+        <List title="Grooming" rows={groomingList} />
       </div>
-      <Field label="Note" optional>{(a) => <input {...a} value={f.note} onChange={(e) => set({ note: e.target.value })} maxLength={300} placeholder="e.g. 05331 is Lim's balance from Nov 16" />}</Field>
+      <Field label="Note" optional>{(a) => <input {...a} value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} placeholder="e.g. 05331 is Lim's balance from Nov 16" />}</Field>
       <ErrorNote error={error} />
-      <div className="inline-row">
-        <button type="button" className="btn" onClick={save} disabled={busy || !dirty}>{busy ? 'Saving…' : 'Save Summary'}</button>
-        {dirty && <span className="field-hint">Not saved yet</span>}
-      </div>
     </section>
   )
 }

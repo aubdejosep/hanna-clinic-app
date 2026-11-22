@@ -425,7 +425,8 @@ async function saveSummary(env, staff, b) {
   const f = {}
   for (const [k, col, label] of [['incomeCents', 'income_cents', 'Total Income'], ['expensesCents', 'expenses_cents', 'Less Expenses'], ['onlineCents', 'online_cents', 'Less Online'],
     ['firstRemitCents', 'first_remit_cents', 'Less 1st Remit'], ['cashOnHandCents', 'cash_on_hand_cents', 'Cash On Hand']]) {
-    const v = money(b[k])
+    // Cash On Hand can be below zero (worked out from the receipts: it shows something to check).
+    const v = col === 'cash_on_hand_cents' && Number(b[k]) < 0 ? -money(-Number(b[k])) : money(b[k])
     if (Number.isNaN(v)) errors[k] = `Enter ${label} as a number, e.g. 1500.`
     f[col] = Number.isNaN(v) ? null : v
   }

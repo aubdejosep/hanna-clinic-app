@@ -2228,3 +2228,10 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 /* Clinic Operations ▸ SMS Logs */
 .sms-table td { vertical-align: top; }
 .sms-text { max-width: 520px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-small); }
+/* Receipts ▸ Summary, worked out from the receipts */
+.rs-fig { display: grid; gap: 6px; align-content: start; }
+.rs-value { display: block; min-height: 44px; padding: 10px 12px; border-radius: var(--radius-field); background: var(--surface-alt); color: var(--heading); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.rs-fig.rs-coh .rs-value { background: var(--teal-tint); font-size: var(--fs-h3); }
+.rs-autoline { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: var(--fs-small); border-bottom: 1px solid var(--border); }
+.rs-autoline strong { color: var(--heading); font-variant-numeric: tabular-nums; }
+.ug-step.is-text { grid-template-columns: 1fr; }

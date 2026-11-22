@@ -23,8 +23,8 @@ const GUIDES = [
         text: <>Tap <b>Add Item</b> and type two or more letters: matching services, products and medicines appear with their prices. Pick one (click, or arrows and Enter) and its price fills in. If the receipt says a different amount, just type over it.</> },
       { title: 'Check the table', img: 'r5-grid', alt: 'The receipts table with each receipt and its items',
         text: <>Every receipt is a row, with its items under it and a thick line between receipts. Click any cell to fix it: it saves when you leave the cell. A <b>≠</b> beside an amount means the items don’t add up to the total.</> },
-      { title: 'Type the summary and expenses', img: 'r6-summary', alt: 'The summary with each figure checked against the receipts',
-        text: <>Type the paper summary slip: <b>Total Income</b>, <b>Less Expenses</b>, <b>Less Online</b>, <b>Less 1st Remit</b> and <b>Cash On Hand</b>, plus the Online and Grooming lists. Each figure says <b>✓ Matches the receipts</b>, or what the receipts add up to, so a difference shows straight away. Add each expense in the Expenses table, then tap <b>Save Summary</b>.</> },
+      { title: 'Add the expenses: the summary does itself', key: 'summary',
+        text: <>Add each expense (from the paper slip) in the <b>Expenses</b> table. The <b>Summary</b> works itself out from the receipts and expenses: <b>Total Income</b>, <b>Less Expenses</b>, <b>Less Online</b>, <b>Cash On Hand</b>, and the <b>Online</b> and <b>Grooming</b> lists. Only type the <b>1st Remit</b> if one was handed over. It saves by itself (<b>✓ Saved</b>). Compare it with the paper slip: if a figure is different, a receipt above needs fixing.</> },
     ],
     tips: [
       <>A photo of the ledger page or the summary slip isn’t a receipt: tap <b>Not a Receipt</b> on it while typing.</>,
@@ -138,12 +138,12 @@ export default function UserGuidePage() {
       <PageHead crumbs={[{ label: 'User Guide', to: '/guide' }, { label: open.title }]} title={open.title} intro={open.intro} />
       <ol className="ug-steps">
         {open.steps.map((s, i) => (
-          <li key={s.img} className="card ug-step">
+          <li key={s.img || s.key} className={`card ug-step ${s.img ? '' : 'is-text'}`}>
             <div className="ug-text">
               <span className="ug-no">{i + 1}</span>
               <div><h2>{s.title}</h2><p>{s.text}</p></div>
             </div>
-            <Shot s={s} />
+            {s.img && <Shot s={s} />}
           </li>
         ))}
       </ol>
