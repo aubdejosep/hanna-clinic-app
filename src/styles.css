@@ -2235,3 +2235,4 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .rs-autoline { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: var(--fs-small); border-bottom: 1px solid var(--border); }
 .rs-autoline strong { color: var(--heading); font-variant-numeric: tabular-nums; }
 .ug-step.is-text { grid-template-columns: 1fr; }
+.tfp-split { align-self: end; margin: 0 0 10px; }

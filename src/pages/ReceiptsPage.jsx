@@ -47,10 +47,13 @@ async function uploadPhoto(lineId, file) {
 }
 
 // What the Receipts page saves: Paid With decides Total Income (the price before the discount) and Online.
+// Split payments: Paid With is the online method (GCash, Bank…) and Online is the part paid online; the rest is cash.
+// Online fills in as the whole total, unless a smaller amount was typed there (a split).
 function prepare(row) {
   if (row.paidWith === 'none') return { incomeCents: null, onlineCents: null }
   if (row.amountCents == null) return {}
-  return { incomeCents: row.amountCents + (row.discountCents || 0), onlineCents: ONLINE.includes(row.paidWith) ? row.amountCents : null }
+  const split = row.onlineCents > 0 && row.onlineCents < row.amountCents
+  return { incomeCents: row.amountCents + (row.discountCents || 0), onlineCents: ONLINE.includes(row.paidWith) ? (split ? row.onlineCents : row.amountCents) : null }
 }
 
 function Lightbox({ row, onClose }) {
@@ -165,11 +168,12 @@ function Summary({ day, saved, live, onSaved }) {
 
 const STAFF_LINES = {
   ...GRIDS.lines,
-  minWidth: 1180,
+  minWidth: 1260,
   columns: [
     { key: 'photo', label: 'Photo', type: 'custom', width: '9%' },
     ...GRIDS.lines.columns.filter((c) => ['receiptNo', 'receiptQr', 'clientName', 'petNames', 'item', 'itemAmount', 'amountCents', 'discountCents'].includes(c.key)),
     { key: 'paidWith', label: 'Paid With', type: 'select', options: PAID, width: '9%' },
+    { key: 'onlineCents', label: 'Online', type: 'money', total: true, width: '7%' },
     { ...GRIDS.lines.columns.find((c) => c.key === 'note'), width: '13%' },
   ],
   blank: (day) => ({ ...GRIDS.lines.blank(day), paidWith: '', book: 'staff' }),

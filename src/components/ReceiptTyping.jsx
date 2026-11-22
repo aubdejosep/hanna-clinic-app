@@ -25,7 +25,8 @@ const toPesos = (c) => (c == null ? '' : String(c / 100))
 export function withMoney(row) {
   if (row.paidWith === 'none') return { ...row, incomeCents: null, onlineCents: null }
   if (row.amountCents == null) return row
-  return { ...row, incomeCents: row.amountCents + (row.discountCents || 0), onlineCents: ONLINE.includes(row.paidWith) ? row.amountCents : null }
+  const split = row.onlineCents > 0 && row.onlineCents < row.amountCents // part online, the rest cash
+  return { ...row, incomeCents: row.amountCents + (row.discountCents || 0), onlineCents: ONLINE.includes(row.paidWith) ? (split ? row.onlineCents : row.amountCents) : null }
 }
 
 // The whole photo always fits at first (any rotation): it's measured against the box. Zoom with the buttons, a
@@ -121,6 +122,7 @@ function formOf(l) {
   return {
     receiptNo: l.receiptNo || '', receiptQr: l.receiptQr || '', clientName: l.clientName || '', petNames: l.petNames || '',
     amount: toPesos(l.amountCents), discount: toPesos(l.discountCents), paidWith: l.paidWith || '', note: l.note || '',
+    online: l.onlineCents && l.amountCents && l.onlineCents < l.amountCents ? toPesos(l.onlineCents) : '',
     items: (l.items || []).map((i) => ({ id: i.id, item: i.item || '', amount: toPesos(i.amountCents) })),
   }
 }
@@ -199,7 +201,7 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimize
     if (items.some((x) => Number.isNaN(toCents(x.amount)))) throw new Error('Enter each item’s amount as a number, e.g. 300.')
     const { items: _i, photo: _p, photoV: _v, ...base } = line
     const row = withMoney({ ...base, receiptNo: f.receiptNo.trim(), receiptQr: f.receiptQr.trim(), clientName: f.clientName.trim(), petNames: f.petNames.trim(),
-      amountCents: total, discountCents: toCents(f.discount), paidWith: f.paidWith, note: f.note.trim() })
+      amountCents: total, discountCents: toCents(f.discount), paidWith: f.paidWith, note: f.note.trim(), onlineCents: ONLINE.includes(f.paidWith) && toCents(f.online) > 0 ? toCents(f.online) : null })
     await api(`finances/daily/lines/${line.id}`, { method: 'PATCH', body: row })
     // Items: change, add, and take out the ones removed.
     const kept = []
@@ -306,6 +308,13 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimize
             </label>
             {field('note', 'Notes', { 'data-last': '1', placeholder: 'Enter saves and opens the next photo' })}
           </div>
+          {ONLINE.includes(f.paidWith) && (
+            <div className="tfp-row">
+              {field('online', 'Paid Online (if split)', { className: 'lg-num', inputMode: 'decimal', placeholder: total ? toPesos(total) : 'All of it' })}
+              <p className="field-hint tfp-split">{toCents(f.online) > 0 && total && toCents(f.online) < total ? `Online ${peso(toCents(f.online))} + cash ${peso(total - toCents(f.online))}` : 'Leave blank if all of it was paid online. Part cash? Type only the online part.'}</p>
+            </div>
+          )}
+          {toCents(f.online) > 0 && total != null && toCents(f.online) > total && <p className="tfp-warn">The online part is more than the total ({peso(total)}). A tip? Put it in Notes.</p>}
           <ErrorNote error={error} />
           <div className="tfp-actions">
             <button type="button" className="btn btn-quiet" onClick={() => go(at - 1)} disabled={busy || at === 0}><ChevronLeft aria-hidden /> Previous</button>
