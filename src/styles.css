@@ -2236,3 +2236,5 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .rs-autoline strong { color: var(--heading); font-variant-numeric: tabular-nums; }
 .ug-step.is-text { grid-template-columns: 1fr; }
 .tfp-split { align-self: end; margin: 0 0 10px; }
+.ug-step.is-found { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-tint); scroll-margin-top: 80px; }
+.ug-step { scroll-margin-top: 80px; }

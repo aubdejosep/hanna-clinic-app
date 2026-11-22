@@ -1,12 +1,13 @@
-// The search box beside the bell: receipts and invoices (by number), owners, pets, medicines and products, and services (with their
+// The search box beside the bell: how-to steps from the User Guide (src/lib/guides.jsx), receipts and invoices (by number), owners, pets, medicines and products, and services (with their
 // variations and prices) in one list. "/" jumps to it; arrows and Enter pick a result.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, FileText, Package, PawPrint, Receipt, Search, Stethoscope, UserRound, X } from 'lucide-react'
+import { BookOpen, Camera, FileText, Package, PawPrint, Receipt, Search, Stethoscope, UserRound, X } from 'lucide-react'
 import { PetAvatar } from './ui.jsx'
 import { api } from '../lib/api.js'
 import { useDebounced } from '../lib/useApi.js'
 import { prettyDay } from '../lib/format.js'
+import { searchGuides } from '../lib/guides.jsx'
 
 const peso = (n) => (n == null ? '—' : `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`)
 const plural = (unit, n) => (!unit ? '' : n === 1 || unit === 'ml' ? unit : unit === 'box' ? 'boxes' : `${unit}s`)
@@ -49,14 +50,18 @@ export default function OmniSearch({ mobile }) {
   }, [open, mobile])
 
   // One flat list for the arrow keys, in the order shown.
-  const items = useMemo(() => !data ? [] : [
+  const guides = useMemo(() => (q.length >= 2 ? searchGuides(q) : []), [q])
+  const items = useMemo(() => [
+    ...guides.map((g) => ({ key: `g${g.guide.id}-${g.step.title}`, group: 'Guides', to: g.to, g })),
+    ...(!data ? [] : [
     ...(data.receipts || []).map((r) => ({ key: `r${r.id}`, group: 'Receipts', to: r.to, r })),
     ...(data.invoices || []).map((v) => ({ key: `v${v.key}`, group: 'Invoices', to: v.to, v })),
     ...data.owners.map((o) => ({ key: `o${o.id}`, group: 'Pet Owners', to: `/clients/${o.id}`, o })),
     ...data.pets.map((p) => ({ key: `p${p.id}`, group: 'Pets', to: `/pets/${p.id}`, p })),
     ...data.products.map((p) => ({ key: `i${p.id}`, group: 'Medicines & Products', to: `/inventory?product=${p.id}`, i: p })),
     ...data.services.map((s) => ({ key: `s${s.id}`, group: 'Services', to: `/clinic/services?q=${encodeURIComponent(s.name)}`, s })),
-  ], [data])
+    ]),
+  ], [data, guides])
   const go = (it) => { setOpen(false); setText(''); setData(null); input.current?.blur(); navigate(it.to) }
   function onKey(e) {
     if (e.key === 'Escape') { setOpen(false); input.current?.blur(); return }
@@ -71,8 +76,8 @@ export default function OmniSearch({ mobile }) {
   const results = showList && (
     <div className="omni-results" role="listbox" id="omni-list" aria-label="Search results">
       {data && !items.length && !busy && <p className="omni-empty">Nothing matches “{q}”. Try part of a name, a mobile number, a receipt or invoice number, or a product.</p>}
-      {!data && busy && <p className="omni-empty">Searching…</p>}
-      {['Receipts', 'Invoices', 'Pet Owners', 'Pets', 'Medicines & Products', 'Services'].map((g) => {
+      {!data && busy && !items.length && <p className="omni-empty">Searching…</p>}
+      {['Guides', 'Receipts', 'Invoices', 'Pet Owners', 'Pets', 'Medicines & Products', 'Services'].map((g) => {
         const list = items.filter((it) => it.group === g)
         if (!list.length) return null
         return (
@@ -82,6 +87,7 @@ export default function OmniSearch({ mobile }) {
               const i = items.indexOf(it)
               return (
                 <button key={it.key} id={`omni-${it.key}`} type="button" role="option" aria-selected={i === at} className="omni-item" onMouseEnter={() => setAt(i)} onClick={() => go(it)}>
+                  {it.g && <><span className="omni-icon"><BookOpen aria-hidden /></span><span><strong>{it.g.step.title}</strong><span className="cell-sub">User Guide · {it.g.guide.title}</span></span></>}
                   {it.r && <><span className="omni-icon"><Receipt aria-hidden /></span><span><strong>{it.r.receiptNo ? `OR ${it.r.receiptNo}` : `QR ${it.r.receiptQr}`}{it.r.photo && <Camera className="omni-photo" aria-label="Has a photo" />}</strong><span className="cell-sub">{[it.r.book === 'staff' ? 'Staff’s Receipts' : 'Ledger', prettyDay(it.r.day), it.r.client, it.r.pets, it.r.amount ? peso(it.r.amount) : null].filter(Boolean).join(' · ')}</span></span></>}
                   {it.v && <><span className="omni-icon"><FileText aria-hidden /></span><span><strong>Invoice {it.v.invoiceNo}</strong><span className="cell-sub">{[it.v.day && prettyDay(it.v.day), it.v.client, it.v.pet, it.v.amount != null && peso(it.v.amount), it.v.unpaid && 'Unpaid', it.v.source === 'old' ? 'Old system' : 'Visit'].filter(Boolean).join(' · ')}</span></span></>}
                   {it.o && <><span className="omni-icon"><UserRound aria-hidden /></span><span><strong>{it.o.name}</strong><span className="cell-sub">{[it.o.customerNo, it.o.mobile, it.o.email, `${it.o.pets} pet${it.o.pets === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}</span></span></>}
