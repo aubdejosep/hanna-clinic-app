@@ -1,6 +1,6 @@
 // Clinic Operations ▸ SMS Logs (owners and admins): every text sent from the clinic's Semaphore account (bookings and
 // cancellations from the website, day-before reminders, tests), newest first, with its status and credit balance.
-// Server: functions/api/sms-logs.js.
+// Each text links to the appointment(s) it was about, when known. Server: functions/api/sms-logs.js.
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MessageSquareText } from 'lucide-react'
@@ -51,12 +51,13 @@ export default function SmsLogsPage() {
       ) : (
         <section className="card">
           <table className="table sms-table">
-            <thead><tr><th>Sent</th><th>To</th><th>Message</th><th>Status</th></tr></thead>
+            <thead><tr><th>Sent</th><th>To</th><th>Appointment</th><th>Message</th><th>Status</th></tr></thead>
             <tbody>
               {data.messages.map((m, i) => (
                 <tr key={m.id || i}>
-                  <td data-label="Sent" className="cell-sub">{when(m.at)}</td>
+                  <td data-label="Sent"><span className="cell-sub">{when(m.at)}</span></td>
                   <td data-label="To">{m.owner ? <Link to={`/clients/${m.owner.id}`}>{m.owner.name}</Link> : null}<span className="cell-sub" style={{ display: 'block' }}>{local(m.to)}{m.network ? ` · ${m.network}` : ''}</span></td>
+                  <td data-label="Appointment">{m.appointments?.length ? m.appointments.map((a) => <Link key={a.id} to={`/appointments/${a.id}`} className="sms-ref" title="Open the appointment">#{a.no}</Link>) : <span className="cell-sub">—</span>}</td>
                   <td data-label="Message" className="sms-text">{m.text}</td>
                   <td data-label="Status"><span className={`badge ${tone(m.status)}`}>{m.status || '—'}</span></td>
                 </tr>

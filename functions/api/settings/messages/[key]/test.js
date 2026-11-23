@@ -17,7 +17,12 @@ export async function onRequestPost({ request, env, params, data }) {
   const sent = []
   const problems = []
   if (t.sms_enabled && mobile) {
-    try { await sendSms(env, mobile, fillIn(t.sms_text)); sent.push('text') } catch (err) { problems.push(err.message) }
+    try {
+      const { id } = await sendSms(env, mobile, fillIn(t.sms_text)); sent.push('text')
+      // Logged so SMS Logs knows it was a test (not about anyone's appointment).
+      await env.DB.prepare("INSERT INTO message_log (template_key, channel, to_addr, ref, body, status, provider_id, sent_by) VALUES (?, 'sms', ?, NULL, ?, 'sent', ?, ?)")
+        .bind(`test:${t.key}`, mobile, fillIn(t.sms_text), id, data.staff.name || data.staff.email).run().catch(() => {})
+    } catch (err) { problems.push(err.message) }
   }
   if (t.email_enabled && email) {
     if (!isEmail(email)) problems.push('That email address doesn’t look right.')
