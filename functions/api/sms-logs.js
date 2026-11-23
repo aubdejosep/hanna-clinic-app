@@ -24,6 +24,7 @@ export async function onRequestGet({ env, request, data }) {
   if (from) q.set('startDate', from)
   if (to) { const d = new Date(`${to}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); q.set('endDate', d.toISOString().slice(0, 10)) }
   const base = env.SEMAPHORE_API_URL ? env.SEMAPHORE_API_URL.replace(/\/messages$/, '') : API
+  if (u.get('counts')) return counts(base, q, from, to)
   let list
   let account = null
   let raw = 0
@@ -130,4 +131,37 @@ async function appointmentsFor(env, list, owners) {
     if (found.length) out[id] = found.map(show)
   }
   return out
+}
+
+// GET ?counts=1 (same dates) -> the cards on top: how many texts were Sent, Pending (or queued) and Failed (or
+// refunded), counted from every text in the range (1,000 a page from Semaphore, up to 50,000).
+const dayOf = (x) => String(x.created_at || '').slice(0, 10)
+async function counts(base, q, from, to) {
+  const out = { total: 0, sent: 0, pending: 0, failed: 0, capped: false }
+  q.set('limit', '1000')
+  try {
+    for (let page = 1; ; page++) {
+      if (page > 50) { out.capped = true; break }
+      q.set('page', String(page))
+      const r = await fetch(`${base}/messages?${q}`)
+      const text = await r.text()
+      if (!r.ok) throw new Error(`messages ${r.status}: ${text.slice(0, 200)}`)
+      const list = JSON.parse(text)
+      if (!Array.isArray(list)) throw new Error(`not a list: ${text.slice(0, 200)}`)
+      for (const x of list) {
+        const d = dayOf(x)
+        if ((from || to) && /^\d{4}-\d{2}-\d{2}$/.test(d) && ((from && d < from) || (to && d > to))) continue
+        out.total++
+        const st = String(x.status || '').toLowerCase()
+        if (/fail|refund|reject/.test(st)) out.failed++
+        else if (/pend|queue/.test(st)) out.pending++
+        else out.sent++
+      }
+      if (list.length < 1000) break
+    }
+  } catch (err) {
+    console.log('sms counts', String(err).slice(0, 400))
+    return fail(503, 'Semaphore didn’t send the totals just now. Try again in a minute.')
+  }
+  return json(out)
 }

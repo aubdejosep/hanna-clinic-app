@@ -2229,6 +2229,7 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .vr-photo .icon-btn svg { width: 14px; height: 14px; }
 /* Clinic Operations ▸ SMS Logs */
 .sms-table td { vertical-align: top; }
+.sms-stats { margin-bottom: 16px; }
 td .sms-ref { display: block; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .sms-text { max-width: 520px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-small); }
 /* Receipts ▸ Summary, worked out from the receipts */

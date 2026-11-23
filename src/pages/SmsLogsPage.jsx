@@ -3,7 +3,7 @@
 // Each text links to the appointment(s) it was about, when known. Server: functions/api/sms-logs.js.
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MessageSquareText } from 'lucide-react'
+import { CircleX, Coins, Hourglass, MessageSquareText, Send } from 'lucide-react'
 import { ErrorNote, PageHead, PawLoader } from '../components/ui.jsx'
 import { api } from '../lib/api.js'
 import { canManage, useStaff } from '../lib/staff.js'
@@ -34,6 +34,17 @@ export default function SmsLogsPage() {
       .catch((e) => live && setError(e)).finally(() => live && setBusy(false))
     return () => { live = false }
   }, [range, page]) // eslint-disable-line react-hooks/exhaustive-deps
+  // The cards on top: totals for the dates picked (counted on the server from every text, so loaded separately).
+  const [totals, setTotals] = useState(null)
+  useEffect(() => {
+    if (!canManage(staff)) return undefined
+    let live = true
+    const [from, to] = rangeOf(range)
+    setTotals(null)
+    api(`sms-logs?counts=1${from ? `&from=${from}&to=${to}` : ''}`).then((d) => live && setTotals(d)).catch(() => live && setTotals({ error: true }))
+    return () => { live = false }
+  }, [range]) // eslint-disable-line react-hooks/exhaustive-deps
+  const n = (k) => (!totals ? '…' : totals.error ? '—' : `${totals[k].toLocaleString('en-PH')}${totals.capped && k === 'total' ? '+' : ''}`)
   const head = <PageHead crumbs={[{ label: 'Clinic Operations' }, { label: 'SMS Logs' }]} title="SMS Logs" intro="Every text sent to clients from HANNAPETVET: booking and cancellation texts from the website, day-before reminders and tests. The wording is in Account ▸ Settings ▸ Messages." />
   if (!canManage(staff)) return <>{head}<ErrorNote error={new Error('Only an owner or admin can open the SMS logs.')} /></>
   return (
@@ -41,8 +52,18 @@ export default function SmsLogsPage() {
       {head}
       <div className="ml-bar">
         <div className="ml-chips" role="group" aria-label="Dates">{RANGES.map(([k, l]) => <button key={k} type="button" className={`btn btn-sm ${range === k ? '' : 'btn-quiet'}`} aria-pressed={range === k} onClick={() => setRange(k)}>{l}</button>)}</div>
-        {data?.balance != null && <span className="badge">Credits Left: {data.balance.toLocaleString('en-PH')}</span>}
       </div>
+      {data?.ready && (
+        <div className="stat-grid sms-stats">
+          {[[Send, 'Sent', n('sent')], [Hourglass, 'Pending', n('pending')], [CircleX, 'Failed', n('failed')],
+            [Coins, 'Credits Left', data.balance != null ? data.balance.toLocaleString('en-PH') : '—']].map(([Icon, label, value]) => (
+            <div key={label} className="card stat">
+              <div className="stat-top"><span className="label">{label}</span><Icon aria-hidden /></div>
+              <div className="stat-value">{value}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <ErrorNote error={error} />
       {!data ? <PawLoader label="Loading the texts…" /> : !data.ready ? (
         <div className="card card-pad"><p style={{ margin: 0 }}>Texting isn’t set up on the app yet: add <b>SEMAPHORE_API_KEY</b> to hanna-clinic-app in Cloudflare (Settings ▸ Variables and Secrets), then retry the latest deployment.</p></div>
