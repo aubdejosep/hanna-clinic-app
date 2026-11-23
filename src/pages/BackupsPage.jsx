@@ -9,7 +9,7 @@ import { useApi } from '../lib/useApi.js'
 import { canManage, useStaff } from '../lib/staff.js'
 import { prettyDay } from '../lib/format.js'
 
-const size = (b) => (b == null ? '' : b > 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`)
+const size = (b) => (b == null ? '' : b > 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(1)} GB` : b > 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`)
 const when = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila' }) : '')
 const LABEL = { 'hanna-clinic.sql.gz': 'Clinic App', 'hanna-leads.sql.gz': 'Website', 'photos.json.gz': 'Photo List' }
 const daysSince = (iso) => (iso ? Math.floor((Date.now() - Date.parse(iso)) / 864e5) : null)
@@ -68,7 +68,7 @@ export default function BackupsPage() {
                 {data.backups.map((b) => (
                   <tr key={b.day}>
                     <td>{prettyDay(b.day)}</td>
-                    <td className="cell-sub">{b.at ? `${when(b.at)}${b.by && b.by !== 'schedule' ? ` · ${b.by}` : ''}` : '—'}</td>
+                    <td><span className="cell-sub">{b.at ? `${when(b.at)}${b.by && b.by !== 'schedule' ? ` · ${b.by}` : ''}` : '—'}</span></td>
                     <td><span className="bk-files">{(b.files || []).map((f) => (
                       <a key={f.name} className="btn btn-sm btn-quiet" href={`/api/backups/${b.day}/${f.name}`} download onClick={() => setTimeout(reload, 1500)}><Download aria-hidden /> {LABEL[f.name] || f.name} <span className="cell-sub">{size(f.bytes)}</span></a>
                     ))}</span></td>
