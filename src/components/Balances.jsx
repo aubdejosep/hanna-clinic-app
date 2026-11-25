@@ -11,7 +11,7 @@ import { canManage, useStaff } from '../lib/staff.js'
 import { prettyDay } from '../lib/format.js'
 import { useCheckIns } from '../lib/checkin-alert.js'
 
-const TYPE_LABEL = { unpaid: 'Not paid', owed: 'Part paid', invoice: 'Old system' }
+const TYPE_LABEL = { unpaid: 'Not paid', owed: 'Part paid', invoice: 'Old system', ledger: 'Receipt balance' }
 
 export function BalanceItems({ items, onChanged }) {
   const staff = useStaff()
@@ -31,7 +31,8 @@ export function BalanceItems({ items, onChanged }) {
                 ? <Link className="btn btn-quiet" to={`/appointments/${i.id}?pay=1`}><Wallet aria-hidden /> Take Payment</Link>
                 : <button type="button" className="btn btn-quiet" onClick={() => setPanel({ kind: 'pay', item: i })}><Wallet aria-hidden /> Record Payment</button>}
               {i.type !== 'unpaid' && canManage(staff) && <button type="button" className="text-btn" onClick={() => setPanel({ kind: 'clear', item: i })}>Clear</button>}
-              {i.type !== 'invoice' && <Link className="text-btn" to={`/appointments/${i.id}`}>Open Visit</Link>}
+              {i.type === 'ledger' && i.day && <Link className="text-btn" to={i.book === 'owner' && canManage(staff) ? `/finances/daily?day=${i.day}` : `/finances/receipts?day=${i.day}&r=${i.id}`}>Open Receipt</Link>}
+              {i.type !== 'invoice' && i.type !== 'ledger' && <Link className="text-btn" to={`/appointments/${i.id}`}>Open Visit</Link>}
             </span>
           </li>
         ))}
@@ -142,6 +143,10 @@ export function ClearBalancePanel({ item, onClose, onDone }) {
 // system's invoices open Finances ▸ Transactions, which only owners and admins can see.
 export function InvoiceLink({ item, onGo }) {
   const staff = useStaff()
+  if (item.type === 'ledger') {
+    const label = item.invoiceNo ? `Receipt ${item.invoiceNo}` : 'Receipt balance'
+    return item.day ? <Link to={item.book === 'owner' && canManage(staff) ? `/finances/daily?day=${item.day}` : `/finances/receipts?day=${item.day}&r=${item.id}`} onClick={onGo}>{label}</Link> : <span>{label}</span>
+  }
   if (!item.invoiceNo) return null
   if (item.type !== 'invoice') return <Link to={`/appointments/${item.id}`} onClick={onGo}>Invoice {item.invoiceNo}</Link>
   if (canManage(staff)) return <Link to={`/finances/transactions?q=${encodeURIComponent(item.invoiceNo.replace(/^#/, ''))}`} onClick={onGo}>Invoice {item.invoiceNo}</Link>

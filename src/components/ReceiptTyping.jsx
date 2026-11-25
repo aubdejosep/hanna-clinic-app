@@ -12,6 +12,7 @@ import { ChevronLeft, ChevronRight, Keyboard, Minimize2, Minus, MoveHorizontal, 
 import { ErrorNote, useToast } from './ui.jsx'
 import { api } from '../lib/api.js'
 import { useSuggest } from './ItemSuggest.jsx'
+import { mergePetName, useOwnerSuggest, usePetSuggest } from './ClientSuggest.jsx'
 
 const PAID = [['', '—'], ['cash', 'Cash'], ['gcash', 'GCash'], ['bank', 'Bank Transfer'], ['maribank', 'MariBank'], ['card', 'Card'], ['qrph', 'QRPH'], ['none', 'Not Counted']]
 const ONLINE = ['gcash', 'bank', 'maribank', 'card', 'qrph']
@@ -121,7 +122,8 @@ export async function saveRotation(line, rotate) {
 function formOf(l) {
   return {
     receiptNo: l.receiptNo || '', receiptQr: l.receiptQr || '', clientName: l.clientName || '', petNames: l.petNames || '',
-    amount: toPesos(l.amountCents), discount: toPesos(l.discountCents), paidWith: l.paidWith || '', note: l.note || '',
+    ownerId: l.ownerId || null,
+    amount: toPesos(l.amountCents), discount: toPesos(l.discountCents), balance: toPesos(l.balanceCents), paidWith: l.paidWith || '', note: l.note || '',
     online: l.onlineCents && l.amountCents && l.onlineCents < l.amountCents ? toPesos(l.onlineCents) : '',
     // Each item: quantity (1 unless given) and the price of one; its amount is quantity × price.
     items: (l.items || []).map((i) => ({ id: i.id, item: i.item || '', qty: i.qty != null ? String(i.qty) : '1', amount: toPesos(i.unitCents ?? i.amountCents) })),
@@ -192,19 +194,21 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimize
   const itemsSum = f.items.reduce((s, x) => s + lineOf(x), 0)
   const total = toCents(f.amount)
   const disc = toCents(f.discount) || 0
-  const sumOff = f.items.length > 0 && total != null && !Number.isNaN(total) && itemsSum - disc !== total
+  const bal = toCents(f.balance) || 0
+  const sumOff = f.items.length > 0 && total != null && !Number.isNaN(total) && itemsSum - disc - bal !== total
   const num = (f.receiptNo || f.receiptQr).trim()
   const dup = num && lines.some((l) => l.id !== line.id && (l.receiptNo === num || l.receiptQr === num))
   const left = lines.filter((l) => !isTyped(l)).length
 
   async function save() {
-    for (const [k, label] of [['amount', 'Total'], ['discount', 'Discounts']]) if (Number.isNaN(toCents(f[k]))) throw new Error(`Enter ${label} as a number, e.g. 1500.`)
+    for (const [k, label] of [['amount', 'Total'], ['discount', 'Discounts'], ['balance', 'Balance']]) if (Number.isNaN(toCents(f[k]))) throw new Error(`Enter ${label} as a number, e.g. 1500.`)
     const items = f.items.filter((x) => x.item.trim() || x.amount !== '')
     if (items.some((x) => Number.isNaN(toCents(x.amount)))) throw new Error('Enter each item’s price as a number, e.g. 300.')
     if (items.some((x) => x.qty !== '' && !(Number(x.qty) > 0))) throw new Error('Enter each quantity as a number, e.g. 3.')
     const { items: _i, photo: _p, photoV: _v, ...base } = line
     const row = withMoney({ ...base, receiptNo: f.receiptNo.trim(), receiptQr: f.receiptQr.trim(), clientName: f.clientName.trim(), petNames: f.petNames.trim(),
-      amountCents: total, discountCents: toCents(f.discount), paidWith: f.paidWith, note: f.note.trim(), onlineCents: ONLINE.includes(f.paidWith) && toCents(f.online) > 0 ? toCents(f.online) : null })
+      ownerId: f.ownerId || null,
+      amountCents: total, discountCents: toCents(f.discount), balanceCents: toCents(f.balance), paidWith: f.paidWith, note: f.note.trim(), onlineCents: ONLINE.includes(f.paidWith) && toCents(f.online) > 0 ? toCents(f.online) : null })
     await api(`finances/daily/lines/${line.id}`, { method: 'PATCH', body: row })
     // Items: change, add, and take out the ones removed.
     const kept = []
@@ -284,8 +288,10 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimize
           </div>
           {dup && <p className="tfp-warn">Receipt {num} is already used on another photo today.</p>}
           <div className="tfp-row">
-            {field('clientName', 'Owner’s Name')}
-            {field('petNames', 'Pet’s Name')}
+            <OwnerInput value={f.clientName} onChange={(v) => set({ clientName: v, ownerId: null })}
+              onPick={(o) => set({ clientName: o.name, ownerId: o.id, ...(!f.petNames && o.pets.length === 1 ? { petNames: o.pets[0].name } : {}) })} />
+            <PetInput value={f.petNames} ownerId={f.ownerId} onChange={(v) => set({ petNames: v })}
+              onPick={(p, next) => set({ petNames: next, ...(!f.clientName && p.ownerName ? { clientName: p.ownerName, ownerId: p.ownerId } : {}) })} />
           </div>
           <div className="tfp-items">
             <span className="tfp-label">Items <span className="cell-sub">(Item · Qty · Price of one. Enter in a price adds the next item)</span></span>
@@ -303,12 +309,16 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimize
           </div>
           <div className="tfp-row">
             <label className="tfp-field"><span>Total Per Receipt</span>
-              <input className="lg-num" inputMode="decimal" value={f.amount} onChange={(e) => set({ amount: e.target.value })} placeholder={f.items.length ? toPesos(itemsSum - disc) : '0'} />
-              {f.items.length > 0 && !f.amount && itemsSum > 0 && <button type="button" className="text-btn tfp-use" onClick={() => set({ amount: toPesos(itemsSum - disc) })}>Use {peso(itemsSum - disc)}</button>}
+              <input className="lg-num" inputMode="decimal" value={f.amount} onChange={(e) => set({ amount: e.target.value })} placeholder={f.items.length ? toPesos(itemsSum - disc - bal) : '0'} />
+              {f.items.length > 0 && !f.amount && itemsSum - disc - bal > 0 && <button type="button" className="text-btn tfp-use" onClick={() => set({ amount: toPesos(itemsSum - disc - bal) })}>Use {peso(itemsSum - disc - bal)}</button>}
             </label>
             {field('discount', 'Discounts', { className: 'lg-num', inputMode: 'decimal', placeholder: '0' })}
           </div>
-          {sumOff && <p className="tfp-warn">{disc ? `Items ${peso(itemsSum)} − discount ${peso(disc)} = ${peso(itemsSum - disc)}` : `The items add up to ${peso(itemsSum)}`}, but the total says {peso(total)}.</p>}
+          <div className="tfp-row">
+            {field('balance', 'Balance (unpaid)', { className: 'lg-num', inputMode: 'decimal', placeholder: '0' })}
+            <p className="field-hint tfp-split">{bal > 0 && !f.ownerId ? 'Pick the owner from the list above so this balance links to Finances ▸ Balances.' : 'Leave blank if paid in full.'}</p>
+          </div>
+          {sumOff && <p className="tfp-warn">{disc || bal ? `Items ${peso(itemsSum)}${disc ? ` − discount ${peso(disc)}` : ''}${bal ? ` − balance ${peso(bal)}` : ''} = ${peso(itemsSum - disc - bal)}` : `The items add up to ${peso(itemsSum)}`}, but the total says {peso(total)}.</p>}
           <div className="tfp-row">
             <label className="tfp-field"><span>Paid With</span>
               <select value={f.paidWith} onChange={(e) => set({ paidWith: e.target.value })}>{PAID.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
@@ -334,6 +344,32 @@ export function TypeFromPhotos({ day, lines: initial, startId, onClose, minimize
         </form>
       </div>
     </div>
+  )
+}
+
+function OwnerInput({ value, onChange, onPick }) {
+  const [focus, setFocus] = useState(false)
+  const sg = useOwnerSuggest({ text: value, active: focus, onPick })
+  return (
+    <label className="tfp-field">
+      <span>Owner’s Name</span>
+      <input ref={sg.anchor} autoComplete="off" value={value} onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocus(true)} onBlur={() => setFocus(false)} onKeyDown={(e) => { if (sg.keys(e)) e.stopPropagation() }} />
+      {sg.popup}
+    </label>
+  )
+}
+
+function PetInput({ value, ownerId, onChange, onPick }) {
+  const [focus, setFocus] = useState(false)
+  const sg = usePetSuggest({ text: value, active: focus, ownerId, onPick: (p) => onPick(p, mergePetName(value, p.name)) })
+  return (
+    <label className="tfp-field">
+      <span>Pet’s Name</span>
+      <input ref={sg.anchor} autoComplete="off" value={value} onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocus(true)} onBlur={() => setFocus(false)} onKeyDown={(e) => { if (sg.keys(e)) e.stopPropagation() }} />
+      {sg.popup}
+    </label>
   )
 }
 

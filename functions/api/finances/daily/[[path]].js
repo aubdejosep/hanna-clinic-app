@@ -29,7 +29,8 @@
 //   POST   /api/finances/daily/imports/:id/undo  -> Undo Import: soft-deletes the rows that import added (only those)
 // Rows can be saved half-filled (a spreadsheet is typed cell by cell); blanks count as 0.
 
-import { json, fail, readJson, clean, canManage, audit } from '../../../../lib/http.js'
+import { json, fail, readJson, clean, canManage, audit, likePattern, normalizeMobile } from '../../../../lib/http.js'
+import { localMobile } from '../../../../lib/clients.js'
 import { EXPENSE_TYPES } from '../../../../lib/daily-cash.js'
 import { ledgerOverview } from '../../../../lib/ledger-overview.js'
 
@@ -51,12 +52,15 @@ const TABLES = {
         if (Number.isNaN(v)) errors[k] = `Enter ${label} as a number, e.g. 1500.`
         m[col] = Number.isNaN(v) ? null : v
       }
+      const oid = b.ownerId != null && b.ownerId !== '' ? Number(b.ownerId) : null
       return { receipt_no: clean(b.receiptNo, 40) || null, receipt_qr: clean(b.receiptQr, 40) || null, client_name: clean(b.clientName, 120) || null,
-        pet_names: clean(b.petNames, 200) || null, note: clean(b.note, 300) || null, ...m, amount_cents: m.amount_cents ?? 0,
+        pet_names: clean(b.petNames, 200) || null, owner_id: Number.isInteger(oid) && oid > 0 ? oid : null,
+        note: clean(b.note, 300) || null, ...m, amount_cents: m.amount_cents ?? 0,
         paid_with: PAID_WITH.includes(b.paidWith) ? b.paidWith : null,
         ...(b.photoRotate !== undefined ? { photo_rotate: [90, 180, 270].includes(Number(b.photoRotate)) ? Number(b.photoRotate) : 0 } : {}) }
     },
     shape: (r) => ({ id: r.id, day: r.day, receiptNo: r.receipt_no || '', receiptQr: r.receipt_qr || '', clientName: r.client_name || '', petNames: r.pet_names || '',
+      ownerId: r.owner_id || null,
       note: r.note || '', amountCents: r.amount_cents || null, discountCents: r.discount_cents ?? null, onlineCents: r.online_cents, depositCents: r.deposit_cents, balanceCents: r.balance_cents,
       incomeCents: r.income_cents, commissionCents: r.commission_cents, paidWith: r.paid_with || '', photo: !!r.photo_key, photoRotate: r.photo_rotate || 0, items: r.items || [] }),
   },
@@ -131,6 +135,7 @@ export async function onRequest({ request, env, params, data }) {
   if (what === 'restore' && method === 'POST') return restoreDay(env, data.staff, (await readJson(request)) || {})
   if (what === 'copy' && method === 'POST') return copyStaffDay(env, data.staff, (await readJson(request)) || {})
   if (what === 'summary' && method === 'PUT') return saveSummary(env, data.staff, (await readJson(request)) || {})
+  if (what === 'clients' && method === 'GET') return clientSuggest(env, new URL(request.url).searchParams)
   // Items typed on receipts before that aren't on the Product List or Services, with their last price (suggested next time).
   if (what === 'typed-items' && method === 'GET') {
     const { results } = await env.DB.prepare(`SELECT i.item, COALESCE(i.unit_cents, CASE WHEN i.qty > 0 THEN CAST(i.amount_cents / i.qty AS INTEGER) ELSE i.amount_cents END) AS price, MAX(i.id) AS last
@@ -281,8 +286,8 @@ async function importRows(env, staff, b) {
         out.items = items.filter((x) => !Number.isNaN(x.amount) && (x.item || x.amount))
         out.row.items = out.items.map((x) => ({ item: x.item || '', amountCents: x.amount }))
         if (out.items.length && f.amount_cents) {
-          const sum = out.items.reduce((n, x) => n + (x.amount || 0), 0) - (f.discount_cents || 0)
-          if (sum !== f.amount_cents) warnings.push(`Items less discount come to ₱${(sum / 100).toLocaleString('en-PH')}, not the receipt total`)
+          const sum = out.items.reduce((n, x) => n + (x.amount || 0), 0) - (f.discount_cents || 0) - (f.balance_cents || 0)
+          if (sum !== f.amount_cents) warnings.push(`Items${f.discount_cents ? ' less discount' : ''}${f.balance_cents ? ' less balance' : ''} come to ₱${(sum / 100).toLocaleString('en-PH')}, not the receipt total`)
         }
       }
       if (kind === 'expenses') {
@@ -613,3 +618,42 @@ async function masterList(env, u, manager) {
     }),
   })
 }
+
+// GET /api/finances/daily/clients?q=&kind=owner|pet or ?ownerId= -> owner & pet autocomplete for Staff Receipts and Owner Ledger.
+async function clientSuggest(env, u) {
+  const ownerId = Number(u.get('ownerId')) || null
+  if (ownerId) {
+    const { results } = await env.DB.prepare(`SELECT p.id, p.name, p.species, p.deceased_on, o.id AS owner_id, o.full_name AS owner_name
+      FROM pets p JOIN owners o ON o.id = p.owner_id
+      WHERE p.owner_id = ? AND p.deleted_at IS NULL AND o.deleted_at IS NULL
+      ORDER BY p.deceased_on IS NOT NULL, p.name COLLATE NOCASE LIMIT 30`).bind(ownerId).all()
+    return json({ pets: results.map((p) => ({ id: p.id, name: p.name, species: p.species, ownerId: p.owner_id, ownerName: p.owner_name, deceased: !!p.deceased_on })) })
+  }
+  const q = clean(u.get('q'), 60)
+  if (q.length < 2) return json({ owners: [], pets: [] })
+  const like = likePattern(q)
+  const kind = u.get('kind') === 'pet' ? 'pet' : 'owner'
+  if (kind === 'pet') {
+    const { results } = await env.DB.prepare(`SELECT p.id, p.name, p.species, p.deceased_on, o.id AS owner_id, o.full_name AS owner_name, o.customer_no, o.mobile
+      FROM pets p JOIN owners o ON o.id = p.owner_id
+      WHERE p.deleted_at IS NULL AND o.deleted_at IS NULL AND p.name LIKE ?1
+      ORDER BY p.deceased_on IS NOT NULL, p.name LIKE ?2 DESC, p.name COLLATE NOCASE LIMIT 8`).bind(like, `${q}%`).all()
+    return json({ pets: results.map((p) => ({ id: p.id, name: p.name, species: p.species, ownerId: p.owner_id, ownerName: p.owner_name, customerNo: p.customer_no, mobile: localMobile(p.mobile), deceased: !!p.deceased_on })) })
+  }
+  const digits = q.replace(/\D/g, '')
+  const mobile = normalizeMobile(q)
+  const phone = digits.length >= 4 ? `%${digits.replace(/^0/, '')}%` : '-'
+  const { results: owners } = await env.DB.prepare(`SELECT o.id, o.full_name, o.customer_no, o.mobile
+    FROM owners o WHERE o.deleted_at IS NULL AND (o.full_name LIKE ?1 OR o.customer_no LIKE ?1 OR o.mobile = ?2 OR o.mobile LIKE ?3)
+    ORDER BY o.full_name LIKE ?4 DESC, o.full_name COLLATE NOCASE LIMIT 8`).bind(like, mobile || '-', phone, `${q}%`).all()
+  const ids = owners.map((o) => o.id)
+  const petsByOwner = {}
+  if (ids.length) {
+    const { results: pets } = await env.DB.prepare(`SELECT id, owner_id, name, species, deceased_on FROM pets
+      WHERE deleted_at IS NULL AND owner_id IN (${ids.map(() => '?').join(', ')})
+      ORDER BY deceased_on IS NOT NULL, name COLLATE NOCASE`).bind(...ids).all()
+    for (const p of pets) (petsByOwner[p.owner_id] ||= []).push({ id: p.id, name: p.name, species: p.species, deceased: !!p.deceased_on })
+  }
+  return json({ owners: owners.map((o) => ({ id: o.id, name: o.full_name, customerNo: o.customer_no, mobile: localMobile(o.mobile), pets: petsByOwner[o.id] || [] })) })
+}
+

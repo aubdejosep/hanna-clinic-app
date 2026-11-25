@@ -156,6 +156,7 @@ function Summary({ day, saved, live, onSaved }) {
       </div>
       {cashOnHand < 0 && <p className="lg-off" style={{ margin: 0 }}>Cash On Hand is below zero: check the expenses and the 1st Remit (online payments are already taken out).</p>}
       {r.discounts > 0 && <p className="field-hint" style={{ margin: 0 }}>Total Income is after {peso(r.discounts)} in discounts.</p>}
+      {r.balances > 0 && <p className="field-hint" style={{ margin: 0 }}>Balances recorded today: {peso(r.balances)} (not counted in today’s cash; receipts linked to an owner from the list appear under Finances ▸ Balances).</p>}
       <div className="rs-lists">
         <List title="Online" rows={onlineList} codes />
         <List title="Grooming" rows={groomingList} />
@@ -168,13 +169,14 @@ function Summary({ day, saved, live, onSaved }) {
 
 const STAFF_LINES = {
   ...GRIDS.lines,
-  minWidth: 1260,
+  minWidth: 1340,
   columns: [
-    { key: 'photo', label: 'Photo', type: 'custom', width: '9%' },
+    { key: 'photo', label: 'Photo', type: 'custom', width: '8.5%' },
     ...GRIDS.lines.columns.filter((c) => ['receiptNo', 'receiptQr', 'clientName', 'petNames', 'item', 'itemQty', 'itemAmount', 'amountCents', 'discountCents'].includes(c.key)),
-    { key: 'paidWith', label: 'Paid With', type: 'select', options: PAID, width: '9%' },
-    { key: 'onlineCents', label: 'Online', type: 'money', total: true, width: '7%' },
-    { ...GRIDS.lines.columns.find((c) => c.key === 'note'), width: '13%' },
+    { key: 'paidWith', label: 'Paid With', type: 'select', options: PAID, width: '8.5%' },
+    { key: 'onlineCents', label: 'Online', type: 'money', total: true, width: '6.5%' },
+    { key: 'balanceCents', label: 'Balance', type: 'money', total: true, width: '6%' },
+    { ...GRIDS.lines.columns.find((c) => c.key === 'note'), width: '11.5%' },
   ],
   blank: (day) => ({ ...GRIDS.lines.blank(day), paidWith: '', book: 'staff' }),
 }

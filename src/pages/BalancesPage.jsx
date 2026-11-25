@@ -18,7 +18,7 @@ function Open() {
   const list = useMemo(() => (data?.owners || []).filter((o) => !q.trim() || `${o.name} ${o.customerNo} ${o.mobile || ''}`.toLowerCase().includes(q.trim().toLowerCase())), [data, q])
   if (error) return <ErrorNote error={error} />
   if (!data) return <PawLoader label="Adding up balances…" />
-  if (!data.owners.length) return <Empty icon={Wallet} title="No open balances" text="When a visit is paid in part, checked out without a payment, or an old-system invoice is unpaid, the owner shows here." />
+  if (!data.owners.length) return <Empty icon={Wallet} title="No open balances" text="When a visit is paid in part, checked out without a payment, a receipt has a balance, or an old-system invoice is unpaid, the owner shows here." />
   return (
     <>
       <div className="toolbar">
@@ -60,7 +60,7 @@ function Cleared() {
           <tr key={c.id} className="no-hover">
             <td className="nowrap">{prettyDay(c.at.slice(0, 10))}</td>
             <td><Link className="row-link" to={`/clients/${c.owner.id}`}><strong>{c.owner.name}</strong></Link></td>
-            <td data-label="What">{c.kind === 'payment' ? `Paid by ${METHOD_LABEL[c.method] || c.method}` : `Cleared: ${c.reason}`}<span className="cell-sub">{c.invoiceNo ? `Old system invoice ${c.invoiceNo}` : c.appointmentId ? <Link to={`/appointments/${c.appointmentId}`}>Visit</Link> : ''}</span></td>
+            <td data-label="What">{c.kind === 'payment' ? `Paid by ${METHOD_LABEL[c.method] || c.method}` : `Cleared: ${c.reason}`}<span className="cell-sub">{c.invoiceNo ? `Old system invoice ${c.invoiceNo}` : c.appointmentId ? <Link to={`/appointments/${c.appointmentId}`}>Visit</Link> : c.cashLineId ? (c.ledgerDay ? <Link to={`/finances/receipts?day=${c.ledgerDay}&r=${c.cashLineId}`}>{c.receiptLabel ? `Receipt ${c.receiptLabel}` : 'Receipt balance'}</Link> : (c.receiptLabel ? `Receipt ${c.receiptLabel}` : 'Receipt balance')) : ''}</span></td>
             <td className="num" data-label="Amount">{peso(c.amount)}</td>
             <td className="hide-sm">{c.by}</td>
           </tr>

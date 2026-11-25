@@ -9,7 +9,7 @@ import { summarize } from '../../lib/daily-cash.js'
 const peso = (c) => (c == null ? '—' : `${c < 0 ? '−' : ''}₱${(Math.abs(c) / 100).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`)
 const PAID = { cash: 'Cash', gcash: 'GCash', bank: 'Bank', maribank: 'MariBank', card: 'Card', qrph: 'QRPH', none: 'Not counted' }
 const keyOf = (r) => (r.receiptNo ? `OR ${r.receiptNo}` : r.receiptQr ? `QR ${r.receiptQr}` : null)
-const FIELDS = [['amountCents', 'Total'], ['discountCents', 'Discounts'], ['onlineCents', 'Online'], ['incomeCents', 'Total Income']]
+const FIELDS = [['amountCents', 'Total'], ['discountCents', 'Discounts'], ['onlineCents', 'Online'], ['balanceCents', 'Balance'], ['incomeCents', 'Total Income']]
 const counted = (r) => r.incomeCents != null
 
 export function compareRows(staff, mine) {
@@ -76,7 +76,7 @@ export default function LedgerCompare({ day, mine }) {
                 <td className="nowrap"><strong>{r.label}</strong>{r.s?.photo && <a className="cmp-photo" href={`/api/finances/daily/photos/${r.s.id}`} target="_blank" rel="noreferrer" title="Open staff’s photo" aria-label="Open staff’s photo"><Camera aria-hidden /></a>}</td>
                 <td>{r.s ? r.s.clientName : '—'}</td>{cell(r, 's', 'amountCents')}{cell(r, 's', 'discountCents')}{cell(r, 's', 'paid')}{cell(r, 's', 'onlineCents')}
                 <td>{r.o ? r.o.clientName : '—'}</td>{cell(r, 'o', 'amountCents')}{cell(r, 'o', 'discountCents')}{cell(r, 'o', 'onlineCents')}
-                <td className="li-why"><span className={STATUS[r.status][1]}>{STATUS[r.status][0]}</span>{r.diff.includes('incomeCents') && <span className="li-warn">Total Income differs</span>}{r.diff.includes('counted') && <span className="li-warn">Counted in one, not the other</span>}</td>
+                <td className="li-why"><span className={STATUS[r.status][1]}>{STATUS[r.status][0]}</span>{r.diff.includes('balanceCents') && <span className="li-warn">Balance differs</span>}{r.diff.includes('incomeCents') && <span className="li-warn">Total Income differs</span>}{r.diff.includes('counted') && <span className="li-warn">Counted in one, not the other</span>}</td>
               </tr>
             ))}
             {!rows.length && <tr><td colSpan={11} className="muted">Neither has receipts for this day yet.</td></tr>}

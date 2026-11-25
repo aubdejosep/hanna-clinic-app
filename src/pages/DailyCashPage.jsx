@@ -16,6 +16,7 @@ import { prettyDay } from '../lib/format.js'
 import { EXPENSE_TYPES, summarize } from '../../lib/daily-cash.js'
 import LedgerImport from '../components/LedgerImport.jsx'
 import { useSuggest } from '../components/ItemSuggest.jsx'
+import { mergePetName, useOwnerSuggest, usePetSuggest } from '../components/ClientSuggest.jsx'
 import LedgerCompare from '../components/LedgerCompare.jsx'
 import { ClearDayButton, ClearedBanner } from '../components/ClearDay.jsx'
 
@@ -47,7 +48,7 @@ export const GRIDS = {
       { key: 'incomeCents', label: 'Total Income', type: 'money', total: true, width: '7%' },
       { key: 'commissionCents', label: 'Commissions', type: 'money', total: true, width: '7%' },
     ],
-    blank: (day) => ({ day, receiptNo: '', receiptQr: '', clientName: '', petNames: '', amountCents: null, discountCents: null, note: '', onlineCents: null, depositCents: null, balanceCents: null, incomeCents: null, commissionCents: null, items: [] }),
+    blank: (day) => ({ day, receiptNo: '', receiptQr: '', clientName: '', petNames: '', ownerId: null, amountCents: null, discountCents: null, note: '', onlineCents: null, depositCents: null, balanceCents: null, incomeCents: null, commissionCents: null, items: [] }),
   },
   expenses: {
     title: 'Expenses',
@@ -123,11 +124,14 @@ export function RangeCalendar({ from, to, onPick, book }) {
   )
 }
 
-function Cell({ col, value, onChange, onCommit, r, c, grid, tag, onPick }) {
+function Cell({ col, value, onChange, onCommit, r, c, grid, tag, onPick, onPickOwner, onPickPet, ownerId }) {
   const [text, setText] = useState(col.type === 'money' ? toPesos(value) : value ?? '')
   const [focus, setFocus] = useState(false)
-  // A receipt's Item: suggestions from Services and the Product List (onPick also fills an empty amount).
-  const sg = useSuggest({ text, active: !!onPick && focus, onPick: (e) => { setText(e.name); onPick(e); onChange(e.name); onCommit({ [col.key]: e.name }) } })
+  // Suggestions: items from Services/Products, owners and pets from Masterlist.
+  const itemSg = useSuggest({ text, active: !!onPick && focus, onPick: (e) => { setText(e.name); onPick(e); onChange(e.name); onCommit({ [col.key]: e.name }) } })
+  const ownerSg = useOwnerSuggest({ text, active: !!onPickOwner && focus, onPick: (o) => { setText(o.name); onPickOwner(o) } })
+  const petSg = usePetSuggest({ text, active: !!onPickPet && focus, ownerId, onPick: (p) => { const next = mergePetName(text, p.name); setText(next); onPickPet(p, next) } })
+  const sg = onPick ? itemSg : onPickOwner ? ownerSg : onPickPet ? petSg : null
   useEffect(() => { if (!focus) setText(col.type === 'money' ? toPesos(value) : value ?? '') }, [value, focus]) // eslint-disable-line react-hooks/exhaustive-deps
   const nav = (e) => {
     const move = e.key === 'Enter' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
@@ -142,7 +146,7 @@ function Cell({ col, value, onChange, onCommit, r, c, grid, tag, onPick }) {
       }
     })
   }
-  const common = { 'data-grid': grid, 'data-r': r, 'data-c': c, 'data-tag': tag, 'aria-label': col.label, onKeyDown: (e) => { if (!sg.keys(e)) nav(e) }, onFocus: () => setFocus(true) }
+  const common = { 'data-grid': grid, 'data-r': r, 'data-c': c, 'data-tag': tag, 'aria-label': col.label, onKeyDown: (e) => { if (!sg?.keys(e)) nav(e) }, onFocus: () => setFocus(true) }
   if (col.type === 'select') {
     return <select {...common} className="lg-cell" value={value} onChange={(e) => { onChange(e.target.value); onCommit({ [col.key]: e.target.value }) }} onBlur={() => setFocus(false)}>{col.options.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
   }
@@ -155,7 +159,7 @@ function Cell({ col, value, onChange, onCommit, r, c, grid, tag, onPick }) {
   }
   return (
     <>
-    <input {...common} ref={sg.anchor} autoComplete="off" className={`lg-cell ${col.type === 'money' ? 'lg-num' : ''}`} inputMode={col.type === 'money' ? 'decimal' : undefined} value={focus || col.type !== 'money' ? text : text === '' ? '' : (toCents(text) / 100).toLocaleString('en-PH', { maximumFractionDigits: 2 })}
+    <input {...common} ref={sg?.anchor} autoComplete="off" className={`lg-cell ${col.type === 'money' ? 'lg-num' : ''}`} inputMode={col.type === 'money' ? 'decimal' : undefined} value={focus || col.type !== 'money' ? text : text === '' ? '' : (toCents(text) / 100).toLocaleString('en-PH', { maximumFractionDigits: 2 })}
       onChange={(e) => setText(e.target.value)} maxLength={col.type === 'money' ? 14 : 300}
       onBlur={() => {
         setFocus(false)
@@ -163,7 +167,7 @@ function Cell({ col, value, onChange, onCommit, r, c, grid, tag, onPick }) {
         if (Number.isNaN(v)) { setText(toPesos(value)); return }
         if (v !== (value ?? (col.type === 'money' ? null : ''))) { onChange(v); onCommit({ [col.key]: v }) }
       }} />
-    {sg.popup}
+    {sg?.popup}
     </>
   )
 }
@@ -197,6 +201,7 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
   const find = (ck) => store.current.find((x) => x.ck === ck)
   const findItem = (row, ick) => row?.items?.find((x) => x.ck === ick)
   function set(ck, k, v) { const row = find(ck); if (row) { row[k] = v; rerender() } }
+  function patchRow(ck, patch) { const row = find(ck); if (row) { Object.assign(row, patch); rerender() } }
   function setItem(ck, ick, k, v) { const it = findItem(find(ck), ick); if (it) { it[k] = v; rerender() } }
   const queue = (job) => { saving.current = saving.current.then(job) }
   function save(ck) {
@@ -284,9 +289,9 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
     }
     if (!row.items?.length || col.key === 'itemQty') return null
     const sum = itemSum(row)
-    const due = sum - (row.discountCents || 0)
+    const due = sum - (row.discountCents || 0) - (row.balanceCents || 0)
     const ok = !row.amountCents || due === row.amountCents
-    return <span className={`lg-sum ${ok ? '' : 'is-off'}`} title={`Items ${peso(sum)}${row.discountCents ? ` − discount ${peso(row.discountCents)} = ${peso(due)}` : ''}${ok ? '' : `; Total Per Receipt is ${peso(row.amountCents)}`}`}>{ok ? '' : '≠ '}{peso(sum)}</span>
+    return <span className={`lg-sum ${ok ? '' : 'is-off'}`} title={`Items ${peso(sum)}${row.discountCents ? ` − discount ${peso(row.discountCents)}` : ''}${row.balanceCents ? ` − balance ${peso(row.balanceCents)}` : ''}${row.discountCents || row.balanceCents ? ` = ${peso(due)}` : ''}${ok ? '' : `; Total Per Receipt is ${peso(row.amountCents)}`}`}>{ok ? '' : '≠ '}{peso(sum)}</span>
   }
   return (
     <section className="card lg-card">
@@ -308,7 +313,18 @@ export function Grid({ kind, rows, day, single, onSaved, config, prepare, highli
                 <tr key={row.ck} id={row.id ? `receipt-${row.id}` : undefined} data-line={row.id || undefined} className={`${kind === 'lines' ? 'lg-receipt' : ''} ${isNew ? 'lg-new' : ''} ${row.items?.length ? 'lg-has-items' : ''} ${highlight && row.id === highlight ? 'lg-highlight' : ''}`}>
                   <td className="lg-rownum">{isNew ? '+' : n}</td>
                   {g.columns.map((col, c) => (
-                    <td key={col.key} className={col.item ? 'lg-itemcol' : col.type === 'custom' ? 'lg-customcol' : incomeOff(row, col) ? 'lg-flag' : ''} title={incomeOff(row, col) ? `Total Income goes before the discount: Total Per Receipt ${peso(row.amountCents)} + Discounts ${peso(row.discountCents || 0)} = ${peso(row.amountCents + (row.discountCents || 0))}` : undefined}>{col.item ? receiptCell(row, col) : col.type === 'custom' ? col.render(row, { rerender, saved: !!row.id }) : <Cell col={col} value={row[col.key]} grid={kind} r={r} c={c} onChange={(v) => set(row.ck, col.key, v)} onCommit={() => save(row.ck)} />}</td>
+                    <td key={col.key} className={col.item ? 'lg-itemcol' : col.type === 'custom' ? 'lg-customcol' : incomeOff(row, col) ? 'lg-flag' : ''} title={incomeOff(row, col) ? `Total Income goes before the discount: Total Per Receipt ${peso(row.amountCents)} + Discounts ${peso(row.discountCents || 0)} = ${peso(row.amountCents + (row.discountCents || 0))}` : undefined}>{col.item ? receiptCell(row, col) : col.type === 'custom' ? col.render(row, { rerender, saved: !!row.id }) : <Cell col={col} value={row[col.key]} grid={kind} r={r} c={c}
+                      ownerId={kind === 'lines' && col.key === 'petNames' ? row.ownerId : undefined}
+                      onPickOwner={kind === 'lines' && col.key === 'clientName' ? (o) => {
+                        patchRow(row.ck, { clientName: o.name, ownerId: o.id, ...(!row.petNames && o.pets.length === 1 ? { petNames: o.pets[0].name } : {}) })
+                        save(row.ck)
+                      } : undefined}
+                      onPickPet={kind === 'lines' && col.key === 'petNames' ? (p, next) => {
+                        patchRow(row.ck, { petNames: next, ...(!row.clientName && p.ownerName ? { clientName: p.ownerName, ownerId: p.ownerId } : {}) })
+                        save(row.ck)
+                      } : undefined}
+                      onChange={(v) => { if (kind === 'lines' && col.key === 'clientName') patchRow(row.ck, { clientName: v, ownerId: null }); else set(row.ck, col.key, v) }}
+                      onCommit={() => save(row.ck)} />}</td>
                   ))}
                   <td>{!isNew && delBtn(row.ck, 'row', () => remove(row))}</td>
                 </tr>,
