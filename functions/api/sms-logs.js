@@ -8,40 +8,89 @@ import { apptNo } from '../../lib/appointments.js'
 
 const API = 'https://api.semaphore.co/api/v4'
 const PAGE = 100
+const MAX_PAGES = 50
 const isDay = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d || '')
 const last10 = (m) => String(m || '').replace(/\D/g, '').slice(-10)
+const dayOf = (x) => String(x.created_at || '').slice(0, 10)
+const manilaMs = (s) => { const d = new Date(String(s || '').includes('T') ? s : `${String(s).replace(' ', 'T')}+08:00`); return d.getTime() }
+const timeOf = (x) => { const t = manilaMs(x.created_at); return Number.isFinite(t) ? t : 0 }
+// Semaphore's GET /messages returns oldest first with no sort parameter, so we fetch the range (1,000 a page) and sort newest first.
+const sortNewest = (a, b) => (timeOf(b) - timeOf(a)) || (Number(b.message_id || 0) - Number(a.message_id || 0))
+
+async function fetchAllMessages(base, apikey, from, to) {
+  const q = new URLSearchParams({ apikey, limit: '1000' })
+  // Semaphore wants the end date after the start (a single day is refused), so ask up to the next day and keep
+  // only the texts sent on the dates picked (its times are Manila time, "2026-11-23 09:00:12").
+  if (from) q.set('startDate', from)
+  if (to) { const d = new Date(`${to}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); q.set('endDate', d.toISOString().slice(0, 10)) }
+  const all = []
+  let capped = false
+  for (let p = 1; ; p++) {
+    if (p > MAX_PAGES) { capped = true; break }
+    q.set('page', String(p))
+    const r = await fetch(`${base}/messages?${q}`)
+    const text = await r.text()
+    if (!r.ok) throw new Error(`messages ${r.status}: ${text.slice(0, 200)}`)
+    const chunk = JSON.parse(text)
+    if (!Array.isArray(chunk)) throw new Error(`not a list: ${text.slice(0, 200)}`)
+    for (const x of chunk) {
+      const d = dayOf(x)
+      if ((from || to) && isDay(d) && ((from && d < from) || (to && d > to))) continue
+      all.push(x)
+    }
+    if (chunk.length < 1000) break
+  }
+  return { all, capped }
+}
+
+function summarize(all, capped) {
+  const out = { total: 0, sent: 0, pending: 0, failed: 0, capped }
+  for (const x of all) {
+    out.total++
+    const st = String(x.status || '').toLowerCase()
+    if (/fail|refund|reject/.test(st)) out.failed++
+    else if (/pend|queue/.test(st)) out.pending++
+    else out.sent++
+  }
+  return out
+}
 
 export async function onRequestGet({ env, request, data }) {
   if (!canManage(data.staff)) return fail(403, 'Only an owner or admin can open the SMS logs.')
   if (!env.SEMAPHORE_API_KEY) return json({ ready: false, messages: [] })
   const u = new URL(request.url).searchParams
   const page = Math.max(1, Number(u.get('page')) || 1)
-  const q = new URLSearchParams({ apikey: env.SEMAPHORE_API_KEY, limit: String(PAGE), page: String(page) })
-  // Semaphore wants the end date after the start (a single day is refused), so ask up to the next day and keep
-  // only the texts sent on the dates picked (its times are Manila time, "2026-11-23 09:00:12").
   const from = isDay(u.get('from')) ? u.get('from') : null
   const to = isDay(u.get('to')) ? u.get('to') : null
-  if (from) q.set('startDate', from)
-  if (to) { const d = new Date(`${to}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); q.set('endDate', d.toISOString().slice(0, 10)) }
   const base = env.SEMAPHORE_API_URL ? env.SEMAPHORE_API_URL.replace(/\/messages$/, '') : API
-  if (u.get('counts')) return counts(base, q, from, to)
-  let list
+  if (u.get('counts')) {
+    try {
+      const { all, capped } = await fetchAllMessages(base, env.SEMAPHORE_API_KEY, from, to)
+      return json(summarize(all, capped))
+    } catch (err) {
+      console.log('sms counts', String(err).slice(0, 400))
+      return fail(503, 'Semaphore didn’t send the totals just now. Try again in a minute.')
+    }
+  }
+  let all
+  let capped = false
   let account = null
-  let raw = 0
   try {
-    const [m, a] = await Promise.all([fetch(`${base}/messages?${q}`), page === 1 ? fetch(`${base}/account?apikey=${encodeURIComponent(env.SEMAPHORE_API_KEY)}`) : null])
-    const text = await m.text()
-    if (!m.ok) throw new Error(`messages ${m.status}: ${text.slice(0, 200)}`)
-    list = JSON.parse(text)
-    if (!Array.isArray(list)) throw new Error(`not a list: ${text.slice(0, 200)}`)
-    raw = list.length
-    const dayOf = (x) => String(x.created_at || '').slice(0, 10)
-    if (from || to) list = list.filter((x) => !isDay(dayOf(x)) || ((!from || dayOf(x) >= from) && (!to || dayOf(x) <= to)))
+    const [fetched, a] = await Promise.all([
+      fetchAllMessages(base, env.SEMAPHORE_API_KEY, from, to),
+      page === 1 ? fetch(`${base}/account?apikey=${encodeURIComponent(env.SEMAPHORE_API_KEY)}`) : null,
+    ])
+    all = fetched.all
+    capped = fetched.capped
+    all.sort(sortNewest)
     if (a?.ok) account = await a.json().catch(() => null)
   } catch (err) {
     console.log('sms logs', String(err).slice(0, 400))
     return fail(503, 'Semaphore didn’t send the list just now. Try again in a minute, or pick another date range.')
   }
+  const totals = summarize(all, capped)
+  const start = (page - 1) * PAGE
+  const list = all.slice(start, start + PAGE)
   // Which owner each text went to.
   const nums = [...new Set(list.map((x) => last10(x.recipient)).filter((n) => n.length === 10))]
   const owners = {}
@@ -53,7 +102,7 @@ export async function onRequestGet({ env, request, data }) {
   const appts = await appointmentsFor(env, list, owners).catch((err) => { console.log('sms appts', String(err).slice(0, 300)); return {} })
   if (page === 1) await audit(env, data.staff.email, 'view', 'sms_logs', null)
   return json({
-    ready: true, page, pageSize: PAGE, more: raw === PAGE,
+    ready: true, page, pageSize: PAGE, more: start + PAGE < all.length, totals,
     balance: account && account.credit_balance != null ? Number(account.credit_balance) : null,
     messages: list.map((x) => ({ id: String(x.message_id ?? ''), at: x.created_at || null, to: x.recipient || '', owner: owners[last10(x.recipient)] || null,
       appointments: appts[String(x.message_id ?? '')] || [],
@@ -67,7 +116,6 @@ export async function onRequestGet({ env, request, data }) {
 //      10 minutes of the text, and the appointments copied from it (external_ref "BK-XXXXXX#0").
 //   3. Otherwise, for an owner's text the app didn't log (tests are logged, so they get none): that owner's
 //      appointments on the next day, else on the day it was sent.
-const manilaMs = (s) => { const d = new Date(String(s || '').includes('T') ? s : `${String(s).replace(' ', 'T')}+08:00`); return d.getTime() }
 const nextDay = (d) => { const x = new Date(`${d}T12:00:00Z`); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10) }
 async function appointmentsFor(env, list, owners) {
   const out = {}
@@ -131,37 +179,4 @@ async function appointmentsFor(env, list, owners) {
     if (found.length) out[id] = found.map(show)
   }
   return out
-}
-
-// GET ?counts=1 (same dates) -> the cards on top: how many texts were Sent, Pending (or queued) and Failed (or
-// refunded), counted from every text in the range (1,000 a page from Semaphore, up to 50,000).
-const dayOf = (x) => String(x.created_at || '').slice(0, 10)
-async function counts(base, q, from, to) {
-  const out = { total: 0, sent: 0, pending: 0, failed: 0, capped: false }
-  q.set('limit', '1000')
-  try {
-    for (let page = 1; ; page++) {
-      if (page > 50) { out.capped = true; break }
-      q.set('page', String(page))
-      const r = await fetch(`${base}/messages?${q}`)
-      const text = await r.text()
-      if (!r.ok) throw new Error(`messages ${r.status}: ${text.slice(0, 200)}`)
-      const list = JSON.parse(text)
-      if (!Array.isArray(list)) throw new Error(`not a list: ${text.slice(0, 200)}`)
-      for (const x of list) {
-        const d = dayOf(x)
-        if ((from || to) && /^\d{4}-\d{2}-\d{2}$/.test(d) && ((from && d < from) || (to && d > to))) continue
-        out.total++
-        const st = String(x.status || '').toLowerCase()
-        if (/fail|refund|reject/.test(st)) out.failed++
-        else if (/pend|queue/.test(st)) out.pending++
-        else out.sent++
-      }
-      if (list.length < 1000) break
-    }
-  } catch (err) {
-    console.log('sms counts', String(err).slice(0, 400))
-    return fail(503, 'Semaphore didn’t send the totals just now. Try again in a minute.')
-  }
-  return json(out)
 }

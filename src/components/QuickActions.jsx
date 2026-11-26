@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, BedDouble, CalendarDays, CalendarPlus, ShoppingBag, UserCheck, UserPlus, X } from 'lucide-react'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { ArrowLeft, BedDouble, CalendarDays, CalendarPlus, Inbox, ShoppingBag, UserCheck, UserPlus, X } from 'lucide-react'
+import { useApi } from '../lib/useApi.js'
 import { useToast } from './ui.jsx'
 import { BookPanel, WalkInPanel } from './AppointmentPanels.jsx'
 import { appointmentsChanged } from './TagCheckIn.jsx'
@@ -8,8 +9,20 @@ import { SellPanel } from './SellPanel.jsx'
 import { prettyDay } from '../lib/format.js'
 import { prettyTime } from '../lib/appointments.js'
 
+// Unread conversations in the Inbox, shown on the floating Inbox button (one small read every 2 minutes while visible).
+function InboxBadge() {
+  const { data, reload } = useApi('inbox/count')
+  useEffect(() => {
+    const t = setInterval(() => { if (!document.hidden) reload() }, 2 * 60000)
+    window.addEventListener('clinic:inbox-changed', reload)
+    return () => { clearInterval(t); window.removeEventListener('clinic:inbox-changed', reload) }
+  }, [reload])
+  return data?.unread ? <span className="fab-badge" aria-label={`${data.unread} unread`}>{data.unread > 99 ? '99+' : data.unread}</span> : null
+}
+
 // The old system's floating button, bottom right on every page: Appointment (Book Appointment,
-// Walk In, Admit Inpatient), Register Pet Owner/Pets, and Sell Items (over the counter).
+// Walk In, Admit Inpatient), Register Pet Owner/Pets, and Sell Items (over the counter),
+// with the Inbox button stacked right above it (and above the menu when open).
 export default function QuickActions() {
   const [menu, setMenu] = useState(null) // null | 'main' | 'appointment'
   const [panel, setPanel] = useState(null) // 'book' | 'walkin' | 'admit'
@@ -34,6 +47,10 @@ export default function QuickActions() {
   return (
     <>
       <div className="fab-wrap" ref={box}>
+        <NavLink to="/inbox" className="fab fab-inbox" onClick={() => setMenu(null)} aria-label="Inbox" title="Inbox">
+          <Inbox aria-hidden />
+          <InboxBadge />
+        </NavLink>
         {menu && (
           <ul className="fab-menu" role="menu">
             {items.map(([label, Icon, run]) => (

@@ -675,7 +675,7 @@ export default function ContentPage() {
   const monthData = useMemo(() => data && { ...data, posts: data.posts.filter((p) => p.day.slice(0, 7) === month) }, [data, month])
   return (
     <>
-      <PageHead crumbs={[{ label: 'Content' }, { label: 'Calendar' }]} title="Content" intro="The clinic’s social media posts by day, with promos and closed dates. Everyone can open a post and comment.">
+      <PageHead crumbs={[{ label: 'Clinic Operations' }, { label: 'Content' }]} title="Content" intro="The clinic’s social media posts by day, with promos and closed dates. Everyone can open a post and comment.">
         {owner && (
           <div className="head-actions">
             <button type="button" className="btn btn-quiet" onClick={() => setPanel('event')}><Megaphone aria-hidden /> Add Promo</button>

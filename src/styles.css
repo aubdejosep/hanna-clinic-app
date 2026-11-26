@@ -170,9 +170,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* ---------- Shell ---------- */
 .shell { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); min-height: 100vh; }
 .sidebar {
-  position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 2px;
+  position: sticky; top: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; gap: 2px;
   padding: 20px 14px; background: var(--surface); border-right: 1px solid var(--border);
 }
+.sidebar-nav {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 2px; scrollbar-width: thin;
+}
+:root[data-theme="classic"] .sidebar-nav { scrollbar-color: rgba(255, 255, 255, .3) transparent; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; text-decoration: none; color: var(--heading); }
 .brand img { width: 96px; height: 96px; }
 .topbar .brand { padding: 0; }
@@ -195,7 +200,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .nav-children { display: grid; gap: 2px; margin: 2px 0 6px 21px; padding-left: 12px; border-left: 1px solid var(--border-strong); }
 .nav-child { min-height: 36px; font-weight: 400; }
 .nav-child.active { font-weight: 700; }
-.sidebar-foot { margin-top: auto; padding: 14px 8px 0; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.sidebar-foot { flex: none; margin-top: 6px; padding: 14px 8px 0; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
 .account-btn { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; padding: 6px; margin: -6px; border: 0; border-radius: var(--radius-sm); background: transparent; text-align: left; cursor: pointer; transition: background-color var(--ease); }
 .account-btn:hover { background: var(--surface-alt); }
 .sidebar-foot .who { min-width: 0; }
@@ -914,6 +919,10 @@ a.banner:hover { box-shadow: inset 0 0 0 1px var(--apricot); }
 .fab { display: grid; place-items: center; width: 56px; height: 56px; border: 0; border-radius: 999px; background: var(--navy); color: #fff; box-shadow: var(--shadow-lg); cursor: pointer; transition: background-color var(--ease); }
 .fab:hover { background: #0d1f55; }
 .fab svg { width: 24px; height: 24px; }
+.fab-inbox { position: relative; background: var(--teal-deep); color: #fff; text-decoration: none; }
+.fab-inbox:hover { background: var(--teal-deeper); }
+.fab-inbox.active { background: var(--teal-deeper); box-shadow: var(--shadow-lg), 0 0 0 3px var(--teal-tint); }
+.fab-badge { position: absolute; top: -4px; right: -4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--red); color: #fff; font: 700 var(--fs-label)/22px var(--font-body); text-align: center; box-shadow: var(--shadow-sm); }
 .fab-menu { list-style: none; margin: 0; padding: 0; display: grid; justify-items: end; gap: 10px; }
 .fab-item { display: flex; align-items: center; gap: 10px; padding: 0; border: 0; background: none; cursor: pointer; }
 .fab-label { padding: 7px 14px; border-radius: 999px; background: var(--navy); color: #fff; font: 700 var(--fs-small)/1.2 var(--font-body); box-shadow: var(--shadow); }
@@ -922,7 +931,7 @@ a.banner:hover { box-shadow: inset 0 0 0 1px var(--apricot); }
 .fab-item:hover .fab-label { background: #0d1f55; }
 .fab-back { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); box-shadow: var(--shadow); font: 700 var(--fs-small)/1.2 var(--font-body); color: var(--heading); cursor: pointer; }
 .fab-back svg { width: 16px; height: 16px; }
-.main { padding-bottom: 104px; }
+.main { padding-bottom: 156px; }
 @media (max-width: 860px) { .fab-wrap { right: 16px; bottom: 16px; } }
 @media print { .fab-wrap { display: none; } }
 
@@ -2038,12 +2047,13 @@ select.lg-cell { padding-right: 4px; cursor: pointer; }
 .restore-list .li-warn { margin-left: 6px; }
 
 /* Collapse Menu (computers): the sidebar shows icons only */
-.nav-collapse { margin-top: auto; width: 100%; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.nav-collapse { flex: none; margin-top: 6px; width: 100%; border: 0; background: transparent; cursor: pointer; text-align: left; }
 .nav-collapse + .sidebar-foot { margin-top: 6px; }
 .nav-flyout-title { display: none; }
 @media (min-width: 861px) {
   .shell[data-mini="1"] { --sidebar-w: 76px; }
   .shell[data-mini="1"] .sidebar { padding: 16px 10px; overflow: visible; }
+  .shell[data-mini="1"] .sidebar-nav { overflow: visible; }
   .shell[data-mini="1"] .brand { padding: 2px 0 14px; justify-content: center; }
   .shell[data-mini="1"] .brand img { width: 48px; height: 48px; }
   .shell[data-mini="1"] .nav-link { justify-content: center; padding: 0; gap: 0; }

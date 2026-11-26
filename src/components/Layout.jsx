@@ -2,9 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { BalanceCheckInAlert } from './Balances.jsx'
 import { TypingHost } from './ReceiptTyping.jsx'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { BookOpen, BookOpenText, ReceiptText, PanelLeftClose, PanelLeftOpen, Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, Inbox, LayoutDashboard, LogOut, Megaphone, Menu, MonitorSmartphone, Pill, Settings, UserRound, Wallet, X } from 'lucide-react'
+import { BookOpen, BookOpenText, ReceiptText, PanelLeftClose, PanelLeftOpen, Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, LayoutDashboard, LogOut, Menu, MonitorSmartphone, Pill, Settings, UserRound, Wallet, X } from 'lucide-react'
 import { api } from '../lib/api.js'
-import { useApi } from '../lib/useApi.js'
 import { useLogo } from '../lib/logo.js'
 import { initials } from '../lib/format.js'
 import { canManage, ROLE_LABEL } from '../lib/staff.js'
@@ -26,6 +25,7 @@ const NAV = [
     { to: '/clinic/vetassist', label: 'Import from VetAssist', owners: true },
     { to: '/clinic/sms-logs', label: 'SMS Logs', owners: true },
     { to: '/clinic/backups', label: 'Backups', owners: true },
+    { to: '/content', label: 'Content' },
   ] },
   { to: '/appointments', label: 'Appointments', icon: CalendarDays },
   { label: 'Client Portal', icon: UserRound, children: [
@@ -53,8 +53,6 @@ const NAV = [
     { to: '/finances/transactions', label: 'Transactions', owners: true },
     { to: '/finances/balances', label: 'Balances' },
   ] },
-  { to: '/content', label: 'Content', icon: Megaphone },
-  { to: '/inbox', label: 'Inbox', icon: Inbox, badge: 'inbox' },
   { to: '/guide', label: 'User Guide', icon: BookOpen },
 ]
 
@@ -149,17 +147,6 @@ function AccountMenu({ staff }) {
   )
 }
 
-// Unread conversations in the Inbox, beside the menu item (one small read every 2 minutes while visible).
-function InboxBadge() {
-  const { data, reload } = useApi('inbox/count')
-  useEffect(() => {
-    const t = setInterval(() => { if (!document.hidden) reload() }, 2 * 60000)
-    window.addEventListener('clinic:inbox-changed', reload)
-    return () => { clearInterval(t); window.removeEventListener('clinic:inbox-changed', reload) }
-  }, [reload])
-  return data?.unread ? <span className="menu-count nav-count" aria-label={`${data.unread} unread`}>{data.unread > 99 ? '99+' : data.unread}</span> : null
-}
-
 async function logOut() {
   try {
     await api('auth/logout', { method: 'POST' })
@@ -225,16 +212,17 @@ export default function Layout({ staff }) {
             </button>
           )}
         </div>
-        {NAV.map((item) => item.children ? (
-          <NavGroup key={item.label} group={item} pathname={pathname} staff={staff} open={openGroup === item.label} mini={collapsed}
-            onToggle={() => setOpenGroup((g) => (g === item.label ? null : item.label))} />
-        ) : (
-          <NavLink key={item.to} to={item.to} end={item.end} className="nav-link" title={collapsed ? item.label : undefined}>
-            <item.icon aria-hidden /> <span className="nav-label">{item.label}</span>
-            {item.soon && <span className="badge badge-soft soon">Soon</span>}
-            {item.badge === 'inbox' && <InboxBadge />}
-          </NavLink>
-        ))}
+        <div className="sidebar-nav">
+          {NAV.map((item) => item.children ? (
+            <NavGroup key={item.label} group={item} pathname={pathname} staff={staff} open={openGroup === item.label} mini={collapsed}
+              onToggle={() => setOpenGroup((g) => (g === item.label ? null : item.label))} />
+          ) : (
+            <NavLink key={item.to} to={item.to} end={item.end} className="nav-link" title={collapsed ? item.label : undefined}>
+              <item.icon aria-hidden /> <span className="nav-label">{item.label}</span>
+              {item.soon && <span className="badge badge-soft soon">Soon</span>}
+            </NavLink>
+          ))}
+        </div>
         {!mobile && (
           <button type="button" className="nav-link nav-collapse" onClick={toggleMini} aria-label={collapsed ? 'Expand Menu' : 'Collapse Menu'} title={collapsed ? 'Expand Menu' : 'Collapse Menu'}>
             {collapsed ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />} <span className="nav-label">Collapse Menu</span>

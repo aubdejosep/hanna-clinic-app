@@ -30,21 +30,19 @@ export default function SmsLogsPage() {
     const [from, to] = rangeOf(range)
     setBusy(true); setError(null)
     api(`sms-logs?page=${page}${from ? `&from=${from}&to=${to}` : ''}`)
-      .then((d) => { if (live) setData((old) => (page > 1 && old ? { ...d, balance: old.balance, messages: [...old.messages, ...d.messages] } : d)) })
+      .then((d) => {
+        if (!live) return
+        setData((old) => {
+          if (page <= 1 || !old) return d
+          const seen = new Set(old.messages.map((m) => m.id).filter(Boolean))
+          return { ...d, balance: old.balance, totals: d.totals || old.totals, messages: [...old.messages, ...d.messages.filter((m) => !m.id || !seen.has(m.id))] }
+        })
+      })
       .catch((e) => live && setError(e)).finally(() => live && setBusy(false))
     return () => { live = false }
   }, [range, page]) // eslint-disable-line react-hooks/exhaustive-deps
-  // The cards on top: totals for the dates picked (counted on the server from every text, so loaded separately).
-  const [totals, setTotals] = useState(null)
-  useEffect(() => {
-    if (!canManage(staff)) return undefined
-    let live = true
-    const [from, to] = rangeOf(range)
-    setTotals(null)
-    api(`sms-logs?counts=1${from ? `&from=${from}&to=${to}` : ''}`).then((d) => live && setTotals(d)).catch(() => live && setTotals({ error: true }))
-    return () => { live = false }
-  }, [range]) // eslint-disable-line react-hooks/exhaustive-deps
-  const n = (k) => (!totals ? '…' : totals.error ? '—' : `${totals[k].toLocaleString('en-PH')}${totals.capped && k === 'total' ? '+' : ''}`)
+  const totals = data?.totals
+  const n = (k) => (!totals ? '—' : `${totals[k].toLocaleString('en-PH')}${totals.capped && k === 'total' ? '+' : ''}`)
   const head = <PageHead crumbs={[{ label: 'Clinic Operations' }, { label: 'SMS Logs' }]} title="SMS Logs" intro="Every text sent to clients from HANNAPETVET: booking and cancellation texts from the website, day-before reminders and tests. The wording is in Account ▸ Settings ▸ Messages." />
   if (!canManage(staff)) return <>{head}<ErrorNote error={new Error('Only an owner or admin can open the SMS logs.')} /></>
   return (
