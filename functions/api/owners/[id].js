@@ -26,7 +26,16 @@ export async function onRequestPatch({ request, env, params, data }) {
   if (Object.keys(errors).length) return fail(400, 'Some details need fixing.', { errors })
   if (!Object.keys(values).length) return fail(400, 'Nothing to change.')
 
-  const { sql, binds } = setClause({ ...values, updated_at: new Date().toISOString() })
+  const now = new Date().toISOString()
+  if ('social_feature' in values) {
+    const existing = await env.DB.prepare('SELECT social_feature FROM owners WHERE id = ? AND deleted_at IS NULL').bind(id).first()
+    if (!existing) return fail(404, 'This owner was not found. They may have been removed.')
+    if ((existing.social_feature || null) !== values.social_feature) {
+      values.social_feature_at = values.social_feature ? now : null
+    }
+  }
+
+  const { sql, binds } = setClause({ ...values, updated_at: now })
   const res = await env.DB.prepare(`UPDATE owners SET ${sql} WHERE id = ? AND deleted_at IS NULL`).bind(...binds, id).run()
   if (!res.meta.changes) return fail(404, 'This owner was not found. They may have been removed.')
   await audit(env, data.staff.email, 'update', 'owner', id, { fields: Object.keys(values) })

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { Plus, Trash2, TriangleAlert } from 'lucide-react'
 import { api, ApiError } from '../lib/api.js'
 import { BREED_NAMES } from '../lib/breeds.js'
+import { SOCIAL_FEATURE_OPTIONS } from '../lib/labels.js'
 import { ErrorNote, Field, Panel } from './ui.jsx'
 
 const blankPet = () => ({ name: '', species: 'dog', sex: 'unknown', breed: '', birthdate: '', weightKg: '' })
@@ -46,6 +47,16 @@ function OwnerFields({ value, set, errors }) {
       <Field label="Address" optional>
         {(a) => <textarea {...a} value={value.address} onChange={(e) => set({ address: e.target.value })} rows={2} maxLength={300} />}
       </Field>
+      <div className="field">
+        <span>Facebook Feature</span>
+        <Seg
+          name="socialFeature"
+          value={value.socialFeature || ''}
+          onChange={(socialFeature) => set({ socialFeature: socialFeature || null })}
+          options={SOCIAL_FEATURE_OPTIONS}
+        />
+        {errors.socialFeature && <span className="field-error">{errors.socialFeature}</span>}
+      </div>
       <label className="check">
         <input type="checkbox" checked={value.remindersOptIn} onChange={(e) => set({ remindersOptIn: e.target.checked })} />
         <span>Send appointment reminders to this owner</span>
@@ -124,7 +135,7 @@ function fieldErrors(err, prefix = '') {
 
 // --- Register a new owner, with one or more pets ---
 export function RegisterPanel({ onClose, onDone }) {
-  const [owner, setOwner] = useState({ name: '', mobile: '', email: '', additionalOwner: '', messenger: '', address: '', remindersOptIn: true })
+  const [owner, setOwner] = useState({ name: '', mobile: '', email: '', additionalOwner: '', messenger: '', address: '', socialFeature: null, remindersOptIn: true })
   const [pets, setPets] = useState([blankPet()])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -205,6 +216,7 @@ export function EditOwnerPanel({ owner, onClose, onDone }) {
   const [value, setValue] = useState({
     name: owner.name || '', mobile: owner.mobileLocal || owner.mobileRaw || '', email: owner.email || '',
     additionalOwner: owner.additionalOwner || '', messenger: owner.messenger || '', address: owner.address || '',
+    socialFeature: owner.socialFeature || null,
     remindersOptIn: owner.remindersOptIn,
   })
   const [busy, setBusy] = useState(false)

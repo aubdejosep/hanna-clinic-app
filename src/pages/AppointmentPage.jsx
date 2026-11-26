@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { announceCheckIn } from '../lib/checkin-alert.js'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Ban, CalendarClock, ChevronDown, Wallet, CalendarDays, CircleX, Clock, History, MessageSquare, Nfc, Plus, Siren, Stethoscope, Trash2, TriangleAlert, Undo2, User, UserRound } from 'lucide-react'
-import { ErrorNote, Field, PageHead, Panel, PetAvatar, useToast, PawLoader } from '../components/ui.jsx'
+import { ErrorNote, Field, PageHead, Panel, PetAvatar, SocialFeatureBadge, useToast, PawLoader } from '../components/ui.jsx'
 import { BookPanel, CancelPanel, ReschedulePanel, ServicePicker, StatusBadge } from '../components/AppointmentPanels.jsx'
 import { METHOD_LABEL, PaymentPanel, peso, toSend } from '../components/QuickAdd.jsx'
 import { appointmentsChanged, useAppointmentsChanged } from '../components/TagCheckIn.jsx'
@@ -271,6 +271,7 @@ function VisitBar({ a, onChange }) {
           <span className="vb-chips">
             {p.allergies && <span className="badge badge-warn" title={p.allergies}><TriangleAlert aria-hidden /> Allergies: {p.allergies}</span>}
             {p.tag ? <span className="badge badge-soft"><Nfc aria-hidden /> {p.tag}</span> : <Link className="cell-sub" to={`/pets/${p.id}`}>No NFC tag</Link>}
+            <SocialFeatureBadge value={a.owner.socialFeature} updatedAt={a.owner.socialFeatureAt} />
           </span>
           {p.notes && <span className="cell-sub vb-notes" title={p.notes}>Pet notes: {p.notes}</span>}
         </div>

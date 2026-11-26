@@ -8,3 +8,16 @@ export const REVIEW_LABELS = {
   kiosk: 'Signed up at the kiosk: check their details',
   website: 'Booked online: check their details',
 }
+
+export const SOCIAL_FEATURE_LABELS = {
+  yes: 'Yes',
+  ask: 'Ask first',
+  no: 'Keep private',
+}
+
+export const SOCIAL_FEATURE_OPTIONS = [
+  ['', 'Not asked'],
+  ['yes', 'Yes'],
+  ['ask', 'Ask first'],
+  ['no', 'Keep private'],
+]

@@ -7,7 +7,7 @@ import { DeleteOwnerPanel, RemoveOwnerPanel } from '../components/RemovePanels.j
 import { canManage, useStaff } from '../lib/staff.js'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
-import { REVIEW_LABELS } from '../lib/labels.js'
+import { REVIEW_LABELS, SOCIAL_FEATURE_LABELS } from '../lib/labels.js'
 import { age, initials, prettyDay, SPECIES_LABEL } from '../lib/format.js'
 import { StatusBadge } from '../components/AppointmentPanels.jsx'
 import { BalanceCallout } from '../components/Balances.jsx'
@@ -149,6 +149,13 @@ export default function OwnerPage() {
             <div className="fact"><span className="label">Messenger</span><span className="fact-value">{o.messenger || '—'}</span></div>
             <div className="fact"><span className="label">Address</span><span className="fact-value">{o.address || '—'}</span></div>
             <div className="fact"><span className="label">Reminders</span><span className="fact-value">{o.remindersOptIn ? (o.mobile ? 'On (SMS)' : 'On, but no mobile on file') : 'Off'}</span></div>
+            <div className="fact">
+              <span className="label">Facebook Feature</span>
+              <span className="fact-value">
+                {SOCIAL_FEATURE_LABELS[o.socialFeature] || 'Not asked'}
+                {o.socialFeatureAt && <span className="cell-sub" style={{ marginLeft: 6 }}>· updated {prettyDay(o.socialFeatureAt.slice(0, 10))}</span>}
+              </span>
+            </div>
             <div className="fact"><span className="label">Notes</span><span className="fact-value" style={{ whiteSpace: 'pre-line' }}>{o.notes || '—'}</span></div>
           </div>
         </section>

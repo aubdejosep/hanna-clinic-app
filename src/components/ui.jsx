@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
-import { Cat, ChevronLeft, ChevronRight, CircleCheck, Dog, PawPrint, TriangleAlert, X } from 'lucide-react'
-import { REVIEW_LABELS } from '../lib/labels.js'
+import { Camera, CameraOff, Cat, ChevronLeft, ChevronRight, CircleCheck, Dog, PawPrint, TriangleAlert, X } from 'lucide-react'
+import { REVIEW_LABELS, SOCIAL_FEATURE_LABELS } from '../lib/labels.js'
+import { prettyDay } from '../lib/format.js'
 
 // Where a section's name in the breadcrumb goes: the section's first page, as in the menu.
 const SECTION_LINKS = {
@@ -74,6 +75,18 @@ export function ReviewBadge({ flags }) {
   return (
     <span className="badge badge-warm" title={flags.map((f) => REVIEW_LABELS[f] || f).join(' · ')}>
       <TriangleAlert aria-hidden /> Check
+    </span>
+  )
+}
+
+export function SocialFeatureBadge({ value, updatedAt }) {
+  const label = SOCIAL_FEATURE_LABELS[value] || 'Not asked'
+  const cls = value === 'yes' ? 'badge' : value === 'ask' ? 'badge badge-warm' : 'badge badge-soft'
+  const Icon = value === 'no' ? CameraOff : Camera
+  const title = `Facebook feature: ${label}${updatedAt ? ` (updated ${prettyDay(updatedAt.slice(0, 10))})` : ''}`
+  return (
+    <span className={cls} title={title}>
+      <Icon aria-hidden /> FB Feature: {label}
     </span>
   )
 }

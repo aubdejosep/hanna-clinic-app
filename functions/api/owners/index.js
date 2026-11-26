@@ -70,7 +70,12 @@ export async function onRequestPost({ request, env, data }) {
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const customerNo = await nextCustomerNo(env)
-    const cols = { ...owner.values, customer_no: customerNo, source: 'staff' }
+    const cols = {
+      ...owner.values,
+      ...(owner.values.social_feature ? { social_feature_at: new Date().toISOString() } : {}),
+      customer_no: customerNo,
+      source: 'staff',
+    }
     try {
       const inserted = await env.DB.prepare(
         `INSERT INTO owners (${Object.keys(cols).join(', ')}) VALUES (${Object.keys(cols).map(() => '?').join(', ')}) RETURNING *`,

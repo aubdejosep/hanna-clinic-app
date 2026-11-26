@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { CalendarDays, CalendarPlus, LogIn, Nfc, Pencil, Trash2, TriangleAlert, User } from 'lucide-react'
-import { Empty, ErrorNote, PageHead, PetAvatar, ReviewBadge, useToast, PawLoader } from '../components/ui.jsx'
+import { Empty, ErrorNote, PageHead, PetAvatar, ReviewBadge, SocialFeatureBadge, useToast, PawLoader } from '../components/ui.jsx'
 import { PetPanel } from '../components/ClientForms.jsx'
 import { RemovePetPanel } from '../components/RemovePanels.jsx'
 import { canManage, useStaff } from '../lib/staff.js'
@@ -103,6 +103,7 @@ export default function PetPage() {
                   <h2>{p.name}</h2>
                   {p.deceasedOn && <span className="badge badge-soft">Passed Away {prettyDay(p.deceasedOn)}</span>}
                   <ReviewBadge flags={p.reviewFlags} />
+                  <SocialFeatureBadge value={p.owner.socialFeature} updatedAt={p.owner.socialFeatureAt} />
                 </div>
                 <div className="profile-meta">
                   <span><User aria-hidden /> <Link to={`/clients/${p.owner.id}`}>{p.owner.name}</Link></span>
