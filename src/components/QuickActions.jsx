@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BedDouble, CalendarDays, CalendarPlus, Inbox, ShoppingBag, UserCheck, UserPlus, X } from 'lucide-react'
+import { ArrowLeft, BedDouble, CalendarDays, CalendarPlus, Mail, ShoppingBag, UserCheck, UserPlus, X } from 'lucide-react'
 import { useApi } from '../lib/useApi.js'
 import { useToast } from './ui.jsx'
 import { BookPanel, WalkInPanel } from './AppointmentPanels.jsx'
@@ -9,14 +9,33 @@ import { SellPanel } from './SellPanel.jsx'
 import { prettyDay } from '../lib/format.js'
 import { prettyTime } from '../lib/appointments.js'
 
-// Unread conversations in the Inbox, shown on the floating Inbox button (one small read every 2 minutes while visible).
+// Unread conversations in the Inbox, shown on the floating Inbox button, with a sound when new messages arrive.
 function InboxBadge() {
   const { data, reload } = useApi('inbox/count')
+  const prev = useRef(null)
+  const chime = useRef(null)
   useEffect(() => {
-    const t = setInterval(() => { if (!document.hidden) reload() }, 2 * 60000)
+    const a = new Audio('/sounds/inbox-notification.mp3')
+    a.preload = 'auto'
+    chime.current = a
+    const t = setInterval(() => { if (!document.hidden) reload() }, 30000)
+    const onVis = () => { if (!document.hidden) reload() }
     window.addEventListener('clinic:inbox-changed', reload)
-    return () => { clearInterval(t); window.removeEventListener('clinic:inbox-changed', reload) }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      clearInterval(t)
+      window.removeEventListener('clinic:inbox-changed', reload)
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [reload])
+  useEffect(() => {
+    if (data?.unread == null) return
+    if (prev.current !== null && data.unread > prev.current && chime.current) {
+      chime.current.currentTime = 0
+      chime.current.play().catch(() => {})
+    }
+    prev.current = data.unread
+  }, [data?.unread])
   return data?.unread ? <span className="fab-badge" aria-label={`${data.unread} unread`}>{data.unread > 99 ? '99+' : data.unread}</span> : null
 }
 
@@ -48,7 +67,7 @@ export default function QuickActions() {
     <>
       <div className="fab-wrap" ref={box}>
         <NavLink to="/inbox" className="fab fab-inbox" onClick={() => setMenu(null)} aria-label="Inbox" title="Inbox">
-          <Inbox aria-hidden />
+          <Mail aria-hidden />
           <InboxBadge />
         </NavLink>
         {menu && (
