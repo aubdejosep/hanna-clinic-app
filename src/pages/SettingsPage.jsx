@@ -2,12 +2,13 @@
 // any device), and their password.
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { CaseSensitive, Check, ImageUp, KeyRound, Palette, RotateCcw, Type } from 'lucide-react'
+import { CaseSensitive, Check, ImageUp, KeyRound, Palette, Play, RotateCcw, Type, Upload, Volume2 } from 'lucide-react'
 import { PageHead, useToast } from '../components/ui.jsx'
 import AccountPanel from '../components/AccountPanel.jsx'
 import { api } from '../lib/api.js'
 import { canManage, useStaff } from '../lib/staff.js'
 import { setLogoVersion, useLogo } from '../lib/logo.js'
+import { DEFAULT_INBOX_SOUND, setInboxSoundVersion, useInboxSound } from '../lib/inboxSound.js'
 import LogoCropper from '../components/LogoCropper.jsx'
 import { THEMES, TEXT_SIZES, applyDisplay } from '../lib/theme.js'
 import { DEFAULT_FONTS, FONTS, FONT_PARTS, MENU_WEIGHTS, cleanFonts } from '../../lib/fonts.js'
@@ -73,6 +74,65 @@ function ClinicLogo() {
         </div>
       </div>
       {file && <LogoCropper file={file} busy={busy} onClose={() => setFile(null)} onSave={upload} />}
+    </section>
+  )
+}
+
+const SOUND_MIME = { mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4', aac: 'audio/aac', webm: 'audio/webm' }
+// Owners and admins: the notification sound played for everyone when a new Inbox message arrives.
+function InboxSound() {
+  const soundUrl = useInboxSound()
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+  const custom = soundUrl !== DEFAULT_INBOX_SOUND
+  function preview() {
+    const a = new Audio(soundUrl)
+    a.play().catch(() => toast('Could not play the sound file.'))
+  }
+  async function upload(file) {
+    if (file.size > 2 * 1024 * 1024) { toast('This sound file is too large. Keep it under 2 MB.'); return }
+    const ext = (file.name.split('.').pop() || '').toLowerCase()
+    const type = file.type || SOUND_MIME[ext] || ''
+    if (!type.startsWith('audio/')) { toast('Please pick an MP3, WAV, OGG, or M4A audio file.'); return }
+    setBusy(true)
+    try {
+      const r = await fetch('/api/settings/inbox-sound', { method: 'PUT', body: file, headers: { 'Content-Type': type }, credentials: 'same-origin' })
+      const res = await r.json().catch(() => null)
+      if (!r.ok) throw new Error(res?.error || 'The sound didn’t upload. Please try again.')
+      setInboxSoundVersion(res.inboxSoundVersion)
+      toast('Inbox notification sound updated')
+    } catch (err) {
+      toast(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function reset() {
+    setBusy(true)
+    try {
+      await api('settings/inbox-sound', { method: 'DELETE' })
+      setInboxSoundVersion(null)
+      toast('Back to the default notification sound')
+    } catch (err) {
+      toast(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <section className="card">
+      <div className="card-head"><div className="settings-head"><span className="settings-icon"><Volume2 aria-hidden /></span><div><h2>Inbox Notification Sound</h2><p>Plays when a new Inbox message arrives. Owners and admins only.</p></div></div></div>
+      <div className="card-pad stack" style={{ gap: 10 }}>
+        <div className="inline-row">
+          <button type="button" className="btn btn-quiet" onClick={preview} disabled={busy}><Play aria-hidden /> Preview Sound</button>
+          <label className="btn btn-quiet">
+            <Upload aria-hidden /> {busy ? 'Uploading…' : 'Choose Sound File'}
+            <input type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" className="sr-only" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) upload(f) }} />
+          </label>
+        </div>
+        <span className="field-hint">MP3, WAV, OGG or M4A (up to 2 MB). Currently using: <strong>{custom ? 'Custom sound' : 'Default sound'}</strong>.</span>
+        {custom && <button type="button" className="text-btn" style={{ justifySelf: 'start' }} onClick={reset} disabled={busy}><RotateCcw size={14} aria-hidden /> Use the Default Sound</button>}
+      </div>
     </section>
   )
 }
@@ -170,6 +230,7 @@ export default function SettingsPage({ onStaff }) {
           </div>
         </section>
         {canManage(staff) && <ClinicLogo />}
+        {canManage(staff) && <InboxSound />}
         <section className="card">
           <div className="card-head">
             <div className="settings-head"><span className="settings-icon"><KeyRound aria-hidden /></span><div><h2>Password</h2><p>Logged in as {staff.email}.</p></div></div>

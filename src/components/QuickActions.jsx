@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { ArrowLeft, BedDouble, CalendarDays, CalendarPlus, Mail, ShoppingBag, UserCheck, UserPlus, X } from 'lucide-react'
 import { useApi } from '../lib/useApi.js'
+import { useInboxSound } from '../lib/inboxSound.js'
 import { useToast } from './ui.jsx'
 import { BookPanel, WalkInPanel } from './AppointmentPanels.jsx'
 import { appointmentsChanged } from './TagCheckIn.jsx'
@@ -12,12 +13,15 @@ import { prettyTime } from '../lib/appointments.js'
 // Unread conversations in the Inbox, shown on the floating Inbox button, with a sound when new messages arrive.
 function InboxBadge() {
   const { data, reload } = useApi('inbox/count')
+  const soundUrl = useInboxSound()
   const prev = useRef(null)
   const chime = useRef(null)
   useEffect(() => {
-    const a = new Audio('/sounds/inbox-notification.mp3')
+    const a = new Audio(soundUrl)
     a.preload = 'auto'
     chime.current = a
+  }, [soundUrl])
+  useEffect(() => {
     const t = setInterval(() => { if (!document.hidden) reload() }, 2 * 60000)
     window.addEventListener('clinic:inbox-changed', reload)
     return () => {

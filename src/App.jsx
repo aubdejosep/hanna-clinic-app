@@ -37,6 +37,7 @@ import InboxPage from './pages/InboxPage.jsx'
 import MedicationsPage from './pages/MedicationsPage.jsx'
 import { applyDisplay } from './lib/theme.js'
 import { setLogoVersion } from './lib/logo.js'
+import { setInboxSoundVersion } from './lib/inboxSound.js'
 import { CountPage, CountsPage, MovementsPage } from './pages/StockPages.jsx'
 import { StaffContext } from './lib/staff.js'
 
@@ -45,6 +46,7 @@ export default function App() {
   // The person's theme and text size (Settings) follow their login to any device.
   useEffect(() => { if (data?.staff) applyDisplay(data.staff) }, [data?.staff?.theme, data?.staff?.textSize, JSON.stringify(data?.staff?.fonts || null)]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (data) setLogoVersion(data.logoVersion) }, [data?.logoVersion]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (data) setInboxSoundVersion(data.inboxSoundVersion) }, [data?.inboxSoundVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   const [loggedOut, setLoggedOut] = useState(false)
   useEffect(() => {
     const onLoggedOut = () => setLoggedOut(true)
