@@ -18,14 +18,11 @@ function InboxBadge() {
     const a = new Audio('/sounds/inbox-notification.mp3')
     a.preload = 'auto'
     chime.current = a
-    const t = setInterval(() => { if (!document.hidden) reload() }, 30000)
-    const onVis = () => { if (!document.hidden) reload() }
+    const t = setInterval(() => { if (!document.hidden) reload() }, 2 * 60000)
     window.addEventListener('clinic:inbox-changed', reload)
-    document.addEventListener('visibilitychange', onVis)
     return () => {
       clearInterval(t)
       window.removeEventListener('clinic:inbox-changed', reload)
-      document.removeEventListener('visibilitychange', onVis)
     }
   }, [reload])
   useEffect(() => {
