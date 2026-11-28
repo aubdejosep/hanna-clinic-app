@@ -247,8 +247,13 @@ function StaffPicker({ a, onChange }) {
       {open && (
         <div className="staff-pop card" role="group" aria-label="Staff for this visit">
           {(data?.staff || []).map((s) => (
-            <label key={s.id} className="svc-opt"><input type="checkbox" checked={ids.includes(s.id)} onChange={() => toggle(s.id)} disabled={busy} />
-              <span>{s.name}</span><span className="cell-sub">{s.title || ROLE_LABEL[s.role] || s.role}</span></label>
+            <label key={s.id} className="staff-opt">
+              <input type="checkbox" checked={ids.includes(s.id)} onChange={() => toggle(s.id)} disabled={busy} />
+              <span className="staff-opt-text">
+                <strong>{s.name}</strong>
+                <span className="cell-sub">{s.title || ROLE_LABEL[s.role] || s.role}</span>
+              </span>
+            </label>
           ))}
           {!data && <span className="cell-sub">Loading…</span>}
         </div>
