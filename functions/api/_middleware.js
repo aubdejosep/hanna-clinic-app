@@ -36,7 +36,7 @@ export async function onRequest(context) {
   const response = await runRoute(context)
   // A change (booking, step, edit) clears the shared, briefly cached lists so everyone sees it.
   if (request.method !== 'GET' && response.ok) {
-    await forget(context.env, 'reminders', 'appt_tabs', 'stats').catch(() => {})
+    await forget(context.env, 'reminders', 'appt_tabs', 'stats', 'missing_follow_up').catch(() => {})
   }
   if (result.setCookie) {
     const copy = new Response(response.body, response)

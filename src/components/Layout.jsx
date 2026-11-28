@@ -4,10 +4,11 @@ import { TypingHost } from './ReceiptTyping.jsx'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { BookOpen, BookOpenText, ReceiptText, PanelLeftClose, PanelLeftOpen, Activity, Boxes, CalendarDays, ChevronDown, ChevronRight, ChevronsUpDown, FolderOpen, LayoutDashboard, LogOut, Menu, MonitorSmartphone, Pill, Settings, UserRound, Wallet, X } from 'lucide-react'
 import { api } from '../lib/api.js'
+import { useApi } from '../lib/useApi.js'
 import { useLogo } from '../lib/logo.js'
 import { initials } from '../lib/format.js'
 import { canManage, ROLE_LABEL } from '../lib/staff.js'
-import TagCheckIn from './TagCheckIn.jsx'
+import TagCheckIn, { useAppointmentsChanged } from './TagCheckIn.jsx'
 import ReminderBell from './ReminderBell.jsx'
 import OmniSearch from './OmniSearch.jsx'
 import OfflineBanner from './OfflineBanner.jsx'
@@ -27,7 +28,10 @@ const NAV = [
     { to: '/clinic/backups', label: 'Backups', owners: true },
     { to: '/content', label: 'Content' },
   ] },
-  { to: '/appointments', label: 'Appointments', icon: CalendarDays },
+  { label: 'Appointments', icon: CalendarDays, children: [
+    { to: '/appointments', label: 'Appointment List' },
+    { to: '/appointments/missing-follow-up', label: 'Missing Follow-Up', countKey: 'missingFollowUp' },
+  ] },
   { label: 'Client Portal', icon: UserRound, children: [
     { to: '/clients', label: 'Masterlist' },
     { to: '/analytics/customers', label: 'Customer Analytics', owners: true },
@@ -60,24 +64,40 @@ const isInside = (group, pathname) => group.children.some((c) => pathname === c.
 
 // Only one group is open at a time: opening one closes the other (the page's own group opens on arrival).
 // With the menu collapsed (icons only), a group opens as a small list beside its icon.
-function NavGroup({ group, pathname, staff, open, onToggle, mini }) {
+function NavGroup({ group, pathname, staff, open, onToggle, mini, counts }) {
   const inside = isInside(group, pathname)
   const Chevron = open ? ChevronDown : ChevronRight
+  const visibleChildren = group.children.filter((c) => !c.owners || canManage(staff))
+  const groupCount = visibleChildren.reduce((sum, c) => sum + (c.countKey && counts?.[c.countKey] > 0 ? counts[c.countKey] : 0), 0)
   return (
     <div className="nav-groupbox">
       <button type="button" className={`nav-link nav-parent ${inside ? 'inside' : ''}`} onClick={onToggle} aria-expanded={open} title={mini ? group.label : undefined}>
         <group.icon aria-hidden /> <span className="nav-label">{group.label}</span>
         {group.soon && <span className="badge badge-soft soon">Soon</span>}
+        {mini && groupCount > 0 && <span className="badge badge-warm nav-count">{groupCount > 99 ? '99+' : groupCount}</span>}
         <Chevron className="nav-chevron" aria-hidden />
       </button>
       {open && (
         <div className="nav-children">
           {mini && <span className="nav-flyout-title">{group.label}</span>}
-          {group.children.filter((c) => !c.owners || canManage(staff)).map((c) => (
-            <NavLink key={c.to} to={c.to} end={c.to === '/records' || c.to === '/inventory' || c.to === '/prescription/medications'} className={({ isActive }) => `nav-link nav-child ${isActive || (c.to === '/clients' && pathname.startsWith('/pets')) ? 'active' : ''}`}>
-              {c.label}
-            </NavLink>
-          ))}
+          {visibleChildren.map((c) => {
+            const count = c.countKey ? counts?.[c.countKey] : null
+            return (
+              <NavLink
+                key={c.to}
+                to={c.to}
+                end={c.to === '/appointments' || c.to === '/records' || c.to === '/inventory' || c.to === '/prescription/medications'}
+                className={({ isActive }) => `nav-link nav-child ${isActive || (c.to === '/clients' && pathname.startsWith('/pets')) || (c.to === '/appointments' && /^\/appointments\/\d+/.test(pathname)) ? 'active' : ''}`}
+              >
+                <span>{c.label}</span>
+                {count != null && (
+                  <span className={`badge ${count > 0 ? 'badge-warm' : 'badge-soft'} nav-count`} aria-label={`${count} requiring follow-up`}>
+                    {count > 999 ? '999+' : count}
+                  </span>
+                )}
+              </NavLink>
+            )
+          })}
         </div>
       )}
     </div>
@@ -193,6 +213,16 @@ export default function Layout({ staff }) {
     return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc) }
   }, [collapsed, openGroup])
 
+  const missingFollowUp = useApi('appointments/missing-follow-up?countOnly=1')
+  useAppointmentsChanged(missingFollowUp.reload)
+  useEffect(() => {
+    const t = setInterval(() => { if (!document.hidden) missingFollowUp.reload() }, 2 * 60000)
+    const onVisible = () => { if (!document.hidden) missingFollowUp.reload() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible) }
+  }, [missingFollowUp.reload])
+  const navCounts = { missingFollowUp: missingFollowUp.data ? missingFollowUp.data.total : null }
+
   return (
     <div className="shell" data-nav={open ? 'open' : 'closed'} data-mini={collapsed ? '1' : undefined}>
       <div className="topbar">
@@ -214,7 +244,7 @@ export default function Layout({ staff }) {
         </div>
         <div className="sidebar-nav">
           {NAV.map((item) => item.children ? (
-            <NavGroup key={item.label} group={item} pathname={pathname} staff={staff} open={openGroup === item.label} mini={collapsed}
+            <NavGroup key={item.label} group={item} pathname={pathname} staff={staff} open={openGroup === item.label} mini={collapsed} counts={navCounts}
               onToggle={() => setOpenGroup((g) => (g === item.label ? null : item.label))} />
           ) : (
             <NavLink key={item.to} to={item.to} end={item.end} className="nav-link" title={collapsed ? item.label : undefined}>

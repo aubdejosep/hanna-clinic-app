@@ -17,6 +17,7 @@ import MessagesSettingsPage from './pages/MessagesSettingsPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import AppointmentsPage from './pages/AppointmentsPage.jsx'
 import AppointmentPage from './pages/AppointmentPage.jsx'
+import MissingFollowUpPage from './pages/MissingFollowUpPage.jsx'
 import RecordsPage from './pages/RecordsPage.jsx'
 import InventoryPage from './pages/InventoryPage.jsx'
 import CustomerAnalyticsPage from './pages/CustomerAnalyticsPage.jsx'
@@ -79,6 +80,7 @@ export default function App() {
         <Route path="clients/:id" element={<OwnerPage />} />
         <Route path="pets/:id" element={<PetPage />} />
         <Route path="appointments" element={<AppointmentsPage />} />
+        <Route path="appointments/missing-follow-up" element={<MissingFollowUpPage />} />
         <Route path="appointments/:id" element={<AppointmentPage />} />
         <Route path="records" element={<RecordsPage />} />
         <Route path="records/*" element={<ComingSoon module="records" />} />
