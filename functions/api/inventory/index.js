@@ -1,8 +1,8 @@
 // GET  /api/inventory?q=&category=&filter=low|out|expiring|uncounted -> Product List with stock on hand,
 //        nearest expiry and a summary (everyone sees prices and costs)
-// POST /api/inventory {name, category, unit, packName, packSize, price, cost, reorderLevel} -> adds a product (owners)
+// POST /api/inventory {name, category, unit, packName, packSize, price, cost, reorderLevel} -> adds a product
 
-import { json, fail, readJson, canManage, manilaToday, audit } from '../../../lib/http.js'
+import { json, fail, readJson, manilaToday, audit } from '../../../lib/http.js'
 import { productOut } from '../../../lib/stock.js'
 import { productInput } from '../../../lib/inventory.js'
 
@@ -43,7 +43,6 @@ export async function onRequestGet({ env, request }) {
 }
 
 export async function onRequestPost({ request, env, data }) {
-  if (!canManage(data.staff)) return fail(403, 'Only a clinic owner can add products.')
   const body = await readJson(request)
   if (!body) return fail(400, 'Send the product as JSON.')
   const { values, errors } = productInput(body)

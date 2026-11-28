@@ -1,14 +1,13 @@
-// POST /api/sales/:id/void {reason} -> voids a sale (owners): the payment is voided and the stock goes back.
+// POST /api/sales/:id/void {reason} -> voids a sale (requires a note; notifies owners/admins): the payment is voided and the stock goes back.
 
-import { json, fail, readJson, clean, canManage, audit } from '../../../../lib/http.js'
+import { json, fail, readJson, clean, audit } from '../../../../lib/http.js'
 import { applyMovements } from '../../../../lib/stock.js'
 import { loadSales } from '../index.js'
 
 export async function onRequestPost({ request, env, params, data }) {
-  if (!canManage(data.staff)) return fail(403, 'Only a clinic owner can void a sale.')
   const id = Number(params.id)
   const reason = clean(((await readJson(request)) || {}).reason, 200)
-  if (!reason) return fail(400, 'Say why the sale is being voided.', { errors: { reason: 'Say why, e.g. rang up the wrong item.' } })
+  if (!reason) return fail(400, 'Enter a note explaining why the sale is being voided.', { errors: { reason: 'Enter a note, e.g. rang up the wrong item.' } })
   const now = new Date().toISOString()
   const res = await env.DB.prepare('UPDATE sales SET voided_at = ?, voided_by = ?, void_reason = ? WHERE id = ? AND voided_at IS NULL').bind(now, data.staff.name, reason, id).run()
   if (!res.meta.changes) return fail(400, 'This sale was not found, or is already voided.')

@@ -1,10 +1,13 @@
 // Sell Items: an over-the-counter sale with no pet visit (shampoo, vitamins…). Paid and handed
 // over, so the stock comes off at once. Who sold it is kept with the sale.
 import { useMemo, useRef, useState } from 'react'
-import { Minus, Plus, Search, X } from 'lucide-react'
+import { Ban, Minus, Plus, Search, X } from 'lucide-react'
 import { ErrorNote, Field, Panel, PawLoader } from './ui.jsx'
+import { appointmentsChanged } from './TagCheckIn.jsx'
 import { api } from '../lib/api.js'
 import { useApi } from '../lib/useApi.js'
+import { clockTime, manilaToday } from '../lib/appointments.js'
+import { prettyDay } from '../lib/format.js'
 import { METHOD_LABEL, peso } from './QuickAdd.jsx'
 
 export function SellPanel({ onClose, onDone }) {
@@ -80,7 +83,7 @@ export function SellPanel({ onClose, onDone }) {
               ))}
             </ul>
           )}
-          {find && !rows.length && <p className="field-hint" style={{ margin: 0 }}>Nothing matches “{find}”. An owner can add it in the Product List or Services.</p>}
+          {find && !rows.length && <p className="field-hint" style={{ margin: 0 }}>Nothing matches “{find}”. You can add products in the Product List.</p>}
           <section className="form-section">
             <h3 className="label">Items</h3>
             {!lines.length && <p className="field-hint" style={{ margin: 0 }}>Search above and tap a product or service to add it.</p>}
@@ -121,3 +124,107 @@ export function SellPanel({ onClose, onDone }) {
     </Panel>
   )
 }
+
+function VoidSalePanel({ sale, onClose, onDone }) {
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const errors = error?.body?.errors || {}
+  async function save() {
+    setBusy(true)
+    setError(null)
+    try {
+      await api(`sales/${sale.id}/void`, { method: 'POST', body: { reason } })
+      appointmentsChanged()
+      onDone('Sale voided. Stock is back on the shelf.')
+    } catch (err) {
+      setError(err)
+      setBusy(false)
+    }
+  }
+  return (
+    <Panel
+      dirty={!!reason.trim()}
+      title="Void Sale"
+      intro={`${sale.items || `Sale #${sale.id}`} · ${peso(sale.total)}. Stock goes back on the shelf, and clinic owners and admins will be notified.`}
+      onClose={onClose}
+      busy={busy}
+      footer={(
+        <>
+          <button type="button" className="btn btn-quiet" onClick={onClose} disabled={busy}>Keep Sale</button>
+          <button type="button" className="btn btn-dark" onClick={save} disabled={busy || !reason.trim()}>
+            {busy ? 'Voiding…' : 'Void Sale'}
+          </button>
+        </>
+      )}
+    >
+      <ErrorNote error={error && !Object.keys(errors).length ? error : null} />
+      <Field label="Note (Required)" error={errors.reason}>
+        {(a) => <input {...a} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} autoFocus placeholder="Say why, e.g. rang up the wrong item" />}
+      </Field>
+    </Panel>
+  )
+}
+
+export function SalesPanel({ initialDay, onClose, onChanged }) {
+  const [day, setDay] = useState(initialDay || manilaToday())
+  const { data, error, reload } = useApi(`sales?day=${encodeURIComponent(day)}`)
+  const [voiding, setVoiding] = useState(null)
+
+  if (voiding) {
+    return (
+      <VoidSalePanel
+        sale={voiding}
+        onClose={() => setVoiding(null)}
+        onDone={(msg) => {
+          setVoiding(null)
+          reload()
+          onChanged?.(msg)
+        }}
+      />
+    )
+  }
+
+  const sales = data?.sales || []
+  return (
+    <Panel
+      title="Product Sales"
+      intro={`Over-the-counter sales for ${prettyDay(day)}. Voiding a sale requires a note and notifies owners and admins.`}
+      onClose={onClose}
+    >
+      <div className="inline-row" style={{ marginBottom: 14 }}>
+        <label className="sr-only" htmlFor="sales-day">Date</label>
+        <input id="sales-day" type="date" className="input" style={{ width: 'auto' }} value={day} max={manilaToday()} onChange={(e) => e.target.value && setDay(e.target.value)} />
+      </div>
+      <ErrorNote error={error} />
+      {!data ? <PawLoader small /> : !sales.length ? (
+        <p className="field-hint" style={{ margin: 0 }}>No product sales recorded on {prettyDay(day)}.</p>
+      ) : (
+        <ul className="move-list">
+          {sales.map((s) => (
+            <li key={s.id} style={{ alignItems: 'flex-start' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong>{s.items || `Sale #${s.id}`}</strong>
+                <span className="cell-sub">
+                  {clockTime(s.at)} · {peso(s.total)}{s.method ? ` · ${METHOD_LABEL[s.method] || s.method}` : ''}{s.customer ? ` · ${s.customer}` : ''}{s.by ? ` · by ${s.by}` : ''}
+                </span>
+                {s.voidedAt && (
+                  <span className="cell-sub" style={{ marginTop: 4 }}>
+                    <span className="badge badge-warm" style={{ marginRight: 6 }}>Voided</span>
+                    by {s.voidedBy || 'staff'}: {s.voidReason}
+                  </span>
+                )}
+              </div>
+              {!s.voidedAt && (
+                <button type="button" className="btn btn-sm btn-quiet" onClick={() => setVoiding(s)}>
+                  <Ban aria-hidden /> Void
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  )
+}
+

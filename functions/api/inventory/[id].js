@@ -1,8 +1,8 @@
 // GET   /api/inventory/:id -> the product, its batches, its last 100 movements and the services that use it
-// PATCH /api/inventory/:id {name, category, unit, packName, packSize, price, cost, reorderLevel, active} -> owners
+// PATCH /api/inventory/:id {name, category, unit, packName, packSize, price, cost, reorderLevel, active}
 // Stock itself never changes here: use Receive, Adjust, a visit, a sale or a stock count.
 
-import { json, fail, readJson, canManage, audit } from '../../../lib/http.js'
+import { json, fail, readJson, audit } from '../../../lib/http.js'
 import { productOut } from '../../../lib/stock.js'
 import { productInput } from '../../../lib/inventory.js'
 import { setClause } from '../../../lib/clients.js'
@@ -40,7 +40,6 @@ export async function onRequestGet({ env, params }) {
 }
 
 export async function onRequestPatch({ request, env, params, data }) {
-  if (!canManage(data.staff)) return fail(403, 'Only a clinic owner can change product details.')
   const id = Number(params.id)
   const body = await readJson(request)
   if (!body) return fail(400, 'Send the changes as JSON.')

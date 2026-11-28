@@ -1,7 +1,7 @@
 // GET    /api/inventory/counts/:id -> the count with every active product: on hand now, and what was counted
-// DELETE /api/inventory/counts/:id -> cancels an open count (owners); nothing changes in stock
+// DELETE /api/inventory/counts/:id -> cancels an open count; nothing changes in stock
 
-import { json, fail, canManage, audit } from '../../../../lib/http.js'
+import { json, fail, audit } from '../../../../lib/http.js'
 import { countOut } from './index.js'
 
 export async function loadCount(env, id) {
@@ -34,7 +34,6 @@ export async function onRequestGet({ env, params }) {
 }
 
 export async function onRequestDelete({ env, params, data }) {
-  if (!canManage(data.staff)) return fail(403, 'Only a clinic owner can cancel a count.')
   const id = Number(params.id)
   const res = await env.DB.prepare('UPDATE stock_counts SET cancelled_at = ?, cancelled_by = ? WHERE id = ? AND finished_at IS NULL AND cancelled_at IS NULL')
     .bind(new Date().toISOString(), data.staff.name, id).run()

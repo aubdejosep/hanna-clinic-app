@@ -1,7 +1,7 @@
 // GET  /api/reminders            -> the workflow reminders for the logged-in staff member (the bell)
 // POST /api/reminders {key, reason} -> "Not Needed": hides that reminder for everyone
 
-import { json, fail, readJson, clean, audit } from '../../../lib/http.js'
+import { json, fail, readJson, clean, canManage, audit } from '../../../lib/http.js'
 import { computeReminders, forStaff } from '../../../lib/reminders.js'
 import { pullWebsiteBookings } from '../../../lib/website.js'
 import { pullFreeConsults } from '../../../lib/website-signups.js'
@@ -21,7 +21,8 @@ export async function onRequestGet({ request, env, data }) {
 export async function onRequestPost({ request, env, data }) {
   const body = (await readJson(request)) || {}
   const key = clean(body.key, 60)
-  if (!/^((follow_up|dispense|no_services|no_vet|pet_info|owner_info|website_client|online_booking):\d+|(low_stock|expiring):\d{4}-\d\d-\d\d)$/.test(key)) return fail(400, 'This reminder was not found.')
+  if (!/^((follow_up|dispense|no_services|no_vet|pet_info|owner_info|website_client|online_booking|voided_sale):\d+|(low_stock|expiring):\d{4}-\d\d-\d\d)$/.test(key)) return fail(400, 'This reminder was not found.')
+  if (key.startsWith('voided_sale:') && !canManage(data.staff)) return fail(403, 'Only an owner or admin can mark a voided sale notification as seen.')
   await env.DB.prepare('INSERT OR REPLACE INTO reminder_dismissals (key, dismissed_by, reason) VALUES (?, ?, ?)').bind(key, data.staff.name, clean(body.reason, 200) || null).run()
   await audit(env, data.staff.email, 'dismiss_reminder', 'reminder', key, { reason: clean(body.reason, 200) || null })
   return json({ ok: true })

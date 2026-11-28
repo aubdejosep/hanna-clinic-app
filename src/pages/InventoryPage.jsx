@@ -1,15 +1,14 @@
 // Inventory ▸ Product List: stock on hand for every medicine and product, with Receive Stock,
-// Adjust Stock and Sell Items. Prices and costs are visible to everyone; owners edit details.
+// Adjust Stock, Sell Items, and Product Sales.
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowDownToLine, ClipboardList, Package, PackagePlus, Pencil, Plus, Search, ShoppingBag, SlidersHorizontal } from 'lucide-react'
+import { ArrowDownToLine, ClipboardList, Package, PackagePlus, Pencil, Plus, ReceiptText, Search, ShoppingBag, SlidersHorizontal } from 'lucide-react'
 import { Empty, ErrorNote, Field, PageHead, Panel, PawLoader, useToast } from '../components/ui.jsx'
-import { SellPanel } from '../components/SellPanel.jsx'
+import { SalesPanel, SellPanel } from '../components/SellPanel.jsx'
 import { api, query } from '../lib/api.js'
 import { useApi, useDebounced } from '../lib/useApi.js'
-import { canManage, useStaff } from '../lib/staff.js'
 import { prettyDay } from '../lib/format.js'
-import { clockTime } from '../lib/appointments.js'
+import { clockTime, manilaToday } from '../lib/appointments.js'
 
 export const UNITS = ['tablet', 'capsule', 'ml', 'vial', 'dose', 'piece', 'sachet', 'tube', 'bottle', 'bar', 'pack', 'box']
 export const ADJUST_REASONS = ['Expired', 'Damaged', 'Used in Clinic', 'Lost or Missing', 'Found', 'Returned to Supplier', 'Correction']
@@ -179,7 +178,6 @@ function ProductPanel({ id, categories, onClose, onChanged }) {
   const p = data?.product
   const [sub, setSub] = useState(null)
   const toast = useToast()
-  const owner = canManage(useStaff())
   const done = (product, msg) => { setSub(null); setData({ product }); toast(msg); onChanged() }
   // One panel at a time: Edit, Receive and Adjust replace this one and come back to it.
   if (sub === 'edit') return <ProductForm product={p} categories={categories} onClose={() => setSub(null)} onDone={done} />
@@ -189,7 +187,7 @@ function ProductPanel({ id, categories, onClose, onChanged }) {
     <>
       <Panel title={p ? p.name : 'Product'} intro={p ? `${p.category || 'Other'} · counted in ${p.unit}s${p.packSize ? ` · ${p.packSize} per ${p.packName || 'pack'}` : ''}` : ''} onClose={onClose}
         footer={p && <>
-          {owner && <button type="button" className="btn btn-quiet" onClick={() => setSub('edit')}><Pencil aria-hidden /> Edit</button>}
+          <button type="button" className="btn btn-quiet" onClick={() => setSub('edit')}><Pencil aria-hidden /> Edit</button>
           <button type="button" className="btn btn-quiet" onClick={() => setSub('adjust')}><SlidersHorizontal aria-hidden /> Adjust</button>
           <button type="button" className="btn" onClick={() => setSub('receive')}><ArrowDownToLine aria-hidden /> Receive Stock</button>
         </>}>
@@ -245,18 +243,22 @@ export default function InventoryPage() {
   const [open, setOpen] = useState(null)
   const [adding, setAdding] = useState(false)
   const [selling, setSelling] = useState(false)
+  const [salesDay, setSalesDay] = useState(() => (params.get('sales') === '1' ? params.get('day') || manilaToday() : null))
   const toast = useToast()
-  const owner = canManage(useStaff())
   const update = (patch) => setParams((p) => { const n = new URLSearchParams(p); Object.entries(patch).forEach(([k, v]) => (v ? n.set(k, v) : n.delete(k))); return n }, { replace: true })
   const s = data?.summary
   useEffect(() => { const id = Number(params.get('product')); if (id) setOpen(id) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (params.get('sales') === '1') setSalesDay(params.get('day') || manilaToday())
+  }, [params])
   const cats = useMemo(() => data?.categories || [], [data])
   return (
     <>
       <PageHead crumbs={[{ label: 'Inventory' }, { label: 'Product List' }]} title="Product List" intro="Stock on hand, updated by every paid visit, sale, delivery and count.">
         <div className="head-actions">
           <button type="button" className="btn btn-quiet" onClick={() => setSelling(true)}><ShoppingBag aria-hidden /> Sell Items</button>
-          {owner && <button type="button" className="btn btn-quiet" onClick={() => setAdding(true)}><Plus aria-hidden /> Add Product</button>}
+          <button type="button" className="btn btn-quiet" onClick={() => setSalesDay(manilaToday())}><ReceiptText aria-hidden /> Sales</button>
+          <button type="button" className="btn btn-quiet" onClick={() => setAdding(true)}><Plus aria-hidden /> Add Product</button>
           <Link className="btn" to="/inventory/counts"><ClipboardList aria-hidden /> Stock Count</Link>
         </div>
       </PageHead>
@@ -313,6 +315,7 @@ export default function InventoryPage() {
       {open && <ProductPanel id={open} categories={cats} onClose={() => { setOpen(null); if (params.get('product')) update({ product: '' }) }} onChanged={reload} />}
       {adding && <ProductForm categories={cats} onClose={() => setAdding(false)} onDone={(p, msg) => { setAdding(false); toast(msg); reload(); setOpen(p.id) }} />}
       {selling && <SellPanel onClose={() => setSelling(false)} onDone={(msg) => { setSelling(false); toast(msg); reload() }} />}
+      {salesDay && <SalesPanel initialDay={salesDay} onClose={() => { setSalesDay(null); if (params.get('sales') || params.get('day')) update({ sales: '', day: '' }) }} onChanged={(msg) => { if (msg) toast(msg); reload() }} />}
     </>
   )
 }

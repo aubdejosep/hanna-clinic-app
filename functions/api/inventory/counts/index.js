@@ -1,8 +1,8 @@
 // GET  /api/inventory/counts -> stock counts, newest first, with what each found missing or extra
-// POST /api/inventory/counts {note} -> starts a count (owners). The first one is the baseline: the
+// POST /api/inventory/counts {note} -> starts a count. The first one is the baseline: the
 //        opening stock everything after is measured from.
 
-import { json, fail, readJson, clean, canManage, audit } from '../../../../lib/http.js'
+import { json, fail, readJson, clean, audit } from '../../../../lib/http.js'
 
 export async function onRequestGet({ env }) {
   const { results } = await env.DB.prepare(`SELECT c.*, COUNT(l.product_id) AS lines,
@@ -22,7 +22,6 @@ export function countOut(c) {
 }
 
 export async function onRequestPost({ request, env, data }) {
-  if (!canManage(data.staff)) return fail(403, 'Only a clinic owner can start a stock count.')
   const body = (await readJson(request)) || {}
   const open = await env.DB.prepare('SELECT id FROM stock_counts WHERE finished_at IS NULL AND cancelled_at IS NULL LIMIT 1').first()
   if (open) return fail(409, 'A count is already open. Finish or cancel it first.', { countId: open.id })

@@ -7,7 +7,6 @@ import { Empty, ErrorNote, PageHead, Pager, PawLoader, useToast } from '../compo
 import { Change, KIND_LABEL, MovementWhy, UNITS, peso, qtyText, unitWord } from './InventoryPage.jsx'
 import { api, query } from '../lib/api.js'
 import { useApi, useDebounced } from '../lib/useApi.js'
-import { canManage, useStaff } from '../lib/staff.js'
 import { prettyDay } from '../lib/format.js'
 import { clockTime, manilaToday } from '../lib/appointments.js'
 
@@ -71,7 +70,6 @@ export function MovementsPage() {
 
 export function CountsPage() {
   const { data, error } = useApi('inventory/counts')
-  const owner = canManage(useStaff())
   const navigate = useNavigate()
   const toast = useToast()
   const [busy, setBusy] = useState(false)
@@ -91,13 +89,13 @@ export function CountsPage() {
     <>
       <PageHead crumbs={[{ label: 'Inventory' }, { label: 'Stock Count' }]} title="Stock Count"
         intro={baselineDone ? 'Count the shelves now and then. The difference from what the app expected is what went missing (or was never recorded).' : 'The first count is the baseline: the real opening stock. Everything after it is tracked from there.'}>
-        {owner && !open && <button type="button" className="btn" onClick={start} disabled={busy || !data}><ClipboardList aria-hidden /> {baselineDone ? 'Start a Count' : 'Start the Baseline Count'}</button>}
+        {!open && <button type="button" className="btn" onClick={start} disabled={busy || !data}><ClipboardList aria-hidden /> {baselineDone ? 'Start a Count' : 'Start the Baseline Count'}</button>}
         {open && <Link className="btn" to={`/inventory/counts/${open.id}`}><ClipboardList aria-hidden /> Continue the Count</Link>}
       </PageHead>
       <ErrorNote error={error} />
       <section className="card">
         {!data ? <PawLoader /> : !data.counts.length ? (
-          <Empty icon={ClipboardList} title="No counts yet" text={owner ? 'Start the baseline count: staff count each product on the shelf from their phones, then an owner finishes it.' : 'An owner starts the first count. Then everyone can help count from their phones.'} />
+          <Empty icon={ClipboardList} title="No counts yet" text="Start the baseline count: staff count each product on the shelf from their phones, then finish the count." />
         ) : (
           <table className="table">
             <thead><tr><th>Count</th><th>Products Counted</th><th className="num">Missing (at Cost)</th><th className="num hide-sm">Extra</th><th>Status</th></tr></thead>
@@ -161,7 +159,6 @@ export function CountPage() {
   const { id } = useParams()
   const { data, error, setData, reload } = useApi(`inventory/counts/${id}`)
   const c = data?.count
-  const owner = canManage(useStaff())
   const toast = useToast()
   const navigate = useNavigate()
   const [text, setText] = useState('')
@@ -200,10 +197,10 @@ export function CountPage() {
     <>
       <PageHead crumbs={crumbs} title={baseline ? 'Baseline Count' : 'Stock Count'}
         intro={baseline ? 'Count what is on the shelf, in the smallest unit you give (tablets, ml, vials). Set the unit while you count. Each number saves when you leave the field, so several people can count at once.' : 'Count what is on the shelf. The app’s own number stays hidden until the count is finished, so the count is honest. Each number saves when you leave the field.'}>
-        {owner && <div className="head-actions">
+        <div className="head-actions">
           <button type="button" className="btn btn-quiet" onClick={cancel}>Cancel Count</button>
           <button type="button" className="btn" onClick={() => setConfirming(true)} disabled={!counted}>Finish Count</button>
-        </div>}
+        </div>
       </PageHead>
       {confirming && (
         <div className="alert" role="alertdialog" style={{ marginBottom: 16 }}>

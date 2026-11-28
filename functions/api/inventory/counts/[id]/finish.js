@@ -1,13 +1,12 @@
-// POST /api/inventory/counts/:id/finish -> applies the count (owners): each counted product's stock is set
+// POST /api/inventory/counts/:id/finish -> applies the count: each counted product's stock is set
 //   to what was counted, with a Count movement for the difference (missing or extra), and its batches
 //   start again from the count with the expiry seen on the shelf. Products not counted are left as they are.
 
-import { json, fail, canManage, manilaToday, audit } from '../../../../../lib/http.js'
+import { json, fail, manilaToday, audit } from '../../../../../lib/http.js'
 import { applyMovements } from '../../../../../lib/stock.js'
 import { loadCount } from '../[id].js'
 
 export async function onRequestPost({ env, params, data }) {
-  if (!canManage(data.staff)) return fail(403, 'Only a clinic owner can finish a count.')
   const id = Number(params.id)
   const count = await env.DB.prepare('SELECT * FROM stock_counts WHERE id = ? AND finished_at IS NULL AND cancelled_at IS NULL').bind(id).first()
   if (!count) return fail(400, 'This count is already closed.')
